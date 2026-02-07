@@ -20,6 +20,39 @@ A web platform where users can:
 - **Real-time**: WebSockets for live battles
 - **Hosting**: Vercel (frontend), Railway/Render free tier (backend)
 
+## 🏗️ Project Structure
+
+```
+agent-arena/
+├── src/                 # Backend (Express + Socket.io)
+│   ├── api/            # REST endpoints
+│   ├── game/           # Game logic (battle, matchmaking)
+│   ├── sockets/        # Socket.io handlers
+│   ├── database/       # DB schema & migrations
+│   └── server.ts       # Entry point
+├── frontend/           # Frontend (Next.js 14)
+│   ├── src/app/       # Pages & routes
+│   ├── package.json   # Dependencies
+│   └── README.md      # Frontend docs
+└── docs/              # Architecture & design docs
+```
+
+## 🚀 Quick Start
+
+**Backend:**
+```bash
+npm install
+npm run migrate  # Set up database
+npm run dev     # Start server on http://localhost:3000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev     # Start on http://localhost:3000
+```
+
 ## 📊 Dashboard & Tracking
 
 See the unified dashboard for all projects: [Buster's Command Center](https://github.com/Dev-Busters/dashboard)
