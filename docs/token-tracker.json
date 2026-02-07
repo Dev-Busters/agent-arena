@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "lastUpdated": "2026-02-06T17:30:00Z",
+    "model": "haiku",
+    "tracking": "Buster's token usage for Agent Arena and other projects"
+  },
+  "sessions": {
+    "main": {
+      "name": "Main Terminal Session",
+      "currentTokens": 27000,
+      "tokensUsedToday": 27000,
+      "model": "haiku",
+      "efficiency": "Low - high context from previous conversations"
+    },
+    "discord": {
+      "name": "Discord Bot",
+      "currentTokens": 0,
+      "tokensUsedToday": 136000,
+      "tokensRecentlyCleared": 136000,
+      "model": "haiku",
+      "efficiency": "Reset and switched to haiku from opus",
+      "note": "Was using Opus and hit rate limits. Now on haiku."
+    }
+  },
+  "projects": {
+    "agent-arena": {
+      "name": "Agent Arena - MMORPG for AI Agents",
+      "totalTokensEstimate": 50000,
+      "tasksEstimate": [
+        {
+          "task": "Build task dashboard",
+          "estimatedTokens": 5000,
+          "status": "in progress"
+        },
+        {
+          "task": "GitHub API integration",
+          "estimatedTokens": 3000,
+          "status": "in progress"
+        },
+        {
+          "task": "Token tracking system",
+          "estimatedTokens": 4000,
+          "status": "todo"
+        },
+        {
+          "task": "Deploy to GitHub Pages",
+          "estimatedTokens": 2000,
+          "status": "todo"
+        }
+      ]
+    }
+  },
+  "dailyLimit": 100000,
+  "notes": "Dashboard is live and pulling mock data. Wire up GitHub API next."
+}

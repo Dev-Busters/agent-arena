@@ -20,6 +20,35 @@ A web platform where users can:
 - **Real-time**: WebSockets for live battles
 - **Hosting**: Vercel (frontend), Railway/Render free tier (backend)
 
+## 📊 Dashboard
+
+**View the live dashboard**: [Buster's Task Dashboard](https://dev-busters.github.io/agent-arena/dashboard.html)
+
+Track tasks, priorities, progress, and token usage in real-time. The dashboard pulls from GitHub Projects and updates with token tracking data.
+
+### Dashboard Features
+
+- 📋 **Task Management** - See all active tasks, priorities, and progress
+- 🔢 **Token Tracking** - Monitor Haiku model token usage per session and project
+- 📈 **Progress Metrics** - Overall completion percentage and per-task progress bars
+- 🎯 **Priority Filtering** - Filter by critical, high, medium priority or in-progress status
+- 💾 **Data Sources** - Pulls from GitHub Projects API and `token-tracker.json`
+
+### Token Tracking
+
+Update `docs/token-tracker.json` to keep the dashboard in sync with current token usage. Format:
+
+```json
+{
+  "sessions": {
+    "main": {
+      "currentTokens": 27000,
+      "model": "haiku"
+    }
+  }
+}
+```
+
 ## 📋 Project Board
 
 Track development progress: [Agent Arena Development](https://github.com/orgs/Dev-Busters/projects/1)
