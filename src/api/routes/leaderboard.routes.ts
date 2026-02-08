@@ -29,10 +29,10 @@ router.get('/', async (req: Request, res: Response) => {
         orderBy = 'COALESCE(l.wins, 0) DESC';
         break;
       case 'depth':
-        orderBy = 'COALESCE(a.max_depth, 0) DESC';
+        orderBy = 'a.level DESC';  // Temporary: use level instead of max_depth
         break;
       case 'gold':
-        orderBy = 'COALESCE(a.total_gold, 0) DESC';
+        orderBy = 'COALESCE(l.rating, 1000) DESC';  // Temporary: use rating instead of gold
         break;
       case 'rating':
       default:
@@ -70,8 +70,8 @@ router.get('/', async (req: Request, res: Response) => {
         COALESCE(l.rating, 1000) as rating,
         COALESCE(l.wins, 0) as wins,
         COALESCE(l.losses, 0) as losses,
-        COALESCE(a.max_depth, 1) as max_depth,
-        COALESCE(a.total_gold, 0) as total_gold,
+        1 as max_depth,
+        0 as total_gold,
         CASE WHEN COALESCE(l.wins, 0) + COALESCE(l.losses, 0) > 0 
           THEN ROUND((COALESCE(l.wins, 0)::numeric / (COALESCE(l.wins, 0) + COALESCE(l.losses, 0))) * 100)
           ELSE 0 
