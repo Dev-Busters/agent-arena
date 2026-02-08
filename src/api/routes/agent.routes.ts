@@ -8,8 +8,8 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import pool from '../../database/connection';
-import { authMiddleware } from '../auth';
+import pool from '../../database/connection.js';
+import { authMiddleware } from '../auth.js';
 
 const router = Router();
 

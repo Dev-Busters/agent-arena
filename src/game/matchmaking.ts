@@ -3,7 +3,7 @@
  * ELO-based rating system with queue management
  */
 
-import pool from '../database/connection';
+import pool from '../database/connection.js';
 
 export interface QueueEntry {
   user_id: string;

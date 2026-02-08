@@ -4,7 +4,7 @@
  */
 
 import { Socket } from "socket.io";
-import { query } from "../database/connection";
+import { query } from "../database/connection.js";
 import { v4 as uuidv4 } from "uuid";
 import {
   generateDungeon,
@@ -18,9 +18,9 @@ import {
   generateBranchingPaths,
   getSpecialZoneBonus,
   SpecialZoneType,
-} from "../game/dungeon";
-import { decideEnemyAction, AI_PATTERNS } from "../game/enemy-ai";
-import { generateLoot, calculateLevelUp, xpForNextLevel } from "../game/loot";
+} from '../game/dungeon.js';
+import { decideEnemyAction, AI_PATTERNS } from '../game/enemy-ai.js';
+import { generateLoot, calculateLevelUp, xpForNextLevel } from '../game/loot.js';
 import SeededRandom from "seedrandom";
 
 interface DungeonSession {
