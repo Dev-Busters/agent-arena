@@ -29,10 +29,8 @@
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
-    "postgresql": "^0.0.1",
     "pg": "^8.11.3",
-    "redis": "^4.6.12",
-    "jsonwebtoken": "^9.1.2",
+    "jsonwebtoken": "^9.0.2",
     "bcrypt": "^5.1.1",
     "zod": "^3.22.4",
     "uuid": "^9.0.1",
