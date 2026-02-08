@@ -1,82 +1,71 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 
 interface DamageNumberProps {
-  damage: number
+  value: number
   isCritical: boolean
+  x: number
+  y: number
+  isHealing?: boolean
+  onComplete: () => void
 }
 
-export default function DamageNumber({ damage, isCritical }: DamageNumberProps) {
-  const formattedDamage = Math.round(damage)
+export default function DamageNumber({
+  value,
+  isCritical,
+  x,
+  y,
+  isHealing = false,
+  onComplete,
+}: DamageNumberProps) {
+  const [key, setKey] = useState(0)
+
+  const baseColor = isHealing ? '#4ade80' : isCritical ? '#fbbf24' : '#e0e0e0'
+  const glow = isHealing ? '#22c55e' : isCritical ? '#f59e0b' : '#60a5fa'
+
+  const duration = isCritical ? 1.2 : 0.8
 
   return (
     <motion.div
+      key={key}
       initial={{
-        y: 0,
+        x,
+        y,
         opacity: 1,
-        scale: isCritical ? 0.5 : 0.8,
+        scale: isCritical ? 0.8 : 0.6,
       }}
       animate={{
-        y: -100,
+        y: y - 80,
         opacity: 0,
-        scale: isCritical ? 1.5 : 1,
+        scale: isCritical ? 1.3 : 1,
       }}
       transition={{
-        duration: 2,
-        ease: 'easeOut',
+        duration,
+        ease: [0.34, 1.56, 0.64, 1], // Bouncy easing
       }}
-      className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+      onAnimationComplete={onComplete}
+      className="fixed pointer-events-none font-bold select-none"
+      style={{
+        textShadow: isCritical
+          ? `0 0 20px ${glow}, 0 0 40px ${glow}`
+          : `0 2px 4px rgba(0,0,0,0.8)`,
+      }}
     >
-      {/* Background glow for critical hits */}
-      {isCritical && (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0.8 }}
-          animate={{ scale: 1.5, opacity: 0 }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          className="absolute inset-0 blur-xl bg-yellow-400 rounded-full"
-          style={{ width: '100px', height: '100px', left: '-50px', top: '-50px' }}
-        />
-      )}
-
-      {/* Damage text with glow */}
-      <motion.div
-        animate={
-          isCritical
-            ? {
-                textShadow: [
-                  '0 0 0px rgba(255, 200, 0, 0)',
-                  '0 0 20px rgba(255, 200, 0, 1)',
-                  '0 0 30px rgba(255, 100, 0, 0.8)',
-                  '0 0 10px rgba(255, 200, 0, 0)',
-                ],
-              }
-            : {}
-        }
-        transition={{ duration: 0.8 }}
-        className={`font-black text-center leading-none ${
-          isCritical
-            ? 'text-4xl text-yellow-300'
-            : 'text-2xl text-red-400'
-        }`}
+      <div
+        className="text-xl"
+        style={{
+          color: baseColor,
+          fontSize: isCritical ? '2rem' : '1.5rem',
+          fontWeight: isCritical ? 900 : 700,
+          letterSpacing: isCritical ? '2px' : '0',
+        }}
       >
-        {formattedDamage}
-      </motion.div>
-
-      {/* "CRIT!" label for critical hits */}
-      {isCritical && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-center text-xs font-bold text-yellow-200 mt-1 uppercase tracking-widest"
-          style={{
-            textShadow: '0 0 8px rgba(255, 200, 0, 0.8)',
-          }}
-        >
-          CRITICAL!
-        </motion.div>
-      )}
+        {isHealing ? '+' : '-'}
+        {value}
+        {isCritical && ' ⚡'}
+      </div>
     </motion.div>
   )
 }
