@@ -24,6 +24,21 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_rating ON users(rating DESC);
 
+-- OAuth accounts (Google, Discord, etc.)
+CREATE TABLE IF NOT EXISTS user_oauth_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL, -- 'google', 'discord'
+  provider_id VARCHAR(255) NOT NULL, -- External user ID
+  avatar_url TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(provider, provider_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_user_id ON user_oauth_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_provider ON user_oauth_accounts(provider, provider_id);
+
 -- Agent classes enum
 CREATE TYPE agent_class AS ENUM ('warrior', 'mage', 'rogue', 'paladin');
 
