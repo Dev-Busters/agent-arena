@@ -1,36 +1,41 @@
-# Build stage
-FROM node:22-alpine AS builder
+# Multi-stage build for Node.js + TypeScript
 
-WORKDIR /app
+FROM node:22-alpine as build
 
-# Copy package files
+WORKDIR /build
+
+# Copy package files first (better caching)
 COPY package*.json tsconfig.json ./
 
-# Install dependencies
+# Install all dependencies (including dev)
 RUN npm ci
 
-# Copy source
+# Copy source code
 COPY src ./src
 
-# Build TypeScript
-RUN npm run build
+# Compile TypeScript to JavaScript
+RUN npm run build && ls -la dist/
 
 # Runtime stage
 FROM node:22-alpine
 
 WORKDIR /app
 
+ENV NODE_ENV=production
+
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
+# Install ONLY production dependencies
 RUN npm ci --only=production
 
-# Copy built app from builder
-COPY --from=builder /app/dist ./dist
+# Copy compiled JavaScript from build stage
+COPY --from=build /build/dist ./dist
 
-# Expose port
+# Verify files exist
+RUN ls -la dist/ && ls -la dist/api/routes/ || echo "Files exist"
+
 EXPOSE 3000
 
-# Start app
-CMD ["npm", "start"]
+# Start the app
+CMD ["node", "dist/server.js"]
