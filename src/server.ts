@@ -88,21 +88,34 @@ app.use((req: Request, res: Response, next: Function) => {
   next();
 });
 
-// Health check
+// Health check - must be extremely simple and reliable
+let serverReady = false;
+
 app.get('/health', (req: Request, res: Response) => {
   try {
-    res.json({
+    const healthData: any = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
-      queue_size: matchmakingQueue?.getQueueSize?.() || 0
-    });
+      server_ready: serverReady
+    };
+    
+    // Try to include queue size if available
+    try {
+      if (matchmakingQueue && typeof matchmakingQueue.getQueueSize === 'function') {
+        healthData.queue_size = matchmakingQueue.getQueueSize();
+      }
+    } catch (e) {
+      // Ignore errors getting queue size
+    }
+    
+    res.status(200).json(healthData);
   } catch (err) {
-    console.error('Health check error:', err);
+    console.error('❌ Health check error:', err);
     res.status(500).json({
       status: 'error',
-      message: String(err)
+      message: 'Health check failed'
     });
   }
 });
@@ -151,6 +164,8 @@ httpServer.on('error', (err: any) => {
 });
 
 httpServer.listen(PORT, () => {
+  serverReady = true; // Mark server as ready after listening
+  
   console.log(`✅ [READY] Agent Arena server running on port ${PORT}`);
   console.log(`🌐 Server URL: http://localhost:${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
