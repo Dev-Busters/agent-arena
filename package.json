@@ -12,7 +12,6 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
     "start": "tsx src/server.ts",
     "migrate": "tsx src/database/migrate.ts",
     "test": "vitest",
