@@ -26,6 +26,7 @@ export default function LoginPage() {
 
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
+      // Redirect to dashboard - they already have an agent
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed')

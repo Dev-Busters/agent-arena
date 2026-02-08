@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 const classEmojis: Record<string, string> = {
@@ -24,11 +25,15 @@ interface LeaderboardEntry {
 }
 
 export default function LeaderboardPage() {
+  const router = useRouter()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'warrior' | 'mage' | 'rogue' | 'paladin'>('all')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    const token = localStorage.getItem('token')
+    setIsLoggedIn(!!token)
     fetchLeaderboard()
   }, [])
 
@@ -218,7 +223,7 @@ export default function LeaderboardPage() {
           </motion.div>
         )}
 
-        {/* Your Rank CTA */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -226,14 +231,29 @@ export default function LeaderboardPage() {
           className="mt-12 text-center"
         >
           <div className="inline-block p-8 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-white/10 rounded-2xl">
-            <h3 className="text-xl font-bold mb-2">Ready to Compete?</h3>
-            <p className="text-gray-400 mb-4">Create your agent and climb the ranks</p>
-            <Link
-              href="/dashboard"
-              className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
-            >
-              Enter the Arena
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <h3 className="text-xl font-bold mb-2">Ready to Battle?</h3>
+                <p className="text-gray-400 mb-4">Go back to your dashboard and join the queue</p>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                >
+                  Go to Dashboard
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold mb-2">Ready to Compete?</h3>
+                <p className="text-gray-400 mb-4">Create your agent and climb the ranks</p>
+                <Link
+                  href="/auth/register"
+                  className="inline-block px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
+                >
+                  Enter the Arena
+                </Link>
+              </>
+            )}
           </div>
         </motion.div>
       </div>

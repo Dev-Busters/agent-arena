@@ -60,8 +60,8 @@ export default function CreateAgentPage() {
   const selectedClassData = classes.find(c => c.id === selectedClass)
 
   const handleCreate = async () => {
-    if (!selectedClass || !name.trim()) {
-      setError('Please select a class and enter a name')
+    if (!selectedClass) {
+      setError('Please select a class')
       return
     }
 
@@ -73,7 +73,6 @@ export default function CreateAgentPage() {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/agents`,
         {
-          name: name.trim(),
           class: selectedClass
         },
         {
@@ -131,8 +130,8 @@ export default function CreateAgentPage() {
                 >
                   ⚔️
                 </motion.div>
-                <h1 className="text-4xl font-black mb-2">Choose Your Class</h1>
-                <p className="text-gray-400">Each class has unique abilities and playstyles</p>
+                <h1 className="text-4xl font-black mb-2">What Class Are You?</h1>
+                <p className="text-gray-400">Choose your fighting style and enter the arena</p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -241,8 +240,8 @@ export default function CreateAgentPage() {
                 >
                   {selectedClassData?.emoji}
                 </motion.div>
-                <h1 className="text-4xl font-black mb-2">Name Your {selectedClassData?.name}</h1>
-                <p className="text-gray-400">Choose a name that strikes fear into your enemies</p>
+                <h1 className="text-4xl font-black mb-2">Become a {selectedClassData?.name}</h1>
+                <p className="text-gray-400">Confirm your choice and enter the arena</p>
               </div>
 
               {error && (
@@ -256,20 +255,11 @@ export default function CreateAgentPage() {
               )}
 
               <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-                <div className="mb-6">
-                  <label className="block text-sm text-gray-400 mb-2">Agent Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter a legendary name..."
-                    maxLength={50}
-                    className="w-full px-4 py-4 bg-black/50 border border-white/10 rounded-xl text-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-                    autoFocus
-                  />
-                  <div className="mt-2 text-right text-sm text-gray-500">
-                    {name.length}/50
-                  </div>
+                {/* Character Info */}
+                <div className="mb-6 p-4 bg-black/30 rounded-xl text-center">
+                  <h3 className="text-sm text-gray-400 mb-2">Your Character</h3>
+                  <div className="text-2xl font-black mb-2">{name || 'You'}</div>
+                  <div className="text-lg text-gray-400">the {selectedClassData?.name}</div>
                 </div>
 
                 {/* Stats Preview */}
@@ -285,11 +275,23 @@ export default function CreateAgentPage() {
                   </div>
                 </div>
 
+                {/* Class Description */}
+                <div className="mb-6 p-4 bg-black/30 rounded-xl">
+                  <h3 className="text-sm text-gray-400 mb-2">Class Abilities</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedClassData?.abilities.map((ability) => (
+                      <span key={ability} className="text-xs px-3 py-1 bg-white/10 rounded-full">
+                        {ability}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCreate}
-                  disabled={isCreating || !name.trim()}
+                  disabled={isCreating}
                   className={`w-full py-4 bg-gradient-to-r ${selectedClassData?.color} rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isCreating ? (
@@ -298,10 +300,10 @@ export default function CreateAgentPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Creating Agent...
+                      Entering Arena...
                     </span>
                   ) : (
-                    `Create ${selectedClassData?.name}`
+                    `Become a ${selectedClassData?.name}`
                   )}
                 </motion.button>
               </div>

@@ -17,7 +17,6 @@ const router = Router();
 router.use(authMiddleware);
 
 const CreateAgentSchema = z.object({
-  name: z.string().min(1).max(100),
   class: z.enum(['warrior', 'mage', 'rogue', 'paladin'])
 });
 
@@ -50,7 +49,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const stats = BASE_STATS[validated.class as keyof typeof BASE_STATS];
 
-    // Create agent
+    // Create agent - use username as agent name
     const result = await pool.query(
       `INSERT INTO agents (
         user_id, name, class, level, experience,
@@ -60,7 +59,7 @@ router.post('/', async (req: Request, res: Response) => {
                 attack, defense, speed, accuracy, evasion, created_at`,
       [
         user.id,
-        validated.name,
+        user.username,
         validated.class,
         1,
         0,

@@ -94,7 +94,21 @@ export default function BattleQueuePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-dark to-darker flex items-center justify-center px-4">
+    <main className="min-h-screen bg-gradient-to-b from-dark to-darker">
+      {/* Navigation */}
+      <nav className="border-b border-primary border-opacity-20 bg-gray-900 bg-opacity-30 px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">🎮 Battle Queue</h1>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-4 py-2 text-gray-400 hover:text-primary transition-colors border border-gray-600 rounded hover:border-primary"
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      </nav>
+
+      <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-80px)]">
       <div className="max-w-2xl w-full">
         {error && (
           <div className="bg-red-900 bg-opacity-30 border border-red-500 text-red-200 p-4 rounded mb-6">
@@ -184,6 +198,7 @@ export default function BattleQueuePage() {
             </button>
           </motion.div>
         )}
+      </div>
       </div>
     </main>
   )
