@@ -8,11 +8,18 @@ const { Pool } = pg;
 console.log('🚀 [DB] Initializing connection pool...');
 console.log('🚀 [DB] DATABASE_URL set:', !!process.env.DATABASE_URL);
 
+// Ensure DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error('❌ [DB] FATAL: DATABASE_URL environment variable is not set!');
+  console.error('❌ [DB] Please ensure DATABASE_URL is configured in your environment.');
+  console.error('❌ [DB] Example: DATABASE_URL=postgresql://user:password@localhost:5432/dbname');
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: parseInt(process.env.DATABASE_POOL_SIZE || '10'),
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000, // Increased from 2000 to 5000 for better Railway compatibility
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
