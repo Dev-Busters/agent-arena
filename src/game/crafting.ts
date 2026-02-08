@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { MATERIALS, Material } from './materials.js';
+import { MATERIALS, Material } from './materials';
 
 export type GearSlot = 'weapon' | 'armor' | 'accessory';
 export type AffixType = 'prefix' | 'suffix';
