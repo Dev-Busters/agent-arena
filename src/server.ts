@@ -1,7 +1,15 @@
+console.log('🚀 [STARTUP] Loading modules...');
+
 import express, { Express, Request, Response, ErrorRequestHandler } from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import dotenv from 'dotenv';
+
+console.log('🚀 [STARTUP] Loading dotenv...');
+dotenv.config();
+console.log('🚀 [STARTUP] DATABASE_URL set:', !!process.env.DATABASE_URL);
+console.log('🚀 [STARTUP] NODE_ENV:', process.env.NODE_ENV);
+
 import authRoutes from './api/routes/auth.routes';
 import oauthRoutes from './api/routes/oauth.routes';
 import agentRoutes from './api/routes/agent.routes';
@@ -10,12 +18,16 @@ import leaderboardRoutes from './api/routes/leaderboard.routes';
 import costRoutes from './api/routes/costs.routes';
 import progressionRoutes from './api/routes/progression.routes';
 import craftingRoutes from './api/routes/crafting.routes';
+
+console.log('🚀 [STARTUP] Loading socket handlers...');
 import { setupGameSockets } from './sockets/game.socket';
 import { setupDungeonSockets } from './sockets/dungeon.socket';
+
+console.log('🚀 [STARTUP] Loading game modules...');
 import { matchmakingQueue, updateLeaderboard } from './game/matchmaking';
 import { verifyToken } from './api/auth';
 
-dotenv.config();
+console.log('🚀 [STARTUP] All modules loaded successfully');
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -68,13 +80,21 @@ app.use((req: Request, res: Response, next: Function) => {
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    uptime: process.uptime(),
-    queue_size: matchmakingQueue.getQueueSize()
-  });
+  try {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      queue_size: matchmakingQueue?.getQueueSize?.() || 0
+    });
+  } catch (err) {
+    console.error('Health check error:', err);
+    res.status(500).json({
+      status: 'error',
+      message: String(err)
+    });
+  }
 });
 
 // API Routes
