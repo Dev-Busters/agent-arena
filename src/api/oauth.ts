@@ -4,7 +4,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import pool from '../database/connection.js';
+import pool from '../database/connection';
 
 export interface OAuthProfile {
   provider: 'google' | 'discord';

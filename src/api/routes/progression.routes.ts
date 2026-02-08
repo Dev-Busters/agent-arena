@@ -4,9 +4,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { query } from '../../database/connection.js';
-import { verifyToken } from '../auth.js';
-import { calculateLevelUp } from '../../game/loot.js';
+import { query } from '../../database/connection';
+import { verifyToken } from '../auth';
+import { calculateLevelUp } from '../../game/loot';
 
 const router = Router();
 

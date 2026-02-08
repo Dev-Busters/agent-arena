@@ -11,7 +11,7 @@ import {
   exchangeDiscordCode,
   findOrCreateOAuthUser,
   generateOAuthTokens
-} from '../oauth.js';
+} from '../oauth';
 
 const router = Router();
 

@@ -4,9 +4,9 @@
  */
 
 import { Socket, Server as SocketIOServer } from 'socket.io';
-import { matchmakingQueue } from '../game/matchmaking.js';
-import { createBattle, processTurn, checkWinCondition, calculateRewards, BattleLog } from '../game/battle.js';
-import pool from '../database/connection.js';
+import { matchmakingQueue } from '../game/matchmaking';
+import { createBattle, processTurn, checkWinCondition, calculateRewards, BattleLog } from '../game/battle';
+import pool from '../database/connection';
 
 // In-memory battle rooms
 const activeBattles = new Map<string, BattleLog>();

@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../auth.js';
+import { authMiddleware } from '../auth';
 
 const router = Router();
 
