@@ -2,13 +2,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=production
-
-# Copy package files
+# Copy package files FIRST
 COPY package*.json tsconfig.json ./
 
-# Install all dependencies (includes dev for build)
-RUN npm ci
+# Install all dependencies (dev included for TypeScript build)
+RUN npm ci --verbose
 
 # Copy source code
 COPY src ./src
@@ -24,6 +22,8 @@ RUN test -f dist/server.js || (echo "dist/server.js missing after build!"; exit 
 RUN npm prune --production
 
 EXPOSE 3000
+
+ENV NODE_ENV=production
 
 # Run the app
 CMD ["node", "dist/server.js"]
