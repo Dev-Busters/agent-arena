@@ -4,10 +4,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { query } from '../../database/connection';
-import { verifyToken } from '../auth';
-import { generateCraftedGear, getCraftingCost } from '../../game/crafting';
-import { MATERIALS } from '../../game/materials';
+import { query } from '../../database/connection.js';
+import { verifyToken } from '../auth.js';
+import { generateCraftedGear, getCraftingCost } from '../../game/crafting.js';
+import { MATERIALS } from '../../game/materials.js';
 import SeededRandom from 'seedrandom';
 
 const router = Router();

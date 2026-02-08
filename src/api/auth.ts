@@ -6,7 +6,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
-import pool from '../database/connection';
+import pool from '../database/connection.js';
 
 // Validation schemas
 const RegisterSchema = z.object({

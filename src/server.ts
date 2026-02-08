@@ -20,22 +20,22 @@ dotenv.config();
 console.log('🚀 [STARTUP] DATABASE_URL set:', !!process.env.DATABASE_URL);
 console.log('🚀 [STARTUP] NODE_ENV:', process.env.NODE_ENV);
 
-import authRoutes from './api/routes/auth.routes';
-import oauthRoutes from './api/routes/oauth.routes';
-import agentRoutes from './api/routes/agent.routes';
-import battleRoutes from './api/routes/battle.routes';
-import leaderboardRoutes from './api/routes/leaderboard.routes';
-import costRoutes from './api/routes/costs.routes';
-import progressionRoutes from './api/routes/progression.routes';
-import craftingRoutes from './api/routes/crafting.routes';
+import authRoutes from './api/routes/auth.routes.js';
+import oauthRoutes from './api/routes/oauth.routes.js';
+import agentRoutes from './api/routes/agent.routes.js';
+import battleRoutes from './api/routes/battle.routes.js';
+import leaderboardRoutes from './api/routes/leaderboard.routes.js';
+import costRoutes from './api/routes/costs.routes.js';
+import progressionRoutes from './api/routes/progression.routes.js';
+import craftingRoutes from './api/routes/crafting.routes.js';
 
 console.log('🚀 [STARTUP] Loading socket handlers...');
-import { setupGameSockets } from './sockets/game.socket';
-import { setupDungeonSockets } from './sockets/dungeon.socket';
+import { setupGameSockets } from './sockets/game.socket.js';
+import { setupDungeonSockets } from './sockets/dungeon.socket.js';
 
 console.log('🚀 [STARTUP] Loading game modules...');
-import { matchmakingQueue, updateLeaderboard } from './game/matchmaking';
-import { verifyToken } from './api/auth';
+import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
+import { verifyToken } from './api/auth.js';
 
 console.log('🚀 [STARTUP] All modules loaded successfully');
 

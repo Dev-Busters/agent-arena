@@ -19,7 +19,7 @@ dotenv.config({ path: envPath });
 console.log('Loading env from:', envPath);
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
-import pool from './connection';
+import pool from './connection.js';
 
 async function runMigrations() {
   const client = await pool.connect();

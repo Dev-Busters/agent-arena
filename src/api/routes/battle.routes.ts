@@ -6,9 +6,9 @@
  */
 
 import { Router, Request, Response } from 'express';
-import pool from '../../database/connection';
-import { authMiddleware } from '../auth';
-import { createBattle, processTurn } from '../../game/battle';
+import pool from '../../database/connection.js';
+import { authMiddleware } from '../auth.js';
+import { createBattle, processTurn } from '../../game/battle.js';
 
 const router = Router();
 router.use(authMiddleware);

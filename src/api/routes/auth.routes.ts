@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { register, login, verifyToken, generateToken } from '../auth';
+import { register, login, verifyToken, generateToken } from '../auth.js';
 
 const router = Router();
 
