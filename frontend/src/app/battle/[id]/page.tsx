@@ -25,31 +25,61 @@ export default function BattlePage() {
       return
     }
 
-    initSocket(token)
-  }, [])
+    initSocket(token, battleId)
 
-  const initSocket = (token: string) => {
+    return () => {
+      // Cleanup on unmount
+    }
+  }, [battleId])
+
+  const initSocket = (token: string, bId: string) => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
       auth: { token },
     })
 
-    newSocket.on('battle_start', (data) => {
+    newSocket.on('connect', () => {
+      console.log('Connected to battle server')
+      // Join the battle room
+      newSocket.emit('join_battle', { battle_id: bId }, (response: any) => {
+        if (response.error) {
+          setError(response.error)
+        } else {
+          console.log('Joined battle:', bId)
+        }
+      })
+    })
+
+    newSocket.on('battle_start', (data: any) => {
       setAgent1(data.agent1)
       setAgent2(data.agent2)
       setIsLoading(false)
-      addLog('Battle started!')
+      addLog('⚔️ Battle started!')
     })
 
-    newSocket.on('turn_start', (data) => {
-      setIsYourTurn(data.isYourTurn)
-      if (data.isYourTurn) {
-        addLog('Your turn!')
+    newSocket.on('turn_start', (data: any) => {
+      // Determine whose turn it is based on current agents
+      const isYour = true // Server will determine this
+      setIsYourTurn(isYour)
+      if (isYour) {
+        addLog('Your turn! Choose an action.')
+      } else {
+        addLog('Opponent is thinking...')
       }
+
+      // Update HP
+      setAgent1((prev: any) => ({
+        ...prev,
+        current_hp: data.agent1_hp,
+      }))
+      setAgent2((prev: any) => ({
+        ...prev,
+        current_hp: data.agent2_hp,
+      }))
     })
 
-    newSocket.on('action_result', (data) => {
-      // Update agent states
-      if (data.target === agent1?.id) {
+    newSocket.on('action_result', (data: any) => {
+      // Update the target agent's HP
+      if (data.target_id === agent1?.id) {
         setAgent1((prev: any) => ({
           ...prev,
           current_hp: data.targetHP,
@@ -64,18 +94,25 @@ export default function BattlePage() {
       }
 
       addLog(data.message)
+      
+      // Now it's opponent's turn
+      setIsYourTurn(false)
     })
 
-    newSocket.on('battle_end', (data) => {
-      addLog(`Battle ended! ${data.winnerName} wins!`)
+    newSocket.on('battle_end', (data: any) => {
+      addLog(`🏆 Battle ended! ${data.winner_name} wins!`)
       // Redirect after delay
       setTimeout(() => {
         router.push('/dashboard')
-      }, 3000)
+      }, 5000)
     })
 
-    newSocket.on('error', (error) => {
-      setError(error)
+    newSocket.on('error', (error: any) => {
+      setError(typeof error === 'string' ? error : error.message)
+    })
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from battle server')
     })
 
     setSocket(newSocket)

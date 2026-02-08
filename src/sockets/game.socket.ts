@@ -83,6 +83,40 @@ export function setupGameSockets(io: SocketIOServer): void {
     });
 
     /**
+     * Join a battle room (for spectating or participating)
+     */
+    socket.on('join_battle', async (data: { battle_id: string }, callback) => {
+      try {
+        const battle = activeBattles.get(data.battle_id);
+        if (!battle) {
+          return callback({ error: 'Battle not found' });
+        }
+
+        socket.join(data.battle_id);
+        socket.battleId = data.battle_id;
+
+        // Emit current battle state to joining player
+        callback({
+          ok: true,
+          battle: {
+            id: battle.id,
+            agent1: battle.agent1,
+            agent2: battle.agent2,
+            status: battle.status,
+          },
+        });
+
+        // Notify others that someone joined
+        socket.to(data.battle_id).emit('player_joined', {
+          message: 'Another player joined the battle',
+        });
+      } catch (err: any) {
+        console.error('Join battle error:', err);
+        callback({ error: err.message });
+      }
+    });
+
+    /**
      * Start battle (called after matchmaking finds a match)
      * This would be called by a server-side matchmaking loop
      */
@@ -168,8 +202,118 @@ export function setupGameSockets(io: SocketIOServer): void {
           return callback({ error: 'Battle not found' });
         }
 
-        // TODO: Validate action and execute turn
-        // For now, just emit acknowledgment
+        const userId = socket.user?.id;
+        const isAgent1 = battle.agent1.user_id === userId;
+        const actor = isAgent1 ? battle.agent1 : battle.agent2;
+        const target = isAgent1 ? battle.agent2 : battle.agent1;
+
+        // Validate action
+        if (!['attack', 'defend', 'ability'].includes(data.action)) {
+          return callback({ error: 'Invalid action' });
+        }
+
+        // Execute action based on type
+        let actionResult = {
+          type: data.action as 'attack' | 'defend' | 'ability',
+          actor_id: actor.id,
+          actor_name: actor.name,
+          target_id: target.id,
+          target_name: target.name,
+          damage: 0,
+          message: '',
+          critical: false,
+          missed: false,
+          targetHP: target.stats.current_hp,
+          targetEffects: target.effects,
+          timestamp: Date.now(),
+        };
+
+        switch (data.action) {
+          case 'attack': {
+            // Damage calculation: base attack + random variance
+            const baseDamage = actor.stats.attack * (0.8 + Math.random() * 0.4);
+            const isCritical = Math.random() < 0.15; // 15% crit chance
+            const damage = Math.floor(
+              isCritical ? baseDamage * 1.5 : baseDamage
+            );
+            const isMissed = Math.random() > (actor.stats.accuracy / 100);
+
+            if (isMissed) {
+              actionResult.damage = 0;
+              actionResult.missed = true;
+              actionResult.message = `${actor.name}'s attack missed!`;
+            } else {
+              const actualDamage = Math.max(1, damage - target.stats.defense / 2);
+              target.stats.current_hp = Math.max(0, target.stats.current_hp - actualDamage);
+              actionResult.damage = Math.floor(actualDamage);
+              actionResult.critical = isCritical;
+              actionResult.targetHP = target.stats.current_hp;
+              actionResult.message = isCritical
+                ? `⚡ ${actor.name} CRITICAL HIT ${actor.name}! ${Math.floor(actualDamage)} damage!`
+                : `${actor.name} attacks ${target.name} for ${Math.floor(actualDamage)} damage!`;
+            }
+            break;
+          }
+
+          case 'defend': {
+            actor.defended = true;
+            actionResult.message = `${actor.name} takes a defensive stance!`;
+            break;
+          }
+
+          case 'ability': {
+            // Simple ability: cost HP to deal more damage
+            const abilityCost = Math.floor(actor.stats.max_hp * 0.1);
+            actor.stats.current_hp = Math.max(1, actor.stats.current_hp - abilityCost);
+
+            const baseDamage = actor.stats.attack * 1.8;
+            const damage = Math.floor(baseDamage);
+            const actualDamage = Math.max(5, damage - target.stats.defense / 4);
+            target.stats.current_hp = Math.max(0, target.stats.current_hp - actualDamage);
+
+            actionResult.damage = Math.floor(actualDamage);
+            actionResult.targetHP = target.stats.current_hp;
+            actionResult.message = `✨ ${actor.name} uses Special Ability! ${Math.floor(actualDamage)} damage!`;
+            break;
+          }
+        }
+
+        actionResult.targetEffects = target.effects;
+
+        // Check if battle is over
+        if (target.stats.current_hp <= 0) {
+          battle.winner_id = actor.id;
+          battle.status = 'completed';
+          battle.ended_at = Date.now();
+          battle.duration_ms = battle.ended_at - battle.started_at;
+
+          io.to(data.battle_id).emit('battle_end', {
+            battle_id: data.battle_id,
+            winner_id: actor.id,
+            winner_name: actor.name,
+            loser_name: target.name,
+            message: `${actor.name} wins!`,
+            battle_log: battle
+          });
+
+          activeBattles.delete(data.battle_id);
+        } else {
+          // Continue battle - next turn for opponent
+          io.to(data.battle_id).emit('action_result', actionResult);
+
+          // Next turn
+          setTimeout(() => {
+            const nextPlayer = isAgent1 ? battle.agent2.user_id : battle.agent1.user_id;
+            const nextSocket = io.sockets.sockets.get(socket.id);
+            
+            io.to(data.battle_id).emit('turn_start', {
+              current_actor_id: isAgent1 ? battle.agent2.id : battle.agent1.id,
+              agent1_hp: battle.agent1.stats.current_hp,
+              agent2_hp: battle.agent2.stats.current_hp,
+            });
+          }, 1000);
+        }
+
         callback({ ok: true });
       } catch (err: any) {
         console.error('Action error:', err);
