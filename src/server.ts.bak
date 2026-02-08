@@ -2,18 +2,18 @@ import express, { Express, Request, Response, ErrorRequestHandler } from 'expres
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import dotenv from 'dotenv';
-import authRoutes from './api/routes/auth.routes.js';
-import oauthRoutes from './api/routes/oauth.routes.js';
-import agentRoutes from './api/routes/agent.routes.js';
-import battleRoutes from './api/routes/battle.routes.js';
-import leaderboardRoutes from './api/routes/leaderboard.routes.js';
-import costRoutes from './api/routes/costs.routes.js';
-import progressionRoutes from './api/routes/progression.routes.js';
-import craftingRoutes from './api/routes/crafting.routes.js';
-import { setupGameSockets } from './sockets/game.socket.js';
-import { setupDungeonSockets } from './sockets/dungeon.socket.js';
-import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
-import { verifyToken } from './api/auth.js';
+import authRoutes from './api/routes/auth.routes';
+import oauthRoutes from './api/routes/oauth.routes';
+import agentRoutes from './api/routes/agent.routes';
+import battleRoutes from './api/routes/battle.routes';
+import leaderboardRoutes from './api/routes/leaderboard.routes';
+import costRoutes from './api/routes/costs.routes';
+import progressionRoutes from './api/routes/progression.routes';
+import craftingRoutes from './api/routes/crafting.routes';
+import { setupGameSockets } from './sockets/game.socket';
+import { setupDungeonSockets } from './sockets/dungeon.socket';
+import { matchmakingQueue, updateLeaderboard } from './game/matchmaking';
+import { verifyToken } from './api/auth';
 
 dotenv.config();
 

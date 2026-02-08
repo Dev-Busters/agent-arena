@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { MATERIALS, Material } from './materials.js';
+import { MATERIALS, Material } from './materials';
 
 export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 export type ItemType = 'weapon' | 'armor' | 'accessory' | 'consumable';
