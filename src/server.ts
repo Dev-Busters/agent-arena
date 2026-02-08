@@ -91,6 +91,12 @@ app.use((req: Request, res: Response, next: Function) => {
 // Health check - must be extremely simple and reliable
 let serverReady = false;
 
+// Simple ping endpoint for basic connectivity checks
+app.get('/ping', (req: Request, res: Response) => {
+  res.status(200).send('pong');
+});
+
+// Detailed health check
 app.get('/health', (req: Request, res: Response) => {
   try {
     const healthData: any = {
@@ -171,8 +177,9 @@ httpServer.listen(PORT, () => {
   console.log(`📡 Socket.io ready for connections`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`\n📊 API endpoints:`);
-  console.log(`   Health:`);
-  console.log(`     GET  /health`);
+  console.log(`   Health & Status:`);
+  console.log(`     GET  /ping   (simple connectivity check)`);
+  console.log(`     GET  /health (detailed health status)`);
   console.log(`   Auth:`);
   console.log(`     POST /api/auth/register`);
   console.log(`     POST /api/auth/login`);
