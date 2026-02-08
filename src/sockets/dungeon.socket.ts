@@ -51,6 +51,7 @@ export function setupDungeonSockets(io: any) {
         agentId: string;
       }) => {
         try {
+          console.log('🎮 [DUNGEON] start_dungeon triggered:', { userId: payload.userId, agentId: payload.agentId });
           const { userId, agentId } = payload;
 
           // Fetch agent stats
@@ -121,11 +122,16 @@ export function setupDungeonSockets(io: any) {
               level: agent.level,
             },
           });
-        } catch (error) {
-          socket.emit("dungeon_error", {
-            message: "Failed to start dungeon",
+        } catch (error: any) {
+          console.error('❌ [DUNGEON] start_dungeon error:', {
+            message: error?.message,
+            code: error?.code,
+            detail: error?.detail,
+            stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
           });
-          console.error("start_dungeon error:", error);
+          socket.emit("dungeon_error", {
+            message: "Failed to start dungeon: " + error?.message,
+          });
         }
       }
     );
@@ -201,9 +207,16 @@ export function setupDungeonSockets(io: any) {
               message: "This room is empty.",
             });
           }
-        } catch (error) {
-          socket.emit("dungeon_error", { message: "Failed to enter room" });
-          console.error("enter_room error:", error);
+        } catch (error: any) {
+          console.error('❌ [DUNGEON] enter_room error:', {
+            message: error?.message,
+            code: error?.code,
+            detail: error?.detail,
+            stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+          });
+          socket.emit("dungeon_error", { 
+            message: "Failed to enter room: " + error?.message,
+          });
         }
       }
     );
