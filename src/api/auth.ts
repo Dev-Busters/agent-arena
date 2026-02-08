@@ -150,7 +150,7 @@ export function verifyToken(token: string): JWTPayload {
 /**
  * Generate JWT token
  */
-function generateToken(user: any): string {
+export function generateToken(user: any): string {
   const expiryHours = 24;
   const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
     id: user.id,
