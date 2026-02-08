@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Get __dirname equivalent in CommonJS
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
