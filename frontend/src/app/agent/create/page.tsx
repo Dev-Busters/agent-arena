@@ -3,149 +3,311 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import axios from 'axios'
+import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
 
-const CLASSES = [
+const classes = [
   {
+    id: 'warrior',
     name: 'Warrior',
-    description: 'High HP and Defense, strong melee attacks',
-    icon: '⚔️',
-    stats: { hp: 120, attack: 15, defense: 12, speed: 8 }
+    emoji: '⚔️',
+    color: 'from-red-600 to-orange-500',
+    borderColor: 'border-red-500',
+    description: 'A stalwart defender with high HP and defense. Masters of close combat.',
+    stats: { hp: 120, attack: 15, defense: 12, speed: 8, accuracy: 85, evasion: 5 },
+    abilities: ['Shield Bash', 'Battlecry', 'Last Stand']
   },
   {
+    id: 'mage',
     name: 'Mage',
-    description: 'Balanced attack and defense, high speed',
-    icon: '✨',
-    stats: { hp: 80, attack: 10, defense: 8, speed: 12 }
+    emoji: '🔥',
+    color: 'from-blue-600 to-purple-500',
+    borderColor: 'border-blue-500',
+    description: 'A powerful spellcaster with devastating abilities. Glass cannon.',
+    stats: { hp: 70, attack: 22, defense: 5, speed: 10, accuracy: 90, evasion: 8 },
+    abilities: ['Fireball', 'Arcane Shield', 'Meteor Strike']
   },
   {
+    id: 'rogue',
     name: 'Rogue',
-    description: 'Fast and deadly, high evasion',
-    icon: '🗡️',
-    stats: { hp: 100, attack: 14, defense: 8, speed: 15 }
+    emoji: '🗡️',
+    color: 'from-purple-600 to-pink-500',
+    borderColor: 'border-purple-500',
+    description: 'A swift assassin with high evasion and critical hits. Death from shadows.',
+    stats: { hp: 85, attack: 18, defense: 6, speed: 15, accuracy: 95, evasion: 20 },
+    abilities: ['Backstab', 'Smoke Bomb', 'Execute']
   },
   {
+    id: 'paladin',
     name: 'Paladin',
-    description: 'Tank class with healing and defense',
-    icon: '🛡️',
-    stats: { hp: 110, attack: 12, defense: 15, speed: 9 }
-  },
+    emoji: '✨',
+    color: 'from-yellow-500 to-amber-400',
+    borderColor: 'border-yellow-500',
+    description: 'A holy warrior with balanced stats and healing abilities. Jack of all trades.',
+    stats: { hp: 100, attack: 14, defense: 10, speed: 9, accuracy: 88, evasion: 8 },
+    abilities: ['Holy Strike', 'Divine Shield', 'Lay on Hands']
+  }
 ]
 
 export default function CreateAgentPage() {
   const router = useRouter()
-  const [agentName, setAgentName] = useState('')
-  const [selectedClass, setSelectedClass] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [step, setStep] = useState(1)
+  const [selectedClass, setSelectedClass] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const selectedClassData = classes.find(c => c.id === selectedClass)
+
+  const handleCreate = async () => {
+    if (!selectedClass || !name.trim()) {
+      setError('Please select a class and enter a name')
+      return
+    }
+
+    setIsCreating(true)
     setError('')
-
-    if (!agentName.trim()) {
-      setError('Agent name is required')
-      return
-    }
-
-    if (!selectedClass) {
-      setError('Please select a class')
-      return
-    }
-
-    setIsLoading(true)
 
     try {
       const token = localStorage.getItem('token')
-      if (!token) {
-        router.push('/auth/login')
-        return
-      }
-
-      const response = await axios.post(
+      await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/agents`,
         {
-          name: agentName,
-          class: selectedClass.toLowerCase(),
+          name: name.trim(),
+          class: selectedClass
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
       )
 
-      // Redirect to dashboard
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create agent')
-    } finally {
-      setIsLoading(false)
+      setIsCreating(false)
     }
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-dark to-darker px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-primary mb-12">Create Your Agent</h1>
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white">
+      {/* Background effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500 rounded-full mix-blend-screen filter blur-[150px] opacity-15" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500 rounded-full mix-blend-screen filter blur-[150px] opacity-15" />
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {error && (
-            <div className="bg-red-900 bg-opacity-30 border border-red-500 text-red-200 p-4 rounded">
-              {error}
-            </div>
-          )}
-
-          {/* Agent Name */}
-          <div>
-            <label className="block text-lg font-semibold mb-4">Agent Name</label>
-            <input
-              type="text"
-              value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              maxLength={100}
-              className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-primary"
-              placeholder="Enter your agent's name"
-            />
+      {/* Navigation */}
+      <nav className="relative z-10 border-b border-white/10 bg-black/20 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+          <Link href="/dashboard" className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Dashboard</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className={`w-3 h-3 rounded-full ${step >= 1 ? 'bg-cyan-500' : 'bg-gray-600'}`} />
+            <span className={`w-8 h-0.5 ${step >= 2 ? 'bg-cyan-500' : 'bg-gray-600'}`} />
+            <span className={`w-3 h-3 rounded-full ${step >= 2 ? 'bg-cyan-500' : 'bg-gray-600'}`} />
           </div>
+        </div>
+      </nav>
 
-          {/* Class Selection */}
-          <div>
-            <label className="block text-lg font-semibold mb-6">Choose Your Class</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {CLASSES.map((classOption) => (
-                <button
-                  key={classOption.name}
-                  type="button"
-                  onClick={() => setSelectedClass(classOption.name)}
-                  className={`p-6 rounded-lg border-2 transition text-left ${
-                    selectedClass === classOption.name
-                      ? 'border-primary bg-primary bg-opacity-10'
-                      : 'border-gray-700 bg-gray-900 bg-opacity-30 hover:border-primary'
-                  }`}
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-12">
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <div className="text-center mb-12">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
+                  className="text-6xl mb-4"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">{classOption.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-2">{classOption.name}</h3>
-                      <p className="text-sm text-gray-400 mb-3">{classOption.description}</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>HP: {classOption.stats.hp}</div>
-                        <div>ATK: {classOption.stats.attack}</div>
-                        <div>DEF: {classOption.stats.defense}</div>
-                        <div>SPD: {classOption.stats.speed}</div>
+                  ⚔️
+                </motion.div>
+                <h1 className="text-4xl font-black mb-2">Choose Your Class</h1>
+                <p className="text-gray-400">Each class has unique abilities and playstyles</p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                {classes.map((cls, i) => (
+                  <motion.button
+                    key={cls.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    onClick={() => setSelectedClass(cls.id)}
+                    className={`relative overflow-hidden rounded-2xl p-6 text-left transition-all ${
+                      selectedClass === cls.id
+                        ? `bg-gradient-to-br ${cls.color} border-2 ${cls.borderColor} shadow-2xl scale-[1.02]`
+                        : 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    {selectedClass === cls.id && (
+                      <div className="absolute top-4 right-4">
+                        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                          <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={`text-5xl mb-4 ${selectedClass === cls.id ? '' : ''}`}>
+                      {cls.emoji}
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2">{cls.name}</h3>
+                    <p className={`text-sm mb-4 ${selectedClass === cls.id ? 'text-white/80' : 'text-gray-400'}`}>
+                      {cls.description}
+                    </p>
+
+                    {/* Stats Preview */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className={`rounded-lg p-2 ${selectedClass === cls.id ? 'bg-black/20' : 'bg-black/30'}`}>
+                        <div className="text-lg font-bold">{cls.stats.hp}</div>
+                        <div className="text-xs opacity-60">HP</div>
+                      </div>
+                      <div className={`rounded-lg p-2 ${selectedClass === cls.id ? 'bg-black/20' : 'bg-black/30'}`}>
+                        <div className="text-lg font-bold">{cls.stats.attack}</div>
+                        <div className="text-xs opacity-60">ATK</div>
+                      </div>
+                      <div className={`rounded-lg p-2 ${selectedClass === cls.id ? 'bg-black/20' : 'bg-black/30'}`}>
+                        <div className="text-lg font-bold">{cls.stats.defense}</div>
+                        <div className="text-xs opacity-60">DEF</div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading || !selectedClass}
-            className="w-full px-6 py-3 bg-primary text-dark font-bold rounded-lg hover:bg-opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Creating Agent...' : 'Create Agent'}
-          </button>
-        </form>
+                    {/* Abilities */}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {cls.abilities.map((ability) => (
+                        <span
+                          key={ability}
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            selectedClass === cls.id ? 'bg-black/20' : 'bg-white/10'
+                          }`}
+                        >
+                          {ability}
+                        </span>
+                      ))}
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+
+              <div className="flex justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => selectedClass && setStep(2)}
+                  disabled={!selectedClass}
+                  className="px-12 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold text-lg hover:shadow-2xl hover:shadow-cyan-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                >
+                  Continue →
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="max-w-xl mx-auto"
+            >
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Change class
+              </button>
+
+              <div className="text-center mb-8">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200 }}
+                  className="text-7xl mb-4"
+                >
+                  {selectedClassData?.emoji}
+                </motion.div>
+                <h1 className="text-4xl font-black mb-2">Name Your {selectedClassData?.name}</h1>
+                <p className="text-gray-400">Choose a name that strikes fear into your enemies</p>
+              </div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-center"
+                >
+                  {error}
+                </motion.div>
+              )}
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+                <div className="mb-6">
+                  <label className="block text-sm text-gray-400 mb-2">Agent Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter a legendary name..."
+                    maxLength={50}
+                    className="w-full px-4 py-4 bg-black/50 border border-white/10 rounded-xl text-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                    autoFocus
+                  />
+                  <div className="mt-2 text-right text-sm text-gray-500">
+                    {name.length}/50
+                  </div>
+                </div>
+
+                {/* Stats Preview */}
+                <div className="mb-6 p-4 bg-black/30 rounded-xl">
+                  <h3 className="text-sm text-gray-400 mb-3">Starting Stats</h3>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    {selectedClassData && Object.entries(selectedClassData.stats).map(([key, value]) => (
+                      <div key={key} className="bg-white/5 rounded-lg p-2">
+                        <div className="text-lg font-bold">{value}</div>
+                        <div className="text-xs text-gray-500 uppercase">{key}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleCreate}
+                  disabled={isCreating || !name.trim()}
+                  className={`w-full py-4 bg-gradient-to-r ${selectedClassData?.color} rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isCreating ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Creating Agent...
+                    </span>
+                  ) : (
+                    `Create ${selectedClassData?.name}`
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   )
