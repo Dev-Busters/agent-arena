@@ -6,6 +6,7 @@ import authRoutes from './api/routes/auth.routes.js';
 import agentRoutes from './api/routes/agent.routes.js';
 import battleRoutes from './api/routes/battle.routes.js';
 import leaderboardRoutes from './api/routes/leaderboard.routes.js';
+import costRoutes from './api/routes/costs.routes.js';
 import { setupGameSockets } from './sockets/game.socket.js';
 import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
 import { verifyToken } from './api/auth.js';
@@ -65,6 +66,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/battles', battleRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/costs', costRoutes);
 
 // TODO: More routes
 // app.use('/api/users', userRoutes);

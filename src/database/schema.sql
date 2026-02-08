@@ -175,6 +175,38 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Token Usage Tracking
+CREATE TABLE IF NOT EXISTS token_usage (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action VARCHAR(100) NOT NULL, -- 'battle', 'agent_decision', 'agent_creation', etc.
+  input_tokens INT NOT NULL CHECK (input_tokens >= 0),
+  output_tokens INT NOT NULL CHECK (output_tokens >= 0),
+  model VARCHAR(50) NOT NULL DEFAULT 'claude-haiku-4-5-20251001',
+  cost DECIMAL(10, 8) NOT NULL CHECK (cost >= 0), -- In USD
+  battle_id UUID REFERENCES battles(id) ON DELETE SET NULL,
+  agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_token_usage_user_id ON token_usage(user_id);
+CREATE INDEX IF NOT EXISTS idx_token_usage_action ON token_usage(action);
+CREATE INDEX IF NOT EXISTS idx_token_usage_created_at ON token_usage(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_token_usage_battle_id ON token_usage(battle_id);
+
+-- Materialized view for cost statistics
+CREATE OR REPLACE VIEW user_cost_stats AS
+SELECT
+  user_id,
+  DATE(created_at) as day,
+  COUNT(*) as action_count,
+  SUM(input_tokens) as total_input_tokens,
+  SUM(output_tokens) as total_output_tokens,
+  SUM(cost) as total_cost,
+  AVG(cost) as avg_cost_per_action
+FROM token_usage
+GROUP BY user_id, DATE(created_at);
+
 -- Grant permissions (adjust as needed for your Supabase setup)
 -- GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO authenticated;
 -- GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
