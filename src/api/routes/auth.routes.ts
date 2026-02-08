@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { register, login, verifyToken } from '../auth';
+import { register, login, verifyToken, generateToken } from '../auth';
 
 const router = Router();
 
@@ -56,7 +56,7 @@ router.post('/refresh', (req: Request, res: Response) => {
     }
 
     // Issue new token
-    const newToken = require('../auth.js').generateToken(payload);
+    const newToken = generateToken(payload);
 
     res.json({ token: newToken });
   } catch (err: any) {
