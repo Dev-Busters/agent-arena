@@ -1,3 +1,13 @@
+// Set up global error handlers BEFORE anything else
+process.on('uncaughtException', (err) => {
+  console.error('❌ [FATAL] Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ [FATAL] Unhandled Promise Rejection:', reason);
+});
+
 console.log('🚀 [STARTUP] Loading modules...');
 
 import express, { Express, Request, Response, ErrorRequestHandler } from 'express';
@@ -130,12 +140,24 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 app.use(errorHandler);
 
-// Start servers
+// Start servers with error handling
+httpServer.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+  } else {
+    console.error('❌ Server error:', err);
+  }
+  process.exit(1);
+});
+
 httpServer.listen(PORT, () => {
-  console.log(`🎮 Agent Arena server running on port ${PORT}`);
+  console.log(`✅ [READY] Agent Arena server running on port ${PORT}`);
+  console.log(`🌐 Server URL: http://localhost:${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`\n📊 API endpoints:`);
+  console.log(`   Health:`);
+  console.log(`     GET  /health`);
   console.log(`   Auth:`);
   console.log(`     POST /api/auth/register`);
   console.log(`     POST /api/auth/login`);
