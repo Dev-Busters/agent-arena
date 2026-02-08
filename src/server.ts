@@ -194,15 +194,31 @@ httpServer.listen(PORT, () => {
 });
 
 // Start matchmaking service
-matchmakingQueue.startMatchmaking(5000); // Match every 5 seconds
+try {
+  console.log('🔄 Starting matchmaking service...');
+  matchmakingQueue.startMatchmaking(5000); // Match every 5 seconds
+  console.log('✅ Matchmaking service started successfully');
+} catch (err) {
+  console.error('❌ Failed to start matchmaking service:', err);
+  // Don't exit - this is not critical to health check
+}
 
 // Update leaderboard every 5 minutes
-setInterval(async () => {
-  try {
-    await updateLeaderboard();
-  } catch (err) {
-    console.error('Leaderboard update error:', err);
-  }
-}, 5 * 60 * 1000);
+try {
+  console.log('📊 Setting up leaderboard update timer...');
+  setInterval(async () => {
+    try {
+      await updateLeaderboard();
+    } catch (err) {
+      console.error('⚠️  Leaderboard update error:', err);
+    }
+  }, 5 * 60 * 1000);
+  console.log('✅ Leaderboard update timer initialized');
+} catch (err) {
+  console.error('❌ Failed to set up leaderboard updates:', err);
+  // Don't exit - this is not critical
+}
+
+console.log('✅ [STARTUP] Server fully initialized and ready to receive requests');
 
 export { app, io };
