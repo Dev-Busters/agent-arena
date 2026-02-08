@@ -80,38 +80,6 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
- * Get agent details
- * GET /agents/:id
- */
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { id } = req.params;
-
-    const result = await pool.query(
-      `SELECT a.*, 
-              array_agg(
-                json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
-              ) AS equipment
-       FROM agents a
-       LEFT JOIN equipment e ON a.id = e.agent_id
-       LEFT JOIN items i ON e.item_id = i.id
-       WHERE a.id = $1 AND a.user_id = $2 AND a.deleted_at IS NULL
-       GROUP BY a.id`,
-      [id, user.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Agent not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-/**
  * Get user's active agent
  * GET /agents/me/current
  */
@@ -135,6 +103,38 @@ router.get('/me/current', async (req: Request, res: Response) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No active agent' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+/**
+ * Get agent details by ID
+ * GET /agents/:id
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT a.*, 
+              array_agg(
+                json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
+              ) AS equipment
+       FROM agents a
+       LEFT JOIN equipment e ON a.id = e.agent_id
+       LEFT JOIN items i ON e.item_id = i.id
+       WHERE a.id = $1 AND a.user_id = $2 AND a.deleted_at IS NULL
+       GROUP BY a.id`,
+      [id, user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
     }
 
     res.json(result.rows[0]);
