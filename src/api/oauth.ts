@@ -4,7 +4,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import pool from '../database/connection.js';
+import pool from '../database/connection';
 
 export interface OAuthProfile {
   provider: 'google' | 'discord';
@@ -196,7 +196,7 @@ export async function exchangeDiscordCode(code: string, redirectUri: string): Pr
       return null;
     }
 
-    const tokens = await tokenResponse.json();
+    const tokens = await tokenResponse.json() as any;
 
     // Get user profile
     const userResponse = await fetch('https://discord.com/api/users/@me', {
@@ -214,11 +214,11 @@ export async function exchangeDiscordCode(code: string, redirectUri: string): Pr
 
     return {
       provider: 'discord',
-      providerId: discordUser.id,
-      email: discordUser.email,
-      username: discordUser.username,
-      avatar: discordUser.avatar
-        ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+      providerId: (discordUser as any).id,
+      email: (discordUser as any).email,
+      username: (discordUser as any).username,
+      avatar: (discordUser as any).avatar
+        ? `https://cdn.discordapp.com/avatars/${(discordUser as any).id}/${(discordUser as any).avatar}.png`
         : undefined
     };
   } catch (error) {

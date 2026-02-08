@@ -101,33 +101,35 @@ export function calculateHitChance(attacker: BattleAgent, defender: BattleAgent)
 
 /**
  * Calculate damage from an attack
- * Base: (attacker_attack - defender_defense) + random
+ * BALANCED: Improved scaling formula for better late-game progression
+ * Base: (attacker_attack * 1.1) - (defender_defense * 0.9) + variance
  */
 export function calculateDamage(attacker: BattleAgent, defender: BattleAgent): { damage: number; critical: boolean } {
-  // Check for critical hit (10% base chance)
-  const critChance = Math.min(0.25, attacker.stats.accuracy / 500);
+  // Check for critical hit (10% base chance, scales with accuracy)
+  const critChance = Math.min(0.25, 0.1 + (attacker.stats.accuracy - 80) / 200);
   const isCritical = Math.random() < critChance;
 
-  // Base damage
-  let damage = attacker.stats.attack - defender.stats.defense;
+  // BALANCED: Improved damage formula with better scaling
+  // Attack scales slightly higher, defense slightly lower for more engaging combat
+  let damage = Math.floor(attacker.stats.attack * 1.1) - Math.floor(defender.stats.defense * 0.9);
 
-  // Add variance
-  const variance = Math.floor(Math.random() * 21 - 10); // -10 to +10
+  // BALANCED: Increased variance for more exciting combat (-15 to +15)
+  const variance = Math.floor(Math.random() * 31 - 15);
   damage += variance;
 
-  // Critical multiplier
+  // Critical multiplier (1.5x)
   if (isCritical) {
     damage = Math.floor(damage * 1.5);
   }
 
-  // Defend multiplier
+  // Defend multiplier (40% damage reduction)
   if (defender.defended) {
     damage = Math.floor(damage * 0.6);
   }
 
-  // Bleeding effect
+  // Bleeding effect (15% reduced damage taken, helps bleeding target survive)
   if (defender.effects.includes('bleed')) {
-    damage = Math.floor(damage * 0.85); // 15% reduced damage
+    damage = Math.floor(damage * 0.85);
   }
 
   // Minimum damage is 1

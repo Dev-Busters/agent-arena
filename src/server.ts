@@ -2,15 +2,18 @@ import express, { Express, Request, Response, ErrorRequestHandler } from 'expres
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import dotenv from 'dotenv';
-import authRoutes from './api/routes/auth.routes.js';
-import oauthRoutes from './api/routes/oauth.routes.js';
-import agentRoutes from './api/routes/agent.routes.js';
-import battleRoutes from './api/routes/battle.routes.js';
-import leaderboardRoutes from './api/routes/leaderboard.routes.js';
-import costRoutes from './api/routes/costs.routes.js';
-import { setupGameSockets } from './sockets/game.socket.js';
-import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
-import { verifyToken } from './api/auth.js';
+import authRoutes from './api/routes/auth.routes';
+import oauthRoutes from './api/routes/oauth.routes';
+import agentRoutes from './api/routes/agent.routes';
+import battleRoutes from './api/routes/battle.routes';
+import leaderboardRoutes from './api/routes/leaderboard.routes';
+import costRoutes from './api/routes/costs.routes';
+import progressionRoutes from './api/routes/progression.routes';
+import craftingRoutes from './api/routes/crafting.routes';
+import { setupGameSockets } from './sockets/game.socket';
+import { setupDungeonSockets } from './sockets/dungeon.socket';
+import { matchmakingQueue, updateLeaderboard } from './game/matchmaking';
+import { verifyToken } from './api/auth';
 
 dotenv.config();
 
@@ -42,7 +45,7 @@ app.use((req: Request, res: Response, next: Function) => {
 });
 
 // Socket.io authentication middleware
-io.use((socket, next) => {
+io.use((socket: any, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
     return next(new Error('Authentication required'));
@@ -81,12 +84,15 @@ app.use('/api/agents', agentRoutes);
 app.use('/api/battles', battleRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/costs', costRoutes);
+app.use('/api/progression', progressionRoutes);
+app.use('/api/crafting', craftingRoutes);
 
 // TODO: More routes
 // app.use('/api/users', userRoutes);
 
 // Setup Socket.io game handlers
 setupGameSockets(io);
+setupDungeonSockets(io);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -126,7 +132,8 @@ httpServer.listen(PORT, () => {
   console.log(`     GET  /api/leaderboard/user/:user_id`);
   console.log(`     GET  /api/leaderboard/top/:count`);
   console.log(`\n🎮 Socket.io events:`);
-  console.log(`   join_queue, leave_queue, start_battle, action, surrender\n`);
+  console.log(`   Battle: join_queue, leave_queue, start_battle, action, surrender`);
+  console.log(`   Dungeon: start_dungeon, enter_room, dungeon_action, flee_encounter, next_floor, abandon_dungeon\n`);
 });
 
 // Start matchmaking service
