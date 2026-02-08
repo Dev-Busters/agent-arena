@@ -13,14 +13,15 @@ RUN npm ci
 # Copy source code
 COPY src ./src
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript - fail immediately if build fails
+RUN npm run build || (echo "BUILD FAILED"; exit 1)
+
+# Verify dist was created
+RUN test -d dist/ || (echo "dist/ directory missing after build!"; exit 1)
+RUN test -f dist/server.js || (echo "dist/server.js missing after build!"; exit 1)
 
 # Remove dev dependencies to save space
 RUN npm prune --production
-
-# Verify dist exists
-RUN ls -la dist/ && ls -la dist/api/ || echo "Dist built"
 
 EXPOSE 3000
 
