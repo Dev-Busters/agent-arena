@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
     "build": "tsc --outDir dist",
     "start:server": "node dist/server.js",
     "start:dev": "tsx src/server.ts",
