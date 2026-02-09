@@ -89,17 +89,17 @@ export default function DashboardPage() {
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[200px]" />
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[200px]" />
       </div>
-      
+
       {/* Stone texture */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none" 
-        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }} 
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none"
+        style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")' }}
       />
 
       {/* Navigation */}
       <nav className="relative z-10 border-b border-stone-800 bg-stone-950/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3">
-            <motion.span 
+            <motion.span
               className="text-3xl"
               animate={{ textShadow: ['0 0 20px #f59e0b', '0 0 40px #f59e0b', '0 0 20px #f59e0b'] }}
               transition={{ duration: 2, repeat: Infinity }}
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             <Link href="/leaderboard" className="text-stone-500 hover:text-amber-400 transition-colors text-sm font-medium">
               Leaderboard
             </Link>
-            
+
             <div className="flex items-center gap-3 pl-6 border-l border-stone-800">
               <div className="text-right">
                 <div className="text-sm font-semibold text-stone-200">{user?.username || 'Champion'}</div>
@@ -175,9 +175,9 @@ export default function DashboardPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
-                      <motion.div 
+                      <motion.div
                         className="w-20 h-20 rounded-2xl bg-black/30 flex items-center justify-center text-5xl border border-white/10"
-                        animate={{ 
+                        animate={{
                           boxShadow: ['0 0 20px rgba(245,158,11,0.2)', '0 0 40px rgba(245,158,11,0.3)', '0 0 20px rgba(245,158,11,0.2)']
                         }}
                         transition={{ duration: 2, repeat: Infinity }}
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <Link
-                      href="/agent/customize"
+                      href="/showcase"
                       className="px-3 py-1.5 text-xs bg-black/30 border border-white/10 rounded-lg hover:bg-black/50 transition-all"
                     >
                       Customize
@@ -270,7 +270,7 @@ export default function DashboardPage() {
                 transition={{ delay: 0.1 }}
                 className="rounded-2xl border border-stone-800 bg-stone-900/50 p-12 text-center"
               >
-                <motion.div 
+                <motion.div
                   className="text-6xl mb-4"
                   animate={{ y: [0, -10, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                 className="block w-full p-5 bg-gradient-to-br from-amber-600/20 to-orange-700/20 border border-amber-500/30 rounded-xl hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <motion.div 
+                  <motion.div
                     className="text-4xl"
                     animate={{ y: [0, -3, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity }}

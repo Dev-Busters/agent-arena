@@ -48,8 +48,8 @@ export default function CraftingPage() {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [materialsRes, gearRes] = await Promise.all([
-        axios.get('/api/crafting/materials', { headers }),
-        axios.get('/api/crafting/gear', { headers })
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/crafting/materials`, { headers }),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/crafting/gear`, { headers })
       ]);
 
       setMaterials(materialsRes.data);
@@ -83,7 +83,7 @@ export default function CraftingPage() {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        '/api/crafting/craft',
+        `${process.env.NEXT_PUBLIC_API_URL}/api/crafting/craft`,
         { slot: selectedSlot, materials: selectedMaterials },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -158,11 +158,10 @@ export default function CraftingPage() {
                         key={material.materialId}
                         onClick={() => toggleMaterial(material.materialId)}
                         whileHover={{ scale: 1.02 }}
-                        className={`p-3 rounded-lg border-2 transition-all text-left ${
-                          isSelected
+                        className={`p-3 rounded-lg border-2 transition-all text-left ${isSelected
                             ? 'border-purple-400 bg-purple-500/20'
                             : `${getRarityBg(material.rarity)} border-opacity-50`
-                        }`}
+                          }`}
                       >
                         <p className={`font-bold text-sm ${getRarityColor(material.rarity)}`}>
                           {material.name}
@@ -188,11 +187,10 @@ export default function CraftingPage() {
                     <button
                       key={slot}
                       onClick={() => setSelectedSlot(slot)}
-                      className={`p-3 rounded-lg border-2 transition-all capitalize font-bold ${
-                        selectedSlot === slot
+                      className={`p-3 rounded-lg border-2 transition-all capitalize font-bold ${selectedSlot === slot
                           ? 'border-purple-400 bg-purple-500/30 text-white'
                           : 'border-purple-500/30 bg-slate-800/30 text-purple-300 hover:bg-slate-800/50'
-                      }`}
+                        }`}
                     >
                       {slot === 'weapon' ? '⚔️' : slot === 'armor' ? '🛡️' : '💍'} {slot}
                     </button>
@@ -225,11 +223,10 @@ export default function CraftingPage() {
                 onClick={handleCraft}
                 disabled={crafting || selectedMaterials.length === 0}
                 whileHover={!crafting ? { scale: 1.02 } : {}}
-                className={`w-full py-3 rounded-lg font-bold transition-all ${
-                  crafting || selectedMaterials.length === 0
+                className={`w-full py-3 rounded-lg font-bold transition-all ${crafting || selectedMaterials.length === 0
                     ? 'bg-purple-600/50 text-purple-300 cursor-not-allowed'
                     : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
-                }`}
+                  }`}
               >
                 {crafting ? '🔨 Crafting...' : '🔨 Craft Gear'}
               </motion.button>

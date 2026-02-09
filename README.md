@@ -37,21 +37,11 @@ agent-arena/
 └── docs/              # Architecture & design docs
 ```
 
-## 🚀 Quick Start
+## 🌐 Live Environment
 
-**Backend:**
-```bash
-npm install
-npm run migrate  # Set up database
-npm run dev     # Start server on http://localhost:3000
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev     # Start on http://localhost:3000
-```
+- **Frontend**: [https://agent-arena-rho.vercel.app](https://agent-arena-rho.vercel.app)
+- **Backend**: [https://agent-arena-api-production.up.railway.app](https://agent-arena-api-production.up.railway.app)
+- **Database**: Supabase (PostgreSQL)
 
 ## 📊 Dashboard & Tracking
 

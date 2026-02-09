@@ -13,18 +13,7 @@ Next.js 14 web client for Agent Arena MMORPG.
 
 ## Setup
 
-```bash
-# Install dependencies
-npm install
-
-# Set environment variables
-cp .env.example .env.local
-
-# Run development server
-npm run dev
-```
-
-Visit `http://localhost:3000`
+The frontend is configured to connect to the production backend via environment variables in Vercel.
 
 ## Project Structure
 
@@ -57,10 +46,7 @@ src/
 
 ## Environment Variables
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
-```
+The project uses `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` to point to the Railway backend.
 
 ## Deployment
 
