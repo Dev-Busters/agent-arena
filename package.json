@@ -14,7 +14,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "compile": "tsc --outDir dist",
-    "start:server": "node app/dist/api/routes.js",
+    "start:server": "node dist/server.js",
     "start:dev": "tsx src/server.ts",
     "migrate": "tsx src/database/migrate.ts",
     "test": "vitest",
