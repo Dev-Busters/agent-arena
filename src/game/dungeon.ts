@@ -168,13 +168,20 @@ export function generateDungeon(
     }
   }
 
-  // Use rot.js Digger for dungeon generation
+  // Use rot.js Digger for dungeon dungeon generation
+  console.log('🏗️ [DUNGEON] Starting Digger generation:', { WIDTH, HEIGHT });
   const digger = new (ROT.Map as any).Digger(WIDTH, HEIGHT);
-  digger.create((x: number, y: number, value: number) => {
-    if (value === 0) {
-      tiles[y][x] = 1; // 1 = floor
-    }
-  });
+  try {
+    digger.create((x: number, y: number, value: number) => {
+      if (value === 0) {
+        tiles[y][x] = 1; // 1 = floor
+      }
+    });
+    console.log('✅ [DUNGEON] Digger generation complete');
+  } catch (err: any) {
+    console.error('❌ [DUNGEON] Digger.create error:', err.message);
+    throw err;
+  }
 
   // Extract rooms from digger
   const rooms: Room[] = [];
@@ -185,7 +192,7 @@ export function generateDungeon(
     const y1 = (room as any)._y1 ?? 0;
     const x2 = (room as any)._x2 ?? WIDTH - 1;
     const y2 = (room as any)._y2 ?? HEIGHT - 1;
-    
+
     rooms.push({
       id: index,
       x: x1,
@@ -387,16 +394,16 @@ export function generateBranchingPaths(
     const zoneType = zoneTypes[Math.floor(rng() * zoneTypes.length)];
     const rarityBoost = rarityBoosts[Math.floor(rng() * rarityBoosts.length)];
     const baseDiff = getDifficultyForFloor(floor);
-    
+
     // Path difficulty slightly higher than base
     const pathDifficulty =
       baseDiff === "easy"
         ? "normal"
         : baseDiff === "normal"
-        ? "hard"
-        : baseDiff === "hard"
-        ? "nightmare"
-        : "nightmare";
+          ? "hard"
+          : baseDiff === "hard"
+            ? "nightmare"
+            : "nightmare";
 
     paths.push({
       pathId: `path-${floor}-${i}`,
