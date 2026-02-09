@@ -21,7 +21,7 @@ export default function DungeonStart({ onStart }: DungeonStartProps) {
     // Fetch available agents
     const fetchAgents = async () => {
       try {
-        const response = await axios.get('/api/agents/me/current');
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/me/current`);
         if (response.data) {
           setAgents([response.data]);
           setSelectedAgent(response.data.id);
@@ -108,11 +108,10 @@ export default function DungeonStart({ onStart }: DungeonStartProps) {
           <button
             onClick={handleStartDungeon}
             disabled={!selectedAgent || loading}
-            className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
-              loading
+            className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${loading
                 ? 'bg-purple-600/50 text-purple-300 cursor-not-allowed'
                 : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
-            }`}
+              }`}
           >
             {loading ? '🌀 Descending...' : '⚔️ Descend into the Depths'}
           </button>

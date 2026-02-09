@@ -24,7 +24,7 @@ export function useAuth() {
         }
 
         // Verify token is still valid by making an authenticated request
-        const response = await axios.get('/api/agents/me/current', {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/me/current`, {
           headers: {
             Authorization: `Bearer ${token}`
           }

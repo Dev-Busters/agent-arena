@@ -192,7 +192,6 @@ httpServer.listen(PORT, () => {
   serverReady = true; // Mark server as ready after listening
 
   console.log(`✅ [READY] Agent Arena server running on port ${PORT}`);
-  console.log(`🌐 Server URL: http://localhost:${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`\n📊 API endpoints:`);
