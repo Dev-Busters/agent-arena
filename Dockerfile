@@ -11,9 +11,13 @@ RUN npm ci --production=false
 # Copy source code
 COPY src ./src
 
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 3000
 
 ENV NODE_ENV=production
 
-# Run directly with tsx (bypass npm)
-CMD ["npx", "tsx", "src/server.ts"]
+# Use entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
