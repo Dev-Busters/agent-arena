@@ -25,5 +25,5 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 
-# Run the app
-CMD ["node", "dist/server.js"]
+# Run the app using npm start which uses tsx
+CMD ["npm", "start"]
