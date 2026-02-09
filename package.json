@@ -12,8 +12,9 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "node dist/server.js",
+    "start": "node dist/server.bundle.js",
     "compile": "tsc --outDir dist",
+    "bundle": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.bundle.js --format=esm --packages=external",
     "start:tsx": "tsx src/server.ts",
     "start:dev": "tsx src/server.ts",
     "migrate": "tsx src/database/migrate.ts",
@@ -54,6 +55,7 @@
     "@types/seedrandom": "^3.0.5",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0",
+    "esbuild": "^0.20.0",
     "vitest": "^1.1.0",
     "eslint": "^8.56.0",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
