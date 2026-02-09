@@ -123,11 +123,12 @@ export function setupDungeonSockets(io: any) {
             },
           });
         } catch (error: any) {
-          console.error('❌ [DUNGEON] start_dungeon error:', {
+          console.error('❌ [DUNGEON] start_dungeon error detailed:', {
             message: error?.message,
             code: error?.code,
             detail: error?.detail,
-            stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+            hint: error?.hint,
+            stack: error?.stack,
           });
           socket.emit("dungeon_error", {
             message: "Failed to start dungeon: " + error?.message,
@@ -214,7 +215,7 @@ export function setupDungeonSockets(io: any) {
             detail: error?.detail,
             stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
           });
-          socket.emit("dungeon_error", { 
+          socket.emit("dungeon_error", {
             message: "Failed to enter room: " + error?.message,
           });
         }
