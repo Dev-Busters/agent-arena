@@ -1,4 +1,12 @@
 // Set up global error handlers BEFORE anything else
+import dns from 'dns';
+try {
+  dns.setDefaultResultOrder('ipv4first');
+  console.log('✅ [NETWORK] Set default DNS result order to ipv4first');
+} catch (e) {
+  console.warn('⚠️ [NETWORK] Could not set default DNS result order (Node version likely too old)');
+}
+
 process.on('uncaughtException', (err) => {
   console.error('❌ [FATAL] Uncaught Exception:', err);
   process.exit(1);
