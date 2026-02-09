@@ -5,7 +5,6 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "node dist/server.js",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyMaxRetries": 5
