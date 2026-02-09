@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.bundle.js",
+    "blogs": "tsc ls -R dist",
     "compile": "tsc --outDir dist",
     "bundle": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.bundle.js --format=esm --packages=external",
     "start:tsx": "tsx src/server.ts",
