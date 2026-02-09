@@ -50,21 +50,24 @@ const io = new SocketIOServer(httpServer, {
 
 const PORT = process.env.PORT || 3000;
 
+import cors from 'cors';
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware
-app.use((req: Request, res: Response, next: Function) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// CORS configuration
+const corsOptions = {
+  origin: process.env.SOCKET_IO_CORS_ORIGIN || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle OPTIONS for preflight comfort
+app.options('*', cors(corsOptions));
 
 // Socket.io authentication middleware
 io.use((socket: any, next) => {
@@ -106,7 +109,7 @@ app.get('/health', (req: Request, res: Response) => {
       uptime: process.uptime(),
       server_ready: serverReady
     };
-    
+
     // Try to include queue size if available
     try {
       if (matchmakingQueue && typeof matchmakingQueue.getQueueSize === 'function') {
@@ -115,7 +118,7 @@ app.get('/health', (req: Request, res: Response) => {
     } catch (e) {
       // Ignore errors getting queue size
     }
-    
+
     res.status(200).json(healthData);
   } catch (err) {
     console.error('❌ Health check error:', err);
@@ -171,7 +174,7 @@ httpServer.on('error', (err: any) => {
 
 httpServer.listen(PORT, () => {
   serverReady = true; // Mark server as ready after listening
-  
+
   console.log(`✅ [READY] Agent Arena server running on port ${PORT}`);
   console.log(`🌐 Server URL: http://localhost:${PORT}`);
   console.log(`📡 Socket.io ready for connections`);
