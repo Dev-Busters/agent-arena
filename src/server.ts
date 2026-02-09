@@ -65,8 +65,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
-const corsOptions = {
-  origin: process.env.SOCKET_IO_CORS_ORIGIN || '*',
+const corsOptions: any = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    const allowed = process.env.SOCKET_IO_CORS_ORIGIN || process.env.CORS_ORIGIN || '*';
+    if (allowed === '*' || !origin || origin === allowed) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ [CORS] Rejected: ${origin}. Expected: ${allowed}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
