@@ -7,7 +7,7 @@ COPY package*.json tsconfig.json ./
 COPY src ./src
 
 # Install ALL dependencies (including devDependencies for esbuild)
-RUN npm ci
+RUN npm install
 
 # Bundle with esbuild into single file
 RUN echo "=== Running esbuild bundle ===" && npm run bundle
