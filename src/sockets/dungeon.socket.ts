@@ -72,7 +72,7 @@ export function setupDungeonSockets(io: any) {
           // Create dungeon in database
           const dungeonResult = await query(
             `INSERT INTO dungeons (user_id, agent_id, difficulty, seed, depth, max_depth)
-             VALUES ($1, $2, $3, $4, 1, 10)
+             VALUES ($1, $2, $3::dungeon_difficulty, $4, 1, 10)
              RETURNING *`,
             [userId, agentId, difficulty, seed]
           );
