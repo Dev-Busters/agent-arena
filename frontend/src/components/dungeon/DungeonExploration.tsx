@@ -26,6 +26,7 @@ interface DungeonExplorationProps {
   difficulty: string;
   depth: number;
   playerStats: any;
+  initialRooms?: any[];
   onEncounter: () => void;
   onNextFloor: () => void;
   onComplete: () => void;
@@ -36,12 +37,13 @@ export default function DungeonExploration({
   difficulty,
   depth,
   playerStats,
+  initialRooms = [],
   onEncounter,
   onNextFloor,
   onComplete
 }: DungeonExplorationProps) {
   const { socket } = useSocket();
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [selectedRoom, setSelectedRoom] = useState<number | null>(null);
   const [visitedRooms, setVisitedRooms] = useState<number[]>([]);
   const [floorComplete, setFloorComplete] = useState(false);

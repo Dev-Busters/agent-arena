@@ -16,11 +16,14 @@ export default function DungeonPage() {
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard' | 'nightmare'>('normal');
   const [depth, setDepth] = useState(1);
   const [playerStats, setPlayerStats] = useState({ hp: 100, maxHp: 100, level: 1 });
+  const [initialRooms, setInitialRooms] = useState<any[]>([]);
 
-  const handleStartDungeon = (dungId: string, diff: string, stats: any) => {
+  const handleStartDungeon = (dungId: string, diff: string, stats: any, rooms: any[]) => {
     setDungeonId(dungId);
     setDifficulty(diff as any);
     setPlayerStats(stats);
+    setInitialRooms(rooms);
+    console.log('🎮 Dungeon page received rooms:', rooms);
     setState('exploring');
   };
 
@@ -56,6 +59,7 @@ export default function DungeonPage() {
           difficulty={difficulty}
           depth={depth}
           playerStats={playerStats}
+          initialRooms={initialRooms}
           onEncounter={handleEnterEncounter}
           onNextFloor={handleNextFloor}
           onComplete={handleDungeonComplete}
