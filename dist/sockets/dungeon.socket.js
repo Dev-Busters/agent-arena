@@ -37,11 +37,10 @@ export function setupDungeonSockets(io) {
                 const map = generateDungeon(seed, difficulty, floor, agent.level);
                 // Create progress record
                 await query(`INSERT INTO dungeon_progress (dungeon_id, map_data, current_room_id, discovered_rooms)
-             VALUES ($1, $2, $3, $4)`, [
+             VALUES ($1, $2, $3, ARRAY[0])`, [
                     dungeon.id,
                     JSON.stringify(map),
                     0,
-                    '{0}', // Starting room
                 ]);
                 // Store session
                 const session = {
