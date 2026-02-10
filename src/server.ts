@@ -161,7 +161,8 @@ app.use('/api/crafting', craftingRoutes);
 
 // Setup Socket.io game handlers
 setupGameSockets(io);
-setupDungeonSockets(io);
+// TODO: Re-enable dungeons after fixing schema constraints
+// setupDungeonSockets(io);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
