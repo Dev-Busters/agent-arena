@@ -246,4 +246,114 @@ try {
 
 console.log('✅ [STARTUP] Server fully initialized and ready to receive requests');
 
+// Run schema cleanup on startup (drop and recreate dungeon tables)
+(async () => {
+  try {
+    console.log('🔄 [STARTUP] Running schema cleanup for dungeon tables...');
+    const client = await pool.connect();
+    try {
+      // Drop dependent tables first
+      await client.query('DROP TABLE IF EXISTS dungeon_progress CASCADE');
+      console.log('✓ Dropped dungeon_progress table');
+      
+      await client.query('DROP TABLE IF EXISTS loot_drops CASCADE');
+      console.log('✓ Dropped loot_drops table');
+      
+      await client.query('DROP TABLE IF EXISTS encounters CASCADE');
+      console.log('✓ Dropped encounters table');
+      
+      await client.query('DROP TABLE IF EXISTS dungeons CASCADE');
+      console.log('✓ Dropped dungeons table');
+      
+      // Recreate tables without bad constraints
+      const createTablesSQL = `
+        -- Create dungeons table
+        CREATE TABLE IF NOT EXISTS dungeons (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+          difficulty dungeon_difficulty DEFAULT 'normal',
+          seed INT NOT NULL,
+          depth INT DEFAULT 1,
+          max_depth INT DEFAULT 1,
+          gold_collected INT DEFAULT 0,
+          experience_earned INT DEFAULT 0,
+          started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          completed_at TIMESTAMP,
+          abandoned_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_dungeons_user_id ON dungeons(user_id);
+        CREATE INDEX IF NOT EXISTS idx_dungeons_agent_id ON dungeons(agent_id);
+        CREATE INDEX IF NOT EXISTS idx_dungeons_difficulty ON dungeons(difficulty);
+        
+        -- Create encounters table
+        CREATE TABLE IF NOT EXISTS encounters (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE,
+          room_id INT NOT NULL,
+          enemy_type VARCHAR(50) NOT NULL,
+          enemy_level INT DEFAULT 1,
+          enemy_hp INT NOT NULL,
+          enemy_max_hp INT NOT NULL,
+          enemy_attack INT NOT NULL,
+          enemy_defense INT NOT NULL,
+          enemy_speed INT NOT NULL,
+          enemy_loot_table JSONB DEFAULT '{}',
+          encountered_at TIMESTAMP,
+          defeated_at TIMESTAMP,
+          victory BOOLEAN,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_encounters_dungeon_id ON encounters(dungeon_id);
+        CREATE INDEX IF NOT EXISTS idx_encounters_room_id ON encounters(room_id);
+        
+        -- Create loot_drops table
+        CREATE TABLE IF NOT EXISTS loot_drops (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE,
+          encounter_id UUID REFERENCES encounters(id) ON DELETE SET NULL,
+          item_id UUID REFERENCES items(id),
+          gold INT DEFAULT 0,
+          experience INT DEFAULT 0,
+          found_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          collected BOOLEAN DEFAULT FALSE,
+          collected_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_loot_drops_dungeon_id ON loot_drops(dungeon_id);
+        CREATE INDEX IF NOT EXISTS idx_loot_drops_encounter_id ON loot_drops(encounter_id);
+        
+        -- Create dungeon_progress table
+        CREATE TABLE IF NOT EXISTS dungeon_progress (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE UNIQUE,
+          map_data JSONB NOT NULL DEFAULT '{}',
+          current_room_id INT DEFAULT 1,
+          visited_rooms INT[] DEFAULT ARRAY[]::INT[],
+          discovered_rooms INT[] DEFAULT ARRAY[]::INT[],
+          player_x INT DEFAULT 0,
+          player_y INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_dungeon_progress_dungeon_id ON dungeon_progress(dungeon_id);
+      `;
+      
+      await client.query(createTablesSQL);
+      console.log('✅ [STARTUP] Dungeon tables recreated successfully');
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.error('⚠️  [STARTUP] Schema cleanup warning (may be okay):', err.message);
+    // Don't exit - this is cleanup, not critical
+  }
+})();
+
 export { app, io };
