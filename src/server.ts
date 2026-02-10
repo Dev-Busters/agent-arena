@@ -47,6 +47,24 @@ import { verifyToken } from './api/auth.js';
 
 console.log('🚀 [STARTUP] All modules loaded successfully');
 
+// CRITICAL FIX: Drop dungeon tables with bad constraints immediately
+(async () => {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('DROP TABLE IF EXISTS dungeon_progress CASCADE');
+      await client.query('DROP TABLE IF EXISTS loot_drops CASCADE');
+      await client.query('DROP TABLE IF EXISTS encounters CASCADE');
+      await client.query('DROP TABLE IF EXISTS dungeons CASCADE');
+      console.log('✅ [STARTUP] Dropped old dungeon tables with bad constraints');
+    } finally {
+      client.release();
+    }
+  } catch (err: any) {
+    console.warn('⚠️  [STARTUP] Table cleanup warning (may be okay):', err.message);
+  }
+})();
+
 const app: Express = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
