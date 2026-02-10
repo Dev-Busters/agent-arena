@@ -44,7 +44,7 @@ import { setupDungeonSockets } from './sockets/dungeon.socket.js';
 console.log('🚀 [STARTUP] Loading game modules...');
 import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
 import { verifyToken } from './api/auth.js';
-import pool from './database/connection.js';
+import { query as executeQuery } from './database/connection.js';
 
 console.log('🚀 [STARTUP] All modules loaded successfully');
 
@@ -251,23 +251,22 @@ console.log('✅ [STARTUP] Server fully initialized and ready to receive request
 (async () => {
   try {
     console.log('🔄 [STARTUP] Running schema cleanup for dungeon tables...');
-    const client = await pool.connect();
-    try {
-      // Drop dependent tables first
-      await client.query('DROP TABLE IF EXISTS dungeon_progress CASCADE');
-      console.log('✓ Dropped dungeon_progress table');
-      
-      await client.query('DROP TABLE IF EXISTS loot_drops CASCADE');
-      console.log('✓ Dropped loot_drops table');
-      
-      await client.query('DROP TABLE IF EXISTS encounters CASCADE');
-      console.log('✓ Dropped encounters table');
-      
-      await client.query('DROP TABLE IF EXISTS dungeons CASCADE');
-      console.log('✓ Dropped dungeons table');
-      
-      // Recreate tables without bad constraints
-      const createTablesSQL = `
+    
+    // Drop dependent tables first
+    await executeQuery('DROP TABLE IF EXISTS dungeon_progress CASCADE');
+    console.log('✓ Dropped dungeon_progress table');
+    
+    await executeQuery('DROP TABLE IF EXISTS loot_drops CASCADE');
+    console.log('✓ Dropped loot_drops table');
+    
+    await executeQuery('DROP TABLE IF EXISTS encounters CASCADE');
+    console.log('✓ Dropped encounters table');
+    
+    await executeQuery('DROP TABLE IF EXISTS dungeons CASCADE');
+    console.log('✓ Dropped dungeons table');
+    
+    // Recreate tables without bad constraints
+    const createTablesSQL = `
         -- Create dungeons table
         CREATE TABLE IF NOT EXISTS dungeons (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -346,11 +345,8 @@ console.log('✅ [STARTUP] Server fully initialized and ready to receive request
         CREATE INDEX IF NOT EXISTS idx_dungeon_progress_dungeon_id ON dungeon_progress(dungeon_id);
       `;
       
-      await client.query(createTablesSQL);
+      await executeQuery(createTablesSQL);
       console.log('✅ [STARTUP] Dungeon tables recreated successfully');
-    } finally {
-      client.release();
-    }
   } catch (err: any) {
     console.error('⚠️  [STARTUP] Schema cleanup warning (may be okay):', err.message);
     // Don't exit - this is cleanup, not critical
