@@ -89,7 +89,7 @@ export function setupDungeonSockets(io: any) {
               dungeon.id,
               JSON.stringify(map),
               0,
-              JSON.stringify([0]), // Starting room
+              [0], // Starting room
             ]
           );
 
