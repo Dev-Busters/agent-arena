@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import axios from 'axios';
 
 interface DungeonStartProps {
-  onStart: (dungeonId: string, difficulty: string, playerStats: any) => void;
+  onStart: (dungeonId: string, difficulty: string, playerStats: any, rooms: any[]) => void;
 }
 
 export default function DungeonStart({ onStart }: DungeonStartProps) {
@@ -51,7 +51,8 @@ export default function DungeonStart({ onStart }: DungeonStartProps) {
 
     socket.on('dungeon_started', (data: any) => {
       setLoading(false);
-      onStart(data.dungeonId, data.difficulty, data.playerStats);
+      console.log('✅ Dungeon started with rooms:', data.map?.rooms);
+      onStart(data.dungeonId, data.difficulty, data.playerStats, data.map?.rooms || []);
     });
 
     socket.on('dungeon_error', (data: any) => {
