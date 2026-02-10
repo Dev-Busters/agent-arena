@@ -1,28 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
-import BattleScene3D from '@/components/Battle/BattleScene3D';
 
 interface Enemy {
   id: string;
   name: string;
   hp: number;
   maxHp: number;
-}
-
-interface LootItem {
-  id: string;
-  name: string;
-  type: string;
-  rarity: string;
-  stats: any;
-}
-
-interface LootMaterial {
-  materialId: string;
-  quantity: number;
 }
 
 interface DungeonEncounterProps {
@@ -32,16 +18,6 @@ interface DungeonEncounterProps {
   onFlee: () => void;
 }
 
-const ENEMY_ICONS: Record<string, string> = {
-  goblin: '👹',
-  skeleton: '💀',
-  orc: '🗡️',
-  wraith: '👻',
-  boss_skeleton: '☠️',
-  boss_dragon: '🐉',
-  boss_lich: '🧙'
-};
-
 export default function DungeonEncounter({
   dungeonId,
   playerStats,
@@ -50,328 +26,264 @@ export default function DungeonEncounter({
 }: DungeonEncounterProps) {
   const { socket } = useSocket();
   const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [selectedEnemy, setSelectedEnemy] = useState<string | null>(null);
   const [playerHp, setPlayerHp] = useState(playerStats.hp);
-  const [loading, setLoading] = useState(false);
-  const [battleLog, setBattleLog] = useState<string[]>(['Battle started!']);
-  const [combatOver, setCombatOver] = useState(false);
-  const [victory, setVictory] = useState(false);
-  const [rewards, setRewards] = useState<{ gold: number; xp: number; items: LootItem[]; materials: LootMaterial[]; levelUp: boolean; newLevel: number } | null>(null);
+  const [isAttacking, setIsAttacking] = useState(false);
+  const [damages, setDamages] = useState<Array<{ id: string; damage: number }>>([]);
+  const [inCombat, setInCombat] = useState(true);
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('encounter_started', (data: any) => {
-      setEnemies(data.enemies);
-      if (data.enemies.length > 0) {
-        setSelectedTarget(data.enemies[0].id);
+    const handleEncounterStarted = (data: any) => {
+      setEnemies(data.enemies || []);
+      if (data.enemies?.length > 0) {
+        setSelectedEnemy(data.enemies[0].id);
       }
-    });
+    };
 
-    socket.on('turn_result', (data: any) => {
-      setBattleLog(prev => [
-        ...prev,
-        `You dealt ${data.playerDamage} damage!`
-      ]);
-      setEnemies(data.enemies);
-      setLoading(false);
-    });
+    const handleTurnResult = (data: any) => {
+      setEnemies(prev => prev.map(e => 
+        e.id === data.enemies[0]?.id 
+          ? { ...e, hp: Math.max(0, data.enemies[0].hp) }
+          : e
+      ));
 
-    socket.on('encounter_won', (data: any) => {
-      setBattleLog(prev => [...prev, '🎉 Victory! You defeated all enemies!']);
-      setRewards({
-        gold: data.gold,
-        xp: data.xp,
-        items: data.items || [],
-        materials: data.materials || [],
-        levelUp: data.levelUp,
-        newLevel: data.newLevel
-      });
-      setVictory(true);
-      setCombatOver(true);
-    });
+      if (data.playerDamage > 0) {
+        setDamages(prev => [...prev, { id: selectedEnemy!, damage: data.playerDamage }]);
+        setTimeout(() => {
+          setDamages(prev => prev.filter(d => d.id !== selectedEnemy));
+        }, 1000);
+      }
+      
+      setIsAttacking(false);
+    };
 
-    socket.on('fled_successfully', () => {
-      setBattleLog(prev => [...prev, '🏃 You fled successfully!']);
-      setCombatOver(true);
-    });
+    const handleEncounterWon = (data: any) => {
+      setInCombat(false);
+      setTimeout(() => onWin(), 1500);
+    };
 
-    socket.on('fled_failed', () => {
-      setBattleLog(prev => [...prev, '❌ Flee failed! Enemies blocked your escape!']);
-      setLoading(false);
-    });
-
-    socket.on('dungeon_error', (data: any) => {
-      alert(data.message);
-      setLoading(false);
-    });
+    socket.on('encounter_started', handleEncounterStarted);
+    socket.on('turn_result', handleTurnResult);
+    socket.on('encounter_won', handleEncounterWon);
 
     return () => {
-      socket.off('encounter_started');
-      socket.off('turn_result');
-      socket.off('encounter_won');
-      socket.off('fled_successfully');
-      socket.off('fled_failed');
-      socket.off('dungeon_error');
+      socket.off('encounter_started', handleEncounterStarted);
+      socket.off('turn_result', handleTurnResult);
+      socket.off('encounter_won', handleEncounterWon);
     };
-  }, [socket]);
+  }, [socket, selectedEnemy, onWin]);
 
-  const handleAction = (action: string) => {
-    if (!selectedTarget || loading) return;
+  const handleAttack = () => {
+    if (!selectedEnemy || !inCombat || isAttacking) return;
+    setIsAttacking(true);
 
-    setLoading(true);
     socket?.emit('dungeon_action', {
       dungeonId,
-      action,
-      targetId: selectedTarget
+      action: 'attack',
+      targetId: selectedEnemy
     });
-  };
-
-  const handleFlee = () => {
-    setLoading(true);
-    socket?.emit('flee_encounter');
   };
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.h1
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-4xl font-bold text-white mb-6"
-        >
-          ⚔️ Battle!
-        </motion.h1>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-purple-950 to-slate-950 p-6">
+      {/* Animated background effect */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse" />
+      </div>
 
-        {/* 3D Battle Scene */}
+      <div className="relative max-w-6xl mx-auto">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
         >
-          <BattleScene3D enemies={enemies} />
+          <motion.div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 mb-2">
+            ⚔️ COMBAT
+          </motion.div>
+          <p className="text-purple-300/60 font-mono text-sm">Battle System Engaged</p>
         </motion.div>
 
-        {/* Enemies */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-8 grid grid-cols-2 gap-4"
-        >
-          {enemies.map((enemy) => (
-            <motion.button
-              key={enemy.id}
-              onClick={() => setSelectedTarget(enemy.id)}
-              whileHover={{ scale: 1.05 }}
-              className={`p-6 rounded-lg border-2 transition-all ${
-                selectedTarget === enemy.id
-                  ? 'border-red-500 bg-red-500/20'
-                  : 'border-purple-500/30 bg-purple-900/10 hover:border-purple-400'
-              }`}
-            >
-              <div className="text-5xl mb-2">{ENEMY_ICONS[enemy.name.toLowerCase()] || '👹'}</div>
-              <p className="text-white font-bold text-lg">{enemy.name}</p>
-              <div className="w-full h-3 bg-slate-800 rounded overflow-hidden border border-red-500/30 mt-2">
-                <div
-                  className="h-full bg-gradient-to-r from-red-600 to-orange-600 transition-all"
-                  style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}
+        {/* Combat Arena */}
+        <div className="grid grid-cols-5 gap-6 mb-8">
+          {/* Player Card - Left */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="col-span-1 backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl"
+          >
+            <h2 className="text-sm font-bold text-cyan-300 uppercase tracking-widest mb-6">Your Character</h2>
+            
+            {/* Avatar */}
+            <div className="text-5xl text-center mb-4">
+              {playerStats.class === 'warrior' ? '⚔️' : playerStats.class === 'mage' ? '✨' : '🗡️'}
+            </div>
+
+            {/* Health Bar */}
+            <div className="mb-6">
+              <div className="flex justify-between mb-2">
+                <span className="text-xs text-cyan-300/70 uppercase tracking-wide">HP</span>
+                <span className="text-xs font-mono text-cyan-200">{playerHp}/{playerStats.maxHp}</span>
+              </div>
+              <div className="relative h-6 bg-slate-900/50 rounded-full border border-cyan-500/30 overflow-hidden shadow-inner">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg shadow-cyan-500/50"
+                  initial={{ width: '100%' }}
+                  animate={{ width: `${(playerHp / playerStats.maxHp) * 100}%` }}
+                  transition={{ duration: 0.4 }}
                 />
               </div>
-              <p className="text-red-300 text-xs mt-1">{enemy.hp} / {enemy.maxHp} HP</p>
-            </motion.button>
-          ))}
-        </motion.div>
+            </div>
 
-        {/* Player Stats */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-6 mb-8"
-        >
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Your Health</h2>
-            <p className="text-purple-300">{playerHp} / {playerStats.maxHp}</p>
-          </div>
-          <div className="w-full h-6 bg-slate-800 rounded overflow-hidden border border-purple-500/30">
-            <div
-              className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all"
-              style={{ width: `${(playerHp / playerStats.maxHp) * 100}%` }}
-            />
-          </div>
-        </motion.div>
-
-        {/* Battle Log */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 mb-8 max-h-48 overflow-y-auto"
-        >
-          <h3 className="text-lg font-bold text-white mb-2">Battle Log</h3>
-          <div className="space-y-1">
-            {battleLog.map((log, idx) => (
-              <motion.p
-                key={idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-slate-300 text-sm"
-              >
-                → {log}
-              </motion.p>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Actions */}
-        {!combatOver && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-4 gap-3"
-          >
-            <button
-              onClick={() => handleAction('attack')}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white font-bold py-4 px-6 rounded-lg transition-all"
-            >
-              ⚔️ Attack
-            </button>
-            <button
-              onClick={() => handleAction('defend')}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-bold py-4 px-6 rounded-lg transition-all"
-            >
-              🛡️ Defend
-            </button>
-            <button
-              onClick={() => handleAction('ability')}
-              disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50 text-white font-bold py-4 px-6 rounded-lg transition-all"
-            >
-              ✨ Ability
-            </button>
-            <button
-              onClick={handleFlee}
-              disabled={loading}
-              className="bg-amber-600 hover:bg-amber-700 disabled:bg-amber-600/50 text-white font-bold py-4 px-6 rounded-lg transition-all"
-            >
-              🏃 Flee
-            </button>
-          </motion.div>
-        )}
-
-        {/* Battle Over */}
-        {combatOver && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`p-8 rounded-lg border-2 ${
-              victory
-                ? 'bg-green-500/20 border-green-500'
-                : 'bg-amber-500/20 border-amber-500'
-            }`}
-          >
-            <p className="text-3xl font-bold text-white mb-6 text-center">
-              {victory ? '🎉 Victory!' : '✨ Escaped!'}
-            </p>
-
-            {/* Rewards */}
-            {rewards && (
-              <div className="space-y-4 mb-6">
-                {/* Gold & XP */}
-                <div className="grid grid-cols-2 gap-4">
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-yellow-500/20 border border-yellow-500 rounded-lg p-4"
-                  >
-                    <p className="text-yellow-300 text-sm mb-1">Gold</p>
-                    <p className="text-2xl font-bold text-yellow-400">+{rewards.gold}</p>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="bg-blue-500/20 border border-blue-500 rounded-lg p-4"
-                  >
-                    <p className="text-blue-300 text-sm mb-1">Experience</p>
-                    <p className="text-2xl font-bold text-blue-400">+{rewards.xp}</p>
-                  </motion.div>
-                </div>
-
-                {/* Level Up */}
-                {rewards.levelUp && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-purple-500/30 border-2 border-purple-400 rounded-lg p-4 text-center"
-                  >
-                    <p className="text-purple-300 text-sm mb-1">⭐ LEVEL UP!</p>
-                    <p className="text-3xl font-bold text-purple-400">Level {rewards.newLevel}</p>
-                  </motion.div>
-                )}
-
-                {/* Items */}
-                {rewards.items.length > 0 && (
-                  <div>
-                    <p className="text-purple-300 text-sm mb-2 font-bold">Items Dropped:</p>
-                    <div className="space-y-2">
-                      {rewards.items.map((item, idx) => {
-                        const rarityColors: Record<string, string> = {
-                          common: 'border-gray-500 bg-gray-500/10',
-                          uncommon: 'border-green-500 bg-green-500/10',
-                          rare: 'border-blue-500 bg-blue-500/10',
-                          epic: 'border-purple-500 bg-purple-500/10',
-                          legendary: 'border-yellow-500 bg-yellow-500/10'
-                        };
-                        return (
-                          <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.2 + idx * 0.1 }}
-                            className={`border rounded-lg p-3 ${rarityColors[item.rarity] || rarityColors.common}`}
-                          >
-                            <p className="text-white font-bold">{item.name}</p>
-                            <p className="text-xs text-slate-300 capitalize">{item.type}</p>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Materials */}
-                {rewards.materials.length > 0 && (
-                  <div>
-                    <p className="text-orange-300 text-sm mb-2 font-bold">Materials Collected:</p>
-                    <div className="space-y-2">
-                      {rewards.materials.map((mat, idx) => (
-                        <motion.div
-                          key={mat.materialId}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.3 + idx * 0.1 }}
-                          className="border border-orange-500 bg-orange-500/10 rounded-lg p-3"
-                        >
-                          <p className="text-white font-bold text-sm">{mat.materialId}</p>
-                          <p className="text-xs text-orange-300">x{mat.quantity}</p>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* Stats */}
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between text-cyan-300/70">
+                <span>Level</span>
+                <span className="font-bold text-cyan-300">{playerStats.level}</span>
               </div>
-            )}
-
-            <button
-              onClick={victory ? onWin : onFlee}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 px-8 rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-all"
-            >
-              Continue Exploring
-            </button>
+              <div className="flex justify-between text-cyan-300/70">
+                <span>⚡ Attack</span>
+                <span className="font-bold text-cyan-300">15</span>
+              </div>
+              <div className="flex justify-between text-cyan-300/70">
+                <span>🛡️ Defense</span>
+                <span className="font-bold text-cyan-300">8</span>
+              </div>
+            </div>
           </motion.div>
-        )}
+
+          {/* Enemies - Center */}
+          <div className="col-span-3 space-y-4">
+            <AnimatePresence>
+              {enemies.map((enemy, idx) => {
+                const damage = damages.find(d => d.id === enemy.id);
+                return (
+                  <motion.button
+                    key={enemy.id}
+                    onClick={() => inCombat && setSelectedEnemy(enemy.id)}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className={`w-full group relative overflow-hidden rounded-2xl transition-all duration-300 ${
+                      selectedEnemy === enemy.id
+                        ? 'ring-2 ring-red-500/50'
+                        : 'hover:ring-2 hover:ring-red-500/30'
+                    }`}
+                  >
+                    {/* Background gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-red-600/20 via-orange-600/10 to-red-600/20 group-hover:from-red-600/30 group-hover:via-orange-600/20 group-hover:to-red-600/30 transition-all duration-300" />
+                    <div className="absolute inset-0 backdrop-blur-xl bg-slate-900/40" />
+
+                    {/* Border */}
+                    <div className="absolute inset-0 border border-red-500/30 rounded-2xl group-hover:border-red-500/50 transition-all" />
+
+                    {/* Content */}
+                    <div className="relative p-6 flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="text-4xl">👹</div>
+                        <div className="text-left">
+                          <h3 className="text-lg font-bold text-red-200">{enemy.name}</h3>
+                          <p className="text-xs text-red-300/60">Level {Math.ceil(enemies.length + Math.random() * 3)}</p>
+                        </div>
+                      </div>
+
+                      {/* Health Info */}
+                      <div className="text-right">
+                        <div className="text-xs text-red-300/70 mb-2 font-mono">
+                          {Math.max(0, enemy.hp)} / {enemy.maxHp}
+                        </div>
+                        <div className="w-32 h-3 bg-slate-900/50 rounded-full border border-red-500/30 overflow-hidden">
+                          <motion.div
+                            className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full shadow-lg shadow-red-500/50"
+                            initial={{ width: '100%' }}
+                            animate={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Damage Popup */}
+                    <AnimatePresence>
+                      {damage && (
+                        <motion.div
+                          initial={{ opacity: 1, y: 0, scale: 1 }}
+                          animate={{ opacity: 0, y: -40, scale: 1.2 }}
+                          transition={{ duration: 0.8 }}
+                          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                        >
+                          <div className="text-3xl font-black text-red-400 drop-shadow-lg">
+                            -{damage.damage}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+
+          {/* Actions - Right */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="col-span-1 backdrop-blur-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/30 rounded-2xl p-6 shadow-2xl flex flex-col justify-between"
+          >
+            <div className="space-y-3">
+              <motion.button
+                whileHover={{ scale: inCombat && !isAttacking ? 1.05 : 1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAttack}
+                disabled={!inCombat || isAttacking}
+                className="w-full relative group overflow-hidden rounded-xl py-4 px-4 font-bold text-white uppercase tracking-wide text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-orange-600 group-hover:from-red-500 group-hover:to-orange-500 transition-all" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/10 transition-all" />
+                <div className="relative flex items-center justify-center gap-2">
+                  {isAttacking ? '⚡ Attacking...' : '⚡ Attack'}
+                </div>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: inCombat ? 1.05 : 1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => { onFlee(); setInCombat(false); }}
+                disabled={!inCombat}
+                className="w-full relative group overflow-hidden rounded-xl py-4 px-4 font-bold text-white uppercase tracking-wide text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 group-hover:from-purple-500 group-hover:to-indigo-500 transition-all" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-white/10 transition-all" />
+                <div className="relative">🏃 Flee</div>
+              </motion.button>
+            </div>
+
+            {/* Status Badge */}
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              className="text-center"
+            >
+              {inCombat ? (
+                <div className="inline-block px-4 py-2 rounded-full bg-red-500/20 border border-red-500/50 text-red-300 text-xs font-bold uppercase tracking-wide">
+                  ⚔️ IN COMBAT
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="inline-block px-4 py-2 rounded-full bg-green-500/20 border border-green-500/50 text-green-300 text-xs font-bold uppercase tracking-wide"
+                >
+                  ✨ VICTORY!
+                </motion.div>
+              )}
+            </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
