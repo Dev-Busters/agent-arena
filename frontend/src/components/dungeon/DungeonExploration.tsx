@@ -54,52 +54,72 @@ export default function DungeonExploration({
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('room_clear', (data: any) => {
+    const handleRoomClear = (data: any) => {
+      console.log('✅ Room clear:', data);
       setVisitedRooms(prev => {
-        if (selectedRoom !== null && !prev.includes(selectedRoom)) {
-          return [...prev, selectedRoom];
+        const updated = selectedRoom !== null && !prev.includes(selectedRoom) 
+          ? [...prev, selectedRoom] 
+          : prev;
+        
+        // Check if floor is complete
+        if (updated.length >= rooms.length - 1) {
+          console.log('🎯 Floor complete!', updated.length, rooms.length);
+          setFloorComplete(true);
         }
-        return prev;
+        return updated;
       });
-      if (visitedRooms.length >= rooms.length - 1) {
-        setFloorComplete(true);
-      }
-    });
+      setLoading(false);
+      setSelectedRoom(null);
+    };
 
-    socket.on('encounter_started', (data: any) => {
+    const handleEncounterStarted = (data: any) => {
+      console.log('⚔️  Encounter started:', data);
+      setLoading(false);
       onEncounter();
-    });
+    };
 
-    socket.on('floor_changed', (data: any) => {
+    const handleFloorChanged = (data: any) => {
+      console.log('📈 Floor changed:', data.floor);
       setCurrentFloor(data.floor);
       setRooms(data.map.rooms || []);
       setVisitedRooms([]);
       setFloorComplete(false);
       setBranchingPaths(data.branchingPaths || null);
       setLoading(false);
-    });
+      setSelectedRoom(null);
+    };
 
-    socket.on('path_chosen', (data: any) => {
+    const handlePathChosen = (data: any) => {
+      console.log('🔀 Path chosen:', data.zoneType);
       setRooms(data.map.rooms || []);
       setVisitedRooms([]);
       setFloorComplete(false);
       setBranchingPaths(null);
       setLoading(false);
-    });
+      setSelectedRoom(null);
+    };
 
-    socket.on('dungeon_error', (data: any) => {
-      alert(data.message);
+    const handleDungeonError = (data: any) => {
+      console.error('❌ Dungeon error:', data.message);
+      alert('Error: ' + data.message);
       setLoading(false);
-    });
+      setSelectedRoom(null);
+    };
+
+    socket.on('room_clear', handleRoomClear);
+    socket.on('encounter_started', handleEncounterStarted);
+    socket.on('floor_changed', handleFloorChanged);
+    socket.on('path_chosen', handlePathChosen);
+    socket.on('dungeon_error', handleDungeonError);
 
     return () => {
-      socket.off('room_clear');
-      socket.off('encounter_started');
-      socket.off('floor_changed');
-      socket.off('path_chosen');
-      socket.off('dungeon_error');
+      socket.off('room_clear', handleRoomClear);
+      socket.off('encounter_started', handleEncounterStarted);
+      socket.off('floor_changed', handleFloorChanged);
+      socket.off('path_chosen', handlePathChosen);
+      socket.off('dungeon_error', handleDungeonError);
     };
-  }, [socket, selectedRoom, visitedRooms, rooms, onEncounter]);
+  }, [socket, rooms.length, onEncounter]);
 
   const handleRoomClick = (roomId: number) => {
     if (visitedRooms.includes(roomId) || selectedRoom === roomId) return;
