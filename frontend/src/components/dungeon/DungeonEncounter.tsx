@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
+import dynamic from 'next/dynamic';
+
+const DungeonScene3D = dynamic(() => import('./DungeonScene3D'), { ssr: false });
 
 interface Enemy {
   id: string;
@@ -31,6 +34,7 @@ export default function DungeonEncounter({
   const [isAttacking, setIsAttacking] = useState(false);
   const [damages, setDamages] = useState<Array<{ id: string; damage: number }>>([]);
   const [inCombat, setInCombat] = useState(true);
+  const [combatPhase, setCombatPhase] = useState<'approach' | 'combat' | 'victory'>('approach');
 
   useEffect(() => {
     if (!socket) return;
@@ -61,6 +65,7 @@ export default function DungeonEncounter({
 
     const handleEncounterWon = (data: any) => {
       setInCombat(false);
+      setCombatPhase('victory');
       setTimeout(() => onWin(), 1500);
     };
 
@@ -86,6 +91,10 @@ export default function DungeonEncounter({
     });
   };
 
+  const handleAgentReachedEnemy = () => {
+    setCombatPhase('combat');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-purple-950 to-slate-950 p-6">
       {/* Animated background effect */}
@@ -95,19 +104,44 @@ export default function DungeonEncounter({
       </div>
 
       <div className="relative max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <motion.div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 mb-2">
-            ⚔️ COMBAT
-          </motion.div>
-          <p className="text-purple-300/60 font-mono text-sm">Battle System Engaged</p>
-        </motion.div>
+        {/* Approach Phase: Show 3D dungeon scene */}
+        <AnimatePresence>
+          {combatPhase === 'approach' && enemies.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mb-8"
+            >
+              <DungeonScene3D
+                playerStats={playerStats}
+                enemyData={enemies[0]}
+                onReachEnemy={handleAgentReachedEnemy}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Combat UI - only show after approach phase */}
+        <AnimatePresence>
+          {combatPhase !== 'approach' && (
+            <>
+              {/* Header */}
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center mb-12"
+              >
+                <motion.div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 mb-2">
+                  ⚔️ COMBAT
+                </motion.div>
+                <p className="text-purple-300/60 font-mono text-sm">Battle System Engaged</p>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
-        {/* Combat Arena */}
+        {/* Combat Arena - only show during combat */}
+        {combatPhase !== 'approach' && (
         <div className="grid grid-cols-5 gap-6 mb-8">
           {/* Player Card - Left */}
           <motion.div
@@ -284,6 +318,7 @@ export default function DungeonEncounter({
             </motion.div>
           </motion.div>
         </div>
+        )}
       </div>
     </div>
   );
