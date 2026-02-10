@@ -70,28 +70,50 @@ export function setupDungeonSockets(io: any) {
           const difficulty = getDifficultyForFloor(floor);
 
           // Create dungeon in database
-          const dungeonResult = await query(
-            `INSERT INTO dungeons (user_id, agent_id, difficulty, seed, depth, max_depth)
-             VALUES ($1, $2, $3::dungeon_difficulty, $4, 1, 10)
-             RETURNING *`,
-            [userId, agentId, difficulty, seed]
-          );
-          const dungeon = dungeonResult.rows[0];
+          let dungeon;
+          try {
+            console.log('🔄 [DUNGEON] Inserting dungeon with:', { userId, agentId, difficulty, seed });
+            const dungeonResult = await query(
+              `INSERT INTO dungeons (user_id, agent_id, difficulty, seed, depth, max_depth)
+               VALUES ($1, $2, $3::dungeon_difficulty, $4, 1, 10)
+               RETURNING *`,
+              [userId, agentId, difficulty, seed]
+            );
+            dungeon = dungeonResult.rows[0];
+            console.log('✅ [DUNGEON] Dungeon created:', dungeon.id);
+          } catch (err: any) {
+            console.error('❌ [DUNGEON] Failed to insert dungeon:', { 
+              code: err?.code, 
+              message: err?.message,
+              params: [userId, agentId, difficulty, seed]
+            });
+            throw err;
+          }
 
           // Generate dungeon map
           const map = generateDungeon(seed, difficulty, floor, agent.level);
 
           // Create progress record
-          await query(
-            `INSERT INTO dungeon_progress (dungeon_id, map_data, current_room_id, discovered_rooms)
-             VALUES ($1, $2, $3, $4)`,
-            [
-              dungeon.id,
-              JSON.stringify(map),
-              0,
-              [0], // Starting room
-            ]
-          );
+          try {
+            console.log('🔄 [DUNGEON] Inserting dungeon_progress with map and discovered_rooms');
+            await query(
+              `INSERT INTO dungeon_progress (dungeon_id, map_data, current_room_id, discovered_rooms)
+               VALUES ($1, $2, $3, $4::INT[])`,
+              [
+                dungeon.id,
+                JSON.stringify(map),
+                0,
+                [0], // Starting room
+              ]
+            );
+            console.log('✅ [DUNGEON] Dungeon progress created');
+          } catch (err: any) {
+            console.error('❌ [DUNGEON] Failed to insert dungeon_progress:', { 
+              code: err?.code, 
+              message: err?.message
+            });
+            throw err;
+          }
 
           // Store session
           const session: DungeonSession = {
