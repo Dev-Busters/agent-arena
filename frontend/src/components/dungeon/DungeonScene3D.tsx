@@ -21,9 +21,12 @@ export default function DungeonScene3D({
   const agentRef = useRef<THREE.Mesh | null>(null);
   const enemyRef = useRef<THREE.Mesh | null>(null);
   const [agentReachedEnemy, setAgentReachedEnemy] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    try {
 
     // Scene Setup
     const scene = new THREE.Scene();
@@ -202,7 +205,24 @@ export default function DungeonScene3D({
         containerRef.current.removeChild(renderer.domElement);
       }
     };
+    } catch (error) {
+      console.error('Three.js scene error:', error);
+      setHasError(true);
+    }
   }, [onReachEnemy, agentReachedEnemy]);
+
+  if (hasError) {
+    return (
+      <div className="w-full h-96 rounded-2xl overflow-hidden border border-slate-700/50 backdrop-blur-xl flex items-center justify-center"
+        style={{ background: 'linear-gradient(135deg, rgba(26,26,46,0.5), rgba(30,30,60,0.5))' }}
+      >
+        <div className="text-center text-slate-400">
+          <p className="mb-2">Scene loading...</p>
+          <p className="text-xs text-slate-500">Combat will begin shortly</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

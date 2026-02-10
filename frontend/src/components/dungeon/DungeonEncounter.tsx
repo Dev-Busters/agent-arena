@@ -34,7 +34,7 @@ export default function DungeonEncounter({
   const [isAttacking, setIsAttacking] = useState(false);
   const [damages, setDamages] = useState<Array<{ id: string; damage: number }>>([]);
   const [inCombat, setInCombat] = useState(true);
-  const [combatPhase, setCombatPhase] = useState<'approach' | 'combat' | 'victory'>('approach');
+  const [combatPhase, setCombatPhase] = useState<'approach' | 'combat' | 'victory'>('combat');
 
   useEffect(() => {
     if (!socket) return;
