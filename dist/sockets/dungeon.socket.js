@@ -41,7 +41,7 @@ export function setupDungeonSockets(io) {
                     dungeon.id,
                     JSON.stringify(map),
                     0,
-                    JSON.stringify([0]), // Starting room
+                    [0], // Starting room
                 ]);
                 // Store session
                 const session = {
