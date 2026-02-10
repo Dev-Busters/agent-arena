@@ -312,7 +312,7 @@ export default function DashboardPage() {
 
           {/* Sidebar - Quick Actions */}
           <div className="space-y-3">
-            {/* Primary CTA - Dungeon */}
+            {/* TODO: Re-enable dungeons after fixing schema constraints
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -337,6 +337,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
             </motion.div>
+            */}
 
             {/* PVP Battle */}
             <motion.div
