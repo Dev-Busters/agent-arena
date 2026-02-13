@@ -1,0 +1,1 @@
+import { create, Devtools } from 'zustand'; export const useStore = create(() => ({ player: { health: 100, position: [0, 0], inventory: [], xp: 0 }, dungeon: { rooms: [], activeRoom: null, enemies: [] }, combat: { activeEffect: null, cooldowns: {}, spellCDs: {} }, render: { cameraPos: [0, 0, 0], viewport: { width: 800, height: 600 } } }));
