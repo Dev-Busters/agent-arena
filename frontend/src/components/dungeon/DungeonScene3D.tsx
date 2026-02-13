@@ -1,7 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { ParticleManager, PARTICLE_PRESETS } from './ParticleSystem';
+import {
+  AssetCache,
+  FrustumCuller,
+  configureRenderer,
+  getQualitySettings,
+  vec3Pool,
+} from '@/lib/rendering';
 
 interface DungeonScene3DProps {
   playerStats: any;
@@ -20,6 +28,10 @@ export default function DungeonScene3D({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const agentRef = useRef<THREE.Mesh | null>(null);
   const enemyRef = useRef<THREE.Mesh | null>(null);
+  const particleManagerRef = useRef<ParticleManager | null>(null);
+  const cullerRef = useRef<FrustumCuller | null>(null);
+  const clockRef = useRef<THREE.Clock>(new THREE.Clock());
+  const frameIdRef = useRef<number>(0);
   const [agentReachedEnemy, setAgentReachedEnemy] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -27,189 +39,274 @@ export default function DungeonScene3D({
     if (!containerRef.current) return;
     
     try {
+      const cache = AssetCache.getInstance();
+      const quality = getQualitySettings();
 
-    // Scene Setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-    sceneRef.current = scene;
+      // Scene Setup
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a2e);
+      sceneRef.current = scene;
 
-    // Camera (isometric-ish angle)
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(15, 12, 15);
-    camera.lookAt(5, 0, 5);
-    cameraRef.current = camera;
+      // Camera (isometric-ish angle)
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        containerRef.current.clientWidth / containerRef.current.clientHeight,
+        0.1,
+        100 // tighter far plane for better depth precision
+      );
+      camera.position.set(15, 12, 15);
+      camera.lookAt(5, 0, 5);
+      cameraRef.current = camera;
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    renderer.shadowMap.enabled = true;
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
+      // ── Optimized Renderer ──────────────────────────────────
+      const { renderer } = configureRenderer({ container: containerRef.current });
+      containerRef.current.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
+      // ── Frustum Culler ──────────────────────────────────────
+      const culler = new FrustumCuller(camera, 60);
+      cullerRef.current = culler;
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(10, 15, 10);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    scene.add(directionalLight);
+      // ── Lighting ────────────────────────────────────────────
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
 
-    // Floor (10x10 grid)
-    const floorGeometry = new THREE.PlaneGeometry(10, 10);
-    const floorMaterial = new THREE.MeshStandardMaterial({
-      color: 0x2a2a4e,
-      roughness: 0.7,
-    });
-    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(10, 15, 10);
+      if (quality.shadows) {
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = quality.shadowMapSize;
+        directionalLight.shadow.mapSize.height = quality.shadowMapSize;
+        // Tight shadow frustum for better resolution
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 40;
+        directionalLight.shadow.camera.left = -12;
+        directionalLight.shadow.camera.right = 12;
+        directionalLight.shadow.camera.top = 12;
+        directionalLight.shadow.camera.bottom = -12;
+      }
+      scene.add(directionalLight);
 
-    // Grid lines visualization
-    const gridHelper = new THREE.GridHelper(10, 10, 0x444466, 0x222233);
-    gridHelper.position.y = 0.01;
-    scene.add(gridHelper);
+      // ── Floor (shared geometry/material via cache) ──────────
+      const floorGeo = cache.getGeometry('floor-10x10', () => new THREE.PlaneGeometry(10, 10));
+      const floorMat = cache.getMaterial('floor-standard', () =>
+        new THREE.MeshStandardMaterial({ color: 0x2a2a4e, roughness: 0.7 })
+      );
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = quality.shadows;
+      scene.add(floor);
 
-    // Walls
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3a3a5e,
-      roughness: 0.8,
-    });
+      // Grid lines
+      const gridHelper = new THREE.GridHelper(10, 10, 0x444466, 0x222233);
+      gridHelper.position.y = 0.01;
+      scene.add(gridHelper);
 
-    // North wall
-    const northWall = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.2), wallMaterial);
-    northWall.position.set(5, 1.5, 0);
-    northWall.castShadow = true;
-    scene.add(northWall);
+      // ── Walls (instanced — 4 walls in 1 draw call) ─────────
+      const wallGeo = cache.getGeometry('unit-box', () => new THREE.BoxGeometry(1, 1, 1));
+      const wallMat = cache.getMaterial('wall-standard', () =>
+        new THREE.MeshStandardMaterial({ color: 0x3a3a5e, roughness: 0.8 })
+      );
+      const wallMesh = new THREE.InstancedMesh(wallGeo, wallMat, 4);
+      wallMesh.castShadow = quality.shadows;
+      wallMesh.receiveShadow = quality.shadows;
 
-    // South wall
-    const southWall = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.2), wallMaterial);
-    southWall.position.set(5, 1.5, 10);
-    southWall.castShadow = true;
-    scene.add(southWall);
+      const wallTransforms = [
+        { pos: [5, 1.5, 0], scale: [10, 3, 0.2] },   // North
+        { pos: [5, 1.5, 10], scale: [10, 3, 0.2] },  // South
+        { pos: [10, 1.5, 5], scale: [0.2, 3, 10] },  // East
+        { pos: [0, 1.5, 5], scale: [0.2, 3, 10] },   // West
+      ];
+      const tmpMat4 = new THREE.Matrix4();
+      const tmpPos = new THREE.Vector3();
+      const tmpQuat = new THREE.Quaternion();
+      const tmpScale = new THREE.Vector3();
 
-    // East wall
-    const eastWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 10), wallMaterial);
-    eastWall.position.set(10, 1.5, 5);
-    eastWall.castShadow = true;
-    scene.add(eastWall);
+      wallTransforms.forEach((wt, i) => {
+        tmpPos.set(wt.pos[0], wt.pos[1], wt.pos[2]);
+        tmpQuat.identity();
+        tmpScale.set(wt.scale[0], wt.scale[1], wt.scale[2]);
+        tmpMat4.compose(tmpPos, tmpQuat, tmpScale);
+        wallMesh.setMatrixAt(i, tmpMat4);
+      });
+      wallMesh.instanceMatrix.needsUpdate = true;
+      scene.add(wallMesh);
 
-    // West wall
-    const westWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 10), wallMaterial);
-    westWall.position.set(0, 1.5, 5);
-    westWall.castShadow = true;
-    scene.add(westWall);
+      // ── Particle Manager ────────────────────────────────────
+      const particleManager = new ParticleManager(scene);
+      particleManagerRef.current = particleManager;
 
-    // Agent (capsule)
-    const agentGeometry = new THREE.CapsuleGeometry(0.3, 1.2, 4, 8);
-    const agentMaterial = new THREE.MeshStandardMaterial({
-      color: 0x4488ff,
-      metalness: 0.3,
-      roughness: 0.4,
-    });
-    const agent = new THREE.Mesh(agentGeometry, agentMaterial);
-    agent.position.set(2, 0.6, 2); // Room entrance
-    agent.castShadow = true;
-    agent.receiveShadow = true;
-    scene.add(agent);
-    agentRef.current = agent;
+      // Torch lights + flame particles (capped by quality tier)
+      const torchPositions = [
+        new THREE.Vector3(1, 2.2, 0.5),
+        new THREE.Vector3(9, 2.2, 0.5),
+        new THREE.Vector3(1, 2.2, 9.5),
+        new THREE.Vector3(9, 2.2, 9.5),
+      ];
+      const maxTorches = Math.min(torchPositions.length, quality.maxPointLights);
+      const torchLights: THREE.PointLight[] = [];
 
-    // Enemy (red capsule)
-    const enemyGeometry = new THREE.CapsuleGeometry(0.4, 1.4, 4, 8);
-    const enemyMaterial = new THREE.MeshStandardMaterial({
-      color: 0xff4444,
-      metalness: 0.5,
-      roughness: 0.3,
-      emissive: 0x661111,
-    });
-    const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-    enemy.position.set(8, 0.7, 8); // Room far end
-    enemy.castShadow = true;
-    enemy.receiveShadow = true;
-    scene.add(enemy);
-    enemyRef.current = enemy;
+      for (let i = 0; i < maxTorches; i++) {
+        const pos = torchPositions[i];
+        const torchLight = new THREE.PointLight(0xff6600, 0.6, 6);
+        torchLight.position.copy(pos);
+        scene.add(torchLight);
+        torchLights.push(torchLight);
+        particleManager.emit(pos, 'torchFlame');
+      }
 
-    // Animation loop
-    let agentTargetX = 8;
-    let agentTargetZ = 8;
-    let isMoving = true;
+      // Ambient dust (scaled by quality)
+      if (quality.particleScale >= 0.5) {
+        particleManager.emit(new THREE.Vector3(5, 1.5, 5), 'dustMotes');
+      }
 
-    const animate = () => {
-      requestAnimationFrame(animate);
+      // ── Agent (capsule — cached geometry) ───────────────────
+      const capsSegs = quality.capsuleSegments;
+      const agentGeo = cache.getGeometry(`capsule-agent-${capsSegs}`, () =>
+        new THREE.CapsuleGeometry(0.3, 1.2, capsSegs, capsSegs * 2)
+      );
+      const agentMat = cache.getMaterial('agent-standard', () =>
+        new THREE.MeshStandardMaterial({ color: 0x4488ff, metalness: 0.3, roughness: 0.4 })
+      );
+      const agent = new THREE.Mesh(agentGeo, agentMat);
+      agent.position.set(2, 0.6, 2);
+      agent.castShadow = quality.shadows;
+      agent.receiveShadow = quality.shadows;
+      scene.add(agent);
+      agentRef.current = agent;
 
-      // Lerp agent toward enemy
-      if (isMoving && agent && enemy) {
-        const distance = Math.hypot(
-          agent.position.x - enemy.position.x,
-          agent.position.z - enemy.position.z
-        );
+      // ── Enemy (red capsule — cached geometry) ───────────────
+      const enemyGeo = cache.getGeometry(`capsule-enemy-${capsSegs}`, () =>
+        new THREE.CapsuleGeometry(0.4, 1.4, capsSegs, capsSegs * 2)
+      );
+      const enemyMat = cache.getMaterial('enemy-standard', () =>
+        new THREE.MeshStandardMaterial({
+          color: 0xff4444,
+          metalness: 0.5,
+          roughness: 0.3,
+          emissive: 0x661111,
+        })
+      );
+      const enemy = new THREE.Mesh(enemyGeo, enemyMat);
+      enemy.position.set(8, 0.7, 8);
+      enemy.castShadow = quality.shadows;
+      enemy.receiveShadow = quality.shadows;
+      scene.add(enemy);
+      enemyRef.current = enemy;
 
-        if (distance > 1.2) {
-          // Move toward enemy
-          const direction = new THREE.Vector3(
-            enemy.position.x - agent.position.x,
-            0,
-            enemy.position.z - agent.position.z
-          ).normalize();
+      // Register dynamic objects for culling
+      culler.add(agent);
+      culler.add(enemy);
 
-          agent.position.x += direction.x * 0.05;
-          agent.position.z += direction.z * 0.05;
+      // ── Animation Loop ──────────────────────────────────────
+      let isMoving = true;
+      let combatEffectEmitted = false;
+      let reachedNotified = false;
+      const clock = clockRef.current;
+      clock.start();
 
-          // Rotate to face enemy
-          agent.lookAt(enemy.position);
-        } else {
-          // Reached enemy
-          isMoving = false;
-          if (!agentReachedEnemy) {
-            setAgentReachedEnemy(true);
-            onReachEnemy();
+      // Reusable vector for direction calc (avoid allocation per frame)
+      const moveDir = new THREE.Vector3();
+
+      const animate = () => {
+        frameIdRef.current = requestAnimationFrame(animate);
+        const dt = clock.getDelta();
+
+        // Update particles
+        particleManager.update(dt);
+
+        // Update frustum culler
+        culler.update();
+
+        // Torch flicker (cheap)
+        for (const tl of torchLights) {
+          tl.intensity = 0.5 + Math.random() * 0.3;
+        }
+
+        // Lerp agent toward enemy
+        if (isMoving && agent && enemy) {
+          const dx = enemy.position.x - agent.position.x;
+          const dz = enemy.position.z - agent.position.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+
+          if (distance > 1.2) {
+            const inv = 0.05 / distance;
+            agent.position.x += dx * inv;
+            agent.position.z += dz * inv;
+            moveDir.set(enemy.position.x, agent.position.y, enemy.position.z);
+            agent.lookAt(moveDir);
+          } else {
+            isMoving = false;
+            if (!combatEffectEmitted) {
+              combatEffectEmitted = true;
+              const impactPos = vec3Pool.acquire();
+              impactPos.copy(enemy.position);
+              impactPos.y += 0.5;
+              particleManager.emit(impactPos, 'magicSpell');
+              setTimeout(() => {
+                particleManager.emit(impactPos, 'damageHit');
+                vec3Pool.release(impactPos);
+              }, 300);
+            }
+            if (!reachedNotified) {
+              reachedNotified = true;
+              setAgentReachedEnemy(true);
+              onReachEnemy();
+            }
           }
         }
-      }
 
-      // Enemy idle animation (slight bob)
-      if (enemy) {
-        enemy.position.y = 0.7 + Math.sin(Date.now() * 0.001) * 0.1;
-      }
+        // Enemy idle bob
+        if (enemy) {
+          enemy.position.y = 0.7 + Math.sin(Date.now() * 0.001) * 0.1;
+        }
 
-      renderer.render(scene, camera);
-    };
+        renderer.render(scene, camera);
+      };
 
-    animate();
+      animate();
 
-    // Handle window resize
-    const handleResize = () => {
-      if (!containerRef.current || !camera || !renderer) return;
+      // ── Resize Handler (debounced) ──────────────────────────
+      let resizeTimer: ReturnType<typeof setTimeout>;
+      const handleResize = () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (!containerRef.current) return;
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          (camera as THREE.PerspectiveCamera).aspect = w / h;
+          (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+          renderer.setSize(w, h);
+        }, 100);
+      };
+      window.addEventListener('resize', handleResize);
 
-      const width = containerRef.current.clientWidth;
-      const height = containerRef.current.clientHeight;
-
-      (camera as THREE.PerspectiveCamera).aspect = width / height;
-      (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
-      renderer.setSize(width, height);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
-        containerRef.current.removeChild(renderer.domElement);
-      }
-    };
+      // ── Cleanup ─────────────────────────────────────────────
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        clearTimeout(resizeTimer);
+        cancelAnimationFrame(frameIdRef.current);
+        culler.dispose();
+        particleManager.dispose();
+        // Release cached assets (refCount--)
+        cache.releaseGeometry('floor-10x10');
+        cache.releaseMaterial('floor-standard');
+        cache.releaseGeometry('unit-box');
+        cache.releaseMaterial('wall-standard');
+        cache.releaseGeometry(`capsule-agent-${capsSegs}`);
+        cache.releaseMaterial('agent-standard');
+        cache.releaseGeometry(`capsule-enemy-${capsSegs}`);
+        cache.releaseMaterial('enemy-standard');
+        renderer.dispose();
+        if (containerRef.current && renderer.domElement.parentNode === containerRef.current) {
+          containerRef.current.removeChild(renderer.domElement);
+        }
+      };
     } catch (error) {
       console.error('Three.js scene error:', error);
       setHasError(true);
     }
-  }, [onReachEnemy, agentReachedEnemy]);
+  }, [onReachEnemy]);
 
   if (hasError) {
     return (

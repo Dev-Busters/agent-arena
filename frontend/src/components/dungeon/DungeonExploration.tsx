@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
+import Minimap from './Minimap';
+import StatsOverlay from './StatsOverlay';
 
 interface Room {
   id: number;
@@ -39,11 +41,27 @@ export default function DungeonExploration({
   const [floorComplete, setFloorComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentFloor, setCurrentFloor] = useState(depth);
+  const [currentRoomId, setCurrentRoomId] = useState<number | null>(null);
+  const [enemiesDefeated, setEnemiesDefeated] = useState(0);
+  const [goldEarned, setGoldEarned] = useState(0);
+  const [xpEarned, setXpEarned] = useState(0);
+  const [currentHp, setCurrentHp] = useState(playerStats.hp);
+  const [currentDifficulty, setCurrentDifficulty] = useState(difficulty);
+  const startTimeRef = useRef(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+
+  // Elapsed timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleRoomClear = () => {
+    const handleRoomClear = (data: any) => {
       setVisitedRooms(prev => {
         const updated = prev;
         setLoading(false);
@@ -62,27 +80,47 @@ export default function DungeonExploration({
 
     const handleFloorChanged = (data: any) => {
       setCurrentFloor(data.floor);
+      setCurrentDifficulty(data.difficulty || difficulty);
       setRooms(data.map.rooms || []);
       setVisitedRooms([]);
+      setCurrentRoomId(null);
       setFloorComplete(false);
       setLoading(false);
+    };
+
+    const handleEncounterWon = (data: any) => {
+      setEnemiesDefeated(prev => prev + 1);
+      if (data?.gold) setGoldEarned(prev => prev + data.gold);
+      if (data?.xp) setXpEarned(prev => prev + data.xp);
+    };
+
+    const handleTurnResult = (data: any) => {
+      // Track HP changes from enemy attacks
+      if (data?.playerHp !== undefined) {
+        setCurrentHp(data.playerHp);
+      }
     };
 
     socket.on('room_clear', handleRoomClear);
     socket.on('encounter_started', handleEncounterStarted);
     socket.on('floor_changed', handleFloorChanged);
+    socket.on('encounter_won', handleEncounterWon);
+    socket.on('turn_result', handleTurnResult);
 
     return () => {
       socket.off('room_clear', handleRoomClear);
       socket.off('encounter_started', handleEncounterStarted);
       socket.off('floor_changed', handleFloorChanged);
+      socket.off('encounter_won', handleEncounterWon);
+      socket.off('turn_result', handleTurnResult);
     };
-  }, [socket, rooms.length, onEncounter]);
+  }, [socket, rooms.length, onEncounter, difficulty]);
 
   const handleRoomClick = (roomId: number) => {
     if (visitedRooms.includes(roomId) || loading) return;
 
     setLoading(true);
+    setCurrentRoomId(roomId);
     setVisitedRooms(prev => [...prev, roomId]);
 
     socket?.emit('enter_room', {
@@ -140,51 +178,37 @@ export default function DungeonExploration({
             </div>
           </div>
 
-          {/* Player Stats Bar */}
+          {/* Compact inline status */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="grid grid-cols-4 gap-4"
+            className="flex items-center gap-3 flex-wrap"
           >
-            {/* HP */}
-            <div className="backdrop-blur-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/5 border border-cyan-500/30 rounded-xl p-4">
-              <p className="text-xs text-cyan-300/70 uppercase tracking-widest mb-2">HP</p>
-              <div className="w-full h-4 bg-slate-800/50 rounded-full border border-cyan-500/30 overflow-hidden mb-2">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
-                  initial={{ width: '100%' }}
-                  animate={{ width: `${(playerStats.hp / playerStats.maxHp) * 100}%` }}
-                  transition={{ duration: 0.3 }}
-                />
-              </div>
-              <p className="text-xs text-cyan-300 font-mono">{playerStats.hp} / {playerStats.maxHp}</p>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/30 backdrop-blur-sm">
+              <span className="text-[10px] text-slate-500 font-mono">HP</span>
+              <span className="text-xs font-bold text-cyan-300 font-mono">{currentHp}/{playerStats.maxHp}</span>
             </div>
-
-            {/* Level */}
-            <div className="backdrop-blur-xl bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border border-yellow-500/30 rounded-xl p-4">
-              <p className="text-xs text-yellow-300/70 uppercase tracking-widest mb-2">Level</p>
-              <p className="text-3xl font-black text-yellow-300">{playerStats.level}</p>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/30 backdrop-blur-sm">
+              <span className="text-[10px] text-slate-500 font-mono">LVL</span>
+              <span className="text-xs font-bold text-yellow-300 font-mono">{playerStats.level}</span>
             </div>
-
-            {/* Rooms Cleared */}
-            <div className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/30 rounded-xl p-4">
-              <p className="text-xs text-purple-300/70 uppercase tracking-widest mb-2">Explored</p>
-              <p className="text-3xl font-black text-purple-300">{visitedRooms.length}/{rooms.length}</p>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/30 backdrop-blur-sm">
+              <span className="text-[10px] text-slate-500 font-mono">ROOMS</span>
+              <span className="text-xs font-bold text-purple-300 font-mono">{visitedRooms.length}/{rooms.length}</span>
             </div>
-
-            {/* Floor Status */}
-            <div className="backdrop-blur-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/30 rounded-xl p-4">
-              <p className="text-xs text-emerald-300/70 uppercase tracking-widest mb-2">Status</p>
-              <motion.p
-                key={floorComplete ? 'complete' : 'incomplete'}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`text-sm font-bold ${floorComplete ? 'text-emerald-300' : 'text-amber-300'}`}
-              >
-                {floorComplete ? '✨ Complete' : '🔍 Exploring'}
-              </motion.p>
-            </div>
+            <motion.div
+              key={floorComplete ? 'complete' : 'incomplete'}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`px-3 py-1.5 rounded-full border backdrop-blur-sm text-xs font-bold ${
+                floorComplete
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              }`}
+            >
+              {floorComplete ? '✨ Complete' : '🔍 Exploring'}
+            </motion.div>
           </motion.div>
         </motion.div>
 
