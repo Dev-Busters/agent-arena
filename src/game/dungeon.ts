@@ -1,10 +1,29 @@
 /**
  * Roguelike Dungeon Generation & Management
- * Uses rot.js for procedural generation
+ * Uses BSP (Binary Space Partitioning) for sophisticated room layouts
+ * with fallback to rot.js Digger for simple maps
  */
 
 import * as ROT from "rot-js";
 import SeededRandom from "seedrandom";
+import {
+  BSPDungeonGenerator,
+  generateBSPDungeon,
+  bspToLegacyFormat,
+  BSPDungeonMap,
+  BSPRoom,
+  RoomType,
+  Tile,
+  Corridor,
+  RoomFeature,
+  getRoomGraph,
+  findRoomPath,
+  dungeonToASCII,
+} from "./bsp-dungeon.js";
+
+// Re-export BSP types for consumers
+export { BSPDungeonMap, BSPRoom, RoomType, Tile, Corridor, RoomFeature };
+export { getRoomGraph, findRoomPath, dungeonToASCII };
 
 // Type definitions for rot.js (missing from types)
 type RotMap = any;
@@ -147,9 +166,50 @@ export const ENEMY_TEMPLATES: Record<EnemyType, EnemyTemplate> = {
 };
 
 /**
- * Generate a procedurally random dungeon using rot.js
+ * Generate a BSP dungeon with sophisticated room layouts.
+ * Returns the full BSPDungeonMap with typed rooms, corridors, features.
+ */
+export function generateBSPDungeonMap(
+  seed: number,
+  difficulty: DungeonDifficulty,
+  depth: number,
+  playerLevel: number
+): BSPDungeonMap {
+  console.log('🏗️ [DUNGEON] Starting BSP generation:', { seed, difficulty, depth, playerLevel });
+  const map = generateBSPDungeon(seed, difficulty, depth, playerLevel);
+  console.log(`✅ [DUNGEON] BSP generation complete: ${map.roomCount} rooms, ${map.corridors.length} corridors`);
+  return map;
+}
+
+/**
+ * Generate a procedurally random dungeon using BSP algorithm.
+ * Backward-compatible: returns the legacy DungeonMap format.
+ * Internally uses BSP for much better room layouts.
  */
 export function generateDungeon(
+  seed: number,
+  difficulty: DungeonDifficulty,
+  depth: number,
+  playerLevel: number
+): DungeonMap {
+  console.log('🏗️ [DUNGEON] Starting BSP-backed generation:', { seed, difficulty, depth, playerLevel });
+
+  try {
+    const bspMap = generateBSPDungeon(seed, difficulty, depth, playerLevel);
+    const legacy = bspToLegacyFormat(bspMap);
+    console.log(`✅ [DUNGEON] BSP generation complete: ${bspMap.roomCount} rooms`);
+    return legacy;
+  } catch (err: any) {
+    // Fallback to rot.js Digger if BSP fails
+    console.warn('⚠️ [DUNGEON] BSP generation failed, falling back to Digger:', err.message);
+    return generateDungeonLegacy(seed, difficulty, depth, playerLevel);
+  }
+}
+
+/**
+ * Legacy rot.js Digger generation (fallback)
+ */
+function generateDungeonLegacy(
   seed: number,
   _difficulty: DungeonDifficulty,
   _depth: number,
@@ -157,24 +217,21 @@ export function generateDungeon(
 ): DungeonMap {
   const WIDTH = 80;
   const HEIGHT = 24;
-  // const rng = SeededRandom(seed.toString());
 
-  // Initialize tiles (all walls)
   const tiles: number[][] = [];
   for (let y = 0; y < HEIGHT; y++) {
     tiles[y] = [];
     for (let x = 0; x < WIDTH; x++) {
-      tiles[y][x] = 0; // 0 = wall
+      tiles[y][x] = 0;
     }
   }
 
-  // Use rot.js Digger for dungeon dungeon generation
-  console.log('🏗️ [DUNGEON] Starting Digger generation:', { WIDTH, HEIGHT });
+  console.log('🏗️ [DUNGEON] Falling back to Digger generation:', { WIDTH, HEIGHT });
   const digger = new (ROT.Map as any).Digger(WIDTH, HEIGHT);
   try {
     digger.create((x: number, y: number, value: number) => {
       if (value === 0) {
-        tiles[y][x] = 1; // 1 = floor
+        tiles[y][x] = 1;
       }
     });
     console.log('✅ [DUNGEON] Digger generation complete');
@@ -183,16 +240,13 @@ export function generateDungeon(
     throw err;
   }
 
-  // Extract rooms from digger
   const rooms: Room[] = [];
   const rotRooms = digger.getRooms() as RotRoom[];
   rotRooms.forEach((room: RotRoom, index: number) => {
-    // rot.js Room object with _x1, _y1, _x2, _y2 properties or getLeft/Right/Top/Bottom
     const x1 = (room as any)._x1 ?? 0;
     const y1 = (room as any)._y1 ?? 0;
     const x2 = (room as any)._x2 ?? WIDTH - 1;
     const y2 = (room as any)._y2 ?? HEIGHT - 1;
-
     rooms.push({
       id: index,
       x: x1,
@@ -202,21 +256,14 @@ export function generateDungeon(
     });
   });
 
-  // Place exit in last room
   if (rooms.length > 0) {
     const lastRoom = rooms[rooms.length - 1];
     const exitX = lastRoom.x + Math.floor(lastRoom.width / 2);
     const exitY = lastRoom.y + Math.floor(lastRoom.height / 2);
-    tiles[exitY][exitX] = 2; // 2 = exit
+    tiles[exitY][exitX] = 2;
   }
 
-  return {
-    width: WIDTH,
-    height: HEIGHT,
-    tiles,
-    rooms,
-    visited: new Set(),
-  };
+  return { width: WIDTH, height: HEIGHT, tiles, rooms, visited: new Set() };
 }
 
 /**
