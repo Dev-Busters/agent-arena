@@ -14,6 +14,7 @@ import {
   useItemMaterial,
   usePBRMaterial,
   useStatusEffect,
+  useShaderPerformance,
   Materials,
 } from './index';
 
