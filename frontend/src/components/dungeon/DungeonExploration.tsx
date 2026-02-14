@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
 import Minimap from './Minimap';
 import StatsOverlay from './StatsOverlay';
+import Dungeon3DView from './Dungeon3DView';
 
 interface Room {
   id: number;
@@ -49,6 +50,7 @@ export default function DungeonExploration({
   const [currentDifficulty, setCurrentDifficulty] = useState(difficulty);
   const startTimeRef = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
+  const [view3D, setView3D] = useState(true); // Default to 3D view
 
   // Elapsed timer
   useEffect(() => {
@@ -142,14 +144,35 @@ export default function DungeonExploration({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-8">
-      {/* Background effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative">
+      {/* 3D View Toggle Button (Fixed Position) */}
+      <motion.button
+        onClick={() => setView3D(!view3D)}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg bg-slate-800/90 border border-slate-600/50 backdrop-blur-sm text-slate-200 font-bold text-sm hover:bg-slate-700/90 transition-colors"
+      >
+        {view3D ? '🗺️ 2D Map' : '🎮 3D View'}
+      </motion.button>
 
-      <div className="relative max-w-6xl mx-auto">
+      {/* Render 3D View or 2D Map */}
+      {view3D ? (
+        <Dungeon3DView
+          dungeonId={dungeonId}
+          rooms={rooms}
+          currentRoomId={currentRoomId}
+          onRoomChange={(roomId) => handleRoomClick(roomId)}
+          playerStats={playerStats}
+        />
+      ) : (
+        <div className="p-8">
+          {/* Background effects */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+          </div>
+
+          <div className="relative max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -320,7 +343,9 @@ export default function DungeonExploration({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
