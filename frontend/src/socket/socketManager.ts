@@ -23,7 +23,7 @@ import {
 // ============================================================================
 
 export class SocketManager {
-  private socket: Socket<SocketEventMap> | null = null;
+  private socket: Socket | null = null;
   private config: Required<SocketManagerConfig>;
   private connectionState: ConnectionState;
   private listeners: Map<string, Set<SocketEventListener<any>>>;
@@ -392,7 +392,7 @@ export class SocketManager {
     const batch: EventBatch = {
       clientId: this.connectionState.clientId || '',
       sequenceNum: this.sequenceNum++,
-      events: this.eventQueue,
+      events: this.eventQueue as any,
       timestamp: Date.now(),
     };
 

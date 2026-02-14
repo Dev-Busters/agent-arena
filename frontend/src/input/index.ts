@@ -4,8 +4,7 @@
  */
 
 // Types
-export {
-  PlayerAction,
+export type {
   InputState,
   GamepadInputState,
   KeyBinding,
@@ -13,6 +12,8 @@ export {
   InputConfig,
   ActionPayload,
 } from './types';
+
+export { PlayerAction } from './types';
 
 // InputManager
 export { getInputManager } from './inputManager';
