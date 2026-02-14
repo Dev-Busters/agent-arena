@@ -114,7 +114,7 @@ export class SceneManager {
 
     // Configure renderer
     this._renderer.setPixelRatio(
-      rendererConfig.pixelRatio ?? window.devicePixelRatio || 1
+      rendererConfig.pixelRatio ?? (window.devicePixelRatio || 1)
     );
     this._renderer.setSize(this._viewport.width, this._viewport.height);
     
@@ -125,10 +125,8 @@ export class SceneManager {
     this._renderer.toneMapping = rendererConfig.toneMapping ?? THREE.ACESFilmicToneMapping;
     this._renderer.toneMappingExposure = rendererConfig.toneMappingExposure ?? 1.0;
 
-    // Physically correct lighting
-    if (rendererConfig.physicallyCorrectLights) {
-      this._renderer.useLegacyLights = false;
-    }
+    // Note: Physically correct lighting is now the default in Three.js r155+
+    // No need to set useLegacyLights (deprecated property)
   }
 
   /**

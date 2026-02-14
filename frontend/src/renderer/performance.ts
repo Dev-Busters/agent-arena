@@ -3,7 +3,9 @@
  * Track FPS, frame time, draw calls, and memory usage
  */
 
-import type { RenderStats, PerformanceLevel, PerformanceWarning } from './types';
+import * as THREE from 'three';
+import { PerformanceLevel } from './types';
+import type { RenderStats, PerformanceWarning } from './types';
 
 /**
  * Performance Monitor
