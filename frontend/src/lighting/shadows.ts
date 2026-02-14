@@ -64,8 +64,9 @@ export class ShadowManager {
     light.shadow.mapSize.height = mapSize;
 
     // Configure shadow camera
-    light.shadow.camera.near = config.near;
-    light.shadow.camera.far = config.far;
+    const camera = light.shadow.camera as THREE.PerspectiveCamera | THREE.OrthographicCamera;
+    camera.near = config.near;
+    camera.far = config.far;
 
     // Shadow quality settings
     light.shadow.bias = config.bias;
@@ -73,7 +74,7 @@ export class ShadowManager {
     light.shadow.radius = config.radius;
 
     // Update shadow camera if needed
-    light.shadow.camera.updateProjectionMatrix();
+    camera.updateProjectionMatrix();
   }
 
   /**
@@ -168,13 +169,16 @@ export class ShadowManager {
     // Adjust camera frustum based on light type
     if (light instanceof THREE.DirectionalLight) {
       const size = 10;
-      light.shadow.camera.left = -size;
-      light.shadow.camera.right = size;
-      light.shadow.camera.top = size;
-      light.shadow.camera.bottom = -size;
+      const camera = light.shadow.camera as THREE.OrthographicCamera;
+      camera.left = -size;
+      camera.right = size;
+      camera.top = size;
+      camera.bottom = -size;
+      camera.updateProjectionMatrix();
+    } else {
+      const camera = light.shadow.camera as THREE.PerspectiveCamera | THREE.OrthographicCamera;
+      camera.updateProjectionMatrix();
     }
-
-    light.shadow.camera.updateProjectionMatrix();
   }
 
   /**

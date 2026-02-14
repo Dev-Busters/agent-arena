@@ -159,7 +159,7 @@ export class LightmapBaker {
       const ctx = canvas.getContext('2d');
 
       if (ctx && texture.image) {
-        ctx.drawImage(texture.image, 0, 0);
+        ctx.drawImage(texture.image as CanvasImageSource, 0, 0);
         const dataUrl = canvas.toDataURL('image/png');
         exported.set(meshId, dataUrl);
       }

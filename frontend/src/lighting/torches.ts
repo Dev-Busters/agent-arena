@@ -13,7 +13,18 @@ export class TorchLight {
   public light: THREE.PointLight;
   private baseIntensity: number;
   private baseColor: THREE.Color;
-  private config: Required<TorchConfig>;
+  private config: TorchConfig & {
+    color: THREE.Color | string | number;
+    intensity: number;
+    distance: number;
+    decay: number;
+    castShadow: boolean;
+    position: THREE.Vector3;
+    flickerSpeed: number;
+    flickerIntensity: number;
+    enableParticles: boolean;
+    warmth: number;
+  };
   private time: number = 0;
   private noiseOffsets: number[];
 
