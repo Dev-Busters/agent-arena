@@ -1,1 +1,10 @@
-import { create, Devtools } from 'zustand'; export const useStore = create(() => ({ player: { health: 100, position: [0, 0], inventory: [], xp: 0 }, dungeon: { rooms: [], activeRoom: null, enemies: [] }, combat: { activeEffect: null, cooldowns: {}, spellCDs: {} }, render: { cameraPos: [0, 0, 0], viewport: { width: 800, height: 600 } } }));
+/**
+ * State Management Export
+ * Deprecated: Use /src/zustand instead
+ * This file is kept for backward compatibility
+ */
+
+// Re-export from new store
+export { useGameStore } from '@/zustand/gameStore';
+export * from '@/zustand/types';
+export * from '@/zustand/useGameState';
