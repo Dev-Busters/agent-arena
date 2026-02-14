@@ -130,7 +130,7 @@ export class LightPool {
 
     pooled.active = true;
     pooled.light.visible = true;
-    return pooled.light;
+    return pooled.light as THREE.PointLight;
   }
 
   /**
@@ -146,7 +146,7 @@ export class LightPool {
 
     pooled.active = true;
     pooled.light.visible = true;
-    return pooled.light;
+    return pooled.light as THREE.SpotLight;
   }
 
   /**
