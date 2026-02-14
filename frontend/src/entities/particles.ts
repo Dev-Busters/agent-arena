@@ -289,9 +289,10 @@ export class ParticleEffectManager {
 
     // Update material
     if (!Array.isArray(particles.material)) {
-      particles.material.size = config.size;
-      particles.material.transparent = true;
-      particles.material.opacity = 1;
+      const material = particles.material as THREE.PointsMaterial;
+      material.size = config.size;
+      material.transparent = true;
+      material.opacity = 1;
     }
 
     particles.visible = true;
