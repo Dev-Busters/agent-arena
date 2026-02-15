@@ -32,6 +32,7 @@ export class Enemy {
   public id: string;
   
   private graphics: Graphics;
+  private healthBar: Graphics;
   private config: typeof ENEMY_TYPES[EnemyType];
   private bounds: { minX: number; minY: number; maxX: number; maxY: number };
   
@@ -46,6 +47,7 @@ export class Enemy {
     this.id = `enemy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.container = new Container();
     this.graphics = new Graphics();
+    this.healthBar = new Graphics();
     this.config = ENEMY_TYPES[type];
     
     this.state = { 
@@ -65,7 +67,9 @@ export class Enemy {
     };
     
     this.drawEnemy();
+    this.drawHealthBar();
     this.container.addChild(this.graphics);
+    this.container.addChild(this.healthBar);
     this.updatePosition();
     
     console.log(`🎮 Enemy spawned at ${x}, ${y} (${type})`);
@@ -98,6 +102,31 @@ export class Enemy {
     this.graphics.drawCircle(-4, -2, 1.5);
     this.graphics.drawCircle(4, -2, 1.5);
     this.graphics.endFill();
+  }
+  
+  private drawHealthBar(): void {
+    this.healthBar.clear();
+    
+    const barWidth = 30;
+    const barHeight = 4;
+    const yOffset = -ENEMY_SIZE / 2 - 10;
+    
+    // Background (dark)
+    this.healthBar.beginFill(0x333333);
+    this.healthBar.drawRect(-barWidth / 2, yOffset, barWidth, barHeight);
+    this.healthBar.endFill();
+    
+    // Health fill (green to red based on HP)
+    const hpPercent = this.state.hp / this.state.maxHp;
+    const hpColor = hpPercent > 0.5 ? 0x44cc44 : hpPercent > 0.25 ? 0xcccc44 : 0xcc4444;
+    
+    this.healthBar.beginFill(hpColor);
+    this.healthBar.drawRect(-barWidth / 2, yOffset, barWidth * hpPercent, barHeight);
+    this.healthBar.endFill();
+    
+    // Border
+    this.healthBar.lineStyle(1, 0x000000, 0.5);
+    this.healthBar.drawRect(-barWidth / 2, yOffset, barWidth, barHeight);
   }
   
   private updatePosition(): void {
@@ -135,8 +164,11 @@ export class Enemy {
     // Update visual
     this.updatePosition();
     
-    // Rotate to face player
-    this.container.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+    // Rotate body to face player (but not health bar)
+    this.graphics.rotation = Math.atan2(dy, dx) + Math.PI / 2;
+    
+    // Update health bar (keep it upright)
+    this.drawHealthBar();
   }
   
   public destroy(): void {
