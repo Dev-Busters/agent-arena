@@ -3,9 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/hooks/useSocket';
-import dynamic from 'next/dynamic';
-
-const DungeonScene3D = dynamic(() => import('./DungeonScene3D'), { ssr: false });
 
 interface StatusEffectDisplay {
   type: string;
@@ -230,10 +227,6 @@ export default function DungeonEncounter({
     });
   };
 
-  const handleAgentReachedEnemy = () => {
-    setCombatPhase('combat');
-  };
-
   const isPlayerStunned = playerEffects.some(e => e.type === 'stun');
 
   return (
@@ -252,23 +245,7 @@ export default function DungeonEncounter({
       </div>
 
       <div className="relative max-w-6xl mx-auto">
-        {/* Approach Phase: Show 3D dungeon scene */}
-        <AnimatePresence>
-          {combatPhase === 'approach' && enemies.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mb-8"
-            >
-              <DungeonScene3D
-                playerStats={playerStats}
-                enemyData={enemies[0]}
-                onReachEnemy={handleAgentReachedEnemy}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* TODO: Add 2D PixiJS combat scene here in Phase B */}
 
         {/* Combat UI */}
         <AnimatePresence>
