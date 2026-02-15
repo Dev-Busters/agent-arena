@@ -16,6 +16,12 @@ export interface PlayerState {
   vy: number;
   isAttacking: boolean;
   lastAttackTime: number;
+  level: number;
+  xp: number;
+  xpToNext: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
 }
 
 /**
@@ -36,7 +42,18 @@ export class Player {
     this.graphics = new Graphics();
     this.attackGraphics = new Graphics();
     
-    this.state = { x, y, vx: 0, vy: 0, isAttacking: false, lastAttackTime: 0 };
+    this.state = { 
+      x, y, 
+      vx: 0, vy: 0, 
+      isAttacking: false, 
+      lastAttackTime: 0,
+      level: 1,
+      xp: 0,
+      xpToNext: 100, // XP needed for level 2
+      maxHp: 100,
+      attack: 10,
+      defense: 5
+    };
     
     // Set movement bounds (inside walls)
     this.bounds = {
@@ -171,6 +188,37 @@ export class Player {
     
     // Update visual position
     this.updatePosition();
+  }
+  
+  /**
+   * Gain XP and check for level-up
+   * Returns true if leveled up
+   */
+  public gainXP(amount: number): boolean {
+    this.state.xp += amount;
+    
+    if (this.state.xp >= this.state.xpToNext) {
+      this.levelUp();
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Level up - increase stats
+   */
+  private levelUp(): void {
+    this.state.level++;
+    this.state.xp = 0; // Reset XP for new level
+    this.state.xpToNext = this.state.level * 100; // Linear scaling
+    
+    // Stat increases
+    this.state.maxHp += 10;
+    this.state.attack += 2;
+    this.state.defense += 1;
+    
+    console.log(`⭐ Level Up! Now level ${this.state.level}`);
   }
   
   /**

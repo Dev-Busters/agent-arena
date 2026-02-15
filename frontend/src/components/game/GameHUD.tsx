@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 export interface GameState {
   playerHp: number;
   playerMaxHp: number;
+  playerLevel: number;
+  playerXP: number;
+  playerXPToNext: number;
   kills: number;
   wave: number;
   enemiesRemaining: number;
@@ -22,18 +25,25 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
-  const { playerHp, playerMaxHp, kills, wave, enemiesRemaining, isPaused } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, wave, enemiesRemaining, isPaused } = gameState;
   const hpPercent = (playerHp / playerMaxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
+  const xpPercent = (playerXP / playerXPToNext) * 100;
 
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-auto">
-        {/* Left: Player HP */}
+        {/* Left: Player HP + XP + Level */}
         <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-3 border border-slate-700/50">
+          {/* Level badge */}
+          <div className="text-xs text-yellow-400 uppercase tracking-wider mb-2 font-bold">
+            Level {playerLevel}
+          </div>
+          
+          {/* Health bar */}
           <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Health</div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-32 h-3 bg-slate-700 rounded-full overflow-hidden">
               <motion.div 
                 className={`h-full ${hpColor} rounded-full`}
@@ -43,6 +53,20 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
               />
             </div>
             <span className="text-white font-mono text-sm">{playerHp}/{playerMaxHp}</span>
+          </div>
+          
+          {/* XP bar */}
+          <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Experience</div>
+          <div className="flex items-center gap-3">
+            <div className="w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: `${xpPercent}%` }}
+                transition={{ duration: 0.3 }}
+              />
+            </div>
+            <span className="text-blue-300 font-mono text-xs">{playerXP}/{playerXPToNext}</span>
           </div>
         </div>
 

@@ -6,10 +6,14 @@ import { Player } from './Player';
 import { Enemy, spawnEnemies } from './Enemy';
 import { ParticleSystem } from './Particles';
 import { getSoundManager } from './Sound';
+import { XPOrb } from './XPOrb';
 
 export interface GameStats {
   playerHp: number;
   playerMaxHp: number;
+  playerLevel: number;
+  playerXP: number;
+  playerXPToNext: number;
   kills: number;
   wave: number;
   enemiesRemaining: number;
@@ -134,6 +138,9 @@ export default function ArenaCanvas({
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
+    playerLevel: 1,
+    playerXP: 0,
+    playerXPToNext: 100,
     kills: 0,
     wave: 1,
     enemiesRemaining: 3
@@ -181,6 +188,7 @@ export default function ArenaCanvas({
     let currentWaveIndex = 0;
     let waveTransitioning = false;
     let enemies: Enemy[] = [];
+    let xpOrbs: XPOrb[] = [];
     
     // Function to spawn a wave
     const spawnWave = (waveIndex: number) => {
@@ -214,8 +222,11 @@ export default function ArenaCanvas({
     // Helper to update game stats
     const updateStats = () => {
       gameStatsRef.current = {
-        playerHp: 100, // TODO: Add player HP tracking
-        playerMaxHp: 100,
+        playerHp: player.state.maxHp, // Using maxHp for now (no damage yet)
+        playerMaxHp: player.state.maxHp,
+        playerLevel: player.state.level,
+        playerXP: player.state.xp,
+        playerXPToNext: player.state.xpToNext,
         kills: gameStatsRef.current.kills,
         wave: gameStatsRef.current.wave,
         enemiesRemaining: enemies.length
@@ -260,6 +271,11 @@ export default function ArenaCanvas({
                               enemy.state.type === 'demon' ? 0xaa4444 : 0xaaaaaa;
             particles.burst(enemy.state.x, enemy.state.y, deathColor);
             
+            // Spawn XP orb
+            const xpOrb = new XPOrb(enemy.state.x, enemy.state.y, 10);
+            xpOrbs.push(xpOrb);
+            app.stage.addChild(xpOrb.container);
+            
             app.stage.removeChild(enemy.container);
             enemy.destroy();
           }
@@ -288,6 +304,26 @@ export default function ArenaCanvas({
       enemies.forEach(enemy => {
         enemy.update(player.state.x, player.state.y);
       });
+      
+      // Update XP orbs
+      for (let i = xpOrbs.length - 1; i >= 0; i--) {
+        const orb = xpOrbs[i];
+        orb.setTarget(player.state.x, player.state.y);
+        
+        if (orb.update()) {
+          // Orb collected
+          const leveledUp = player.gainXP(orb.getValue());
+          
+          if (leveledUp) {
+            console.log(`⭐ Level ${player.state.level}! HP:${player.state.maxHp} ATK:${player.state.attack} DEF:${player.state.defense}`);
+            // TODO: Add screen flash effect
+          }
+          
+          app.stage.removeChild(orb.container);
+          orb.destroy();
+          xpOrbs.splice(i, 1);
+        }
+      }
       
       // Check for wave completion
       if (enemies.length === 0 && !waveTransitioning && currentWaveIndex < WAVES.length) {

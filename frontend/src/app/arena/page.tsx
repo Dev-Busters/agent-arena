@@ -11,6 +11,9 @@ export default function ArenaPage() {
   const [gameState, setGameState] = useState<GameState>({
     playerHp: 100,
     playerMaxHp: 100,
+    playerLevel: 1,
+    playerXP: 0,
+    playerXPToNext: 100,
     kills: 0,
     wave: 1,
     enemiesRemaining: 3,
