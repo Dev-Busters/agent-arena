@@ -1,9 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
-// Mock data - will be replaced with real API data in Phase F
+// Mock data - used as fallback if API fails
 const mockAgent = {
   name: 'Shadow Striker',
   level: 5,
