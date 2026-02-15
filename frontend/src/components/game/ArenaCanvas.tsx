@@ -12,6 +12,9 @@ interface ArenaCanvasProps {
 // Floor tile configuration
 const TILE_SIZE = 64;
 const FLOOR_COLORS = [0x1a1a24, 0x181820, 0x1c1c28, 0x161622]; // Dark stone variations
+const WALL_THICKNESS = 16;
+const WALL_COLOR = 0x2a2a3a;
+const WALL_HIGHLIGHT = 0x3a3a4a;
 
 /**
  * Creates the arena floor with tiled pattern
@@ -53,10 +56,45 @@ function createArenaFloor(width: number, height: number): Container {
 }
 
 /**
+ * Creates arena boundary walls
+ */
+function createArenaWalls(width: number, height: number): Container {
+  const wallContainer = new Container();
+  const walls = new Graphics();
+  
+  // Main wall fill
+  walls.beginFill(WALL_COLOR);
+  
+  // Top wall
+  walls.drawRect(0, 0, width, WALL_THICKNESS);
+  // Bottom wall
+  walls.drawRect(0, height - WALL_THICKNESS, width, WALL_THICKNESS);
+  // Left wall
+  walls.drawRect(0, WALL_THICKNESS, WALL_THICKNESS, height - WALL_THICKNESS * 2);
+  // Right wall
+  walls.drawRect(width - WALL_THICKNESS, WALL_THICKNESS, WALL_THICKNESS, height - WALL_THICKNESS * 2);
+  
+  walls.endFill();
+  
+  // Add inner highlight/bevel effect
+  walls.lineStyle(2, WALL_HIGHLIGHT, 0.6);
+  walls.drawRect(WALL_THICKNESS, WALL_THICKNESS, width - WALL_THICKNESS * 2, height - WALL_THICKNESS * 2);
+  
+  // Add dark inner shadow
+  walls.lineStyle(1, 0x0a0a12, 0.8);
+  walls.drawRect(WALL_THICKNESS + 2, WALL_THICKNESS + 2, width - WALL_THICKNESS * 2 - 4, height - WALL_THICKNESS * 2 - 4);
+  
+  wallContainer.addChild(walls);
+  console.log('🎮 Arena walls rendered');
+  return wallContainer;
+}
+
+/**
  * ArenaCanvas - Main PixiJS rendering canvas for Agent Arena
  * 
  * Phase A-1: Basic canvas setup ✅
  * Phase A-2: Arena floor with tiled pattern ✅
+ * Phase A-3: Arena boundary walls ✅
  */
 export default function ArenaCanvas({ 
   width = 1280, 
@@ -87,6 +125,10 @@ export default function ArenaCanvas({
     // Add arena floor
     const floor = createArenaFloor(width, height);
     app.stage.addChild(floor);
+    
+    // Add arena walls (on top of floor)
+    const walls = createArenaWalls(width, height);
+    app.stage.addChild(walls);
     
     setIsReady(true);
     console.log('🎮 ArenaCanvas initialized');
