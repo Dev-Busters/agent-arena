@@ -7,6 +7,7 @@ import { Enemy, spawnEnemies } from './Enemy';
 import { ParticleSystem } from './Particles';
 import { getSoundManager } from './Sound';
 import { XPOrb } from './XPOrb';
+import { Loot, randomLootType } from './Loot';
 
 export interface GameStats {
   playerHp: number;
@@ -189,6 +190,7 @@ export default function ArenaCanvas({
     let waveTransitioning = false;
     let enemies: Enemy[] = [];
     let xpOrbs: XPOrb[] = [];
+    let lootItems: Loot[] = [];
     
     // Function to spawn a wave
     const spawnWave = (waveIndex: number) => {
@@ -276,6 +278,14 @@ export default function ArenaCanvas({
             xpOrbs.push(xpOrb);
             app.stage.addChild(xpOrb.container);
             
+            // 20% chance to drop loot
+            if (Math.random() < 0.2) {
+              const loot = new Loot(enemy.state.x, enemy.state.y, randomLootType());
+              lootItems.push(loot);
+              app.stage.addChild(loot.container);
+              console.log(`💎 Loot dropped: ${loot.getName()}`);
+            }
+            
             app.stage.removeChild(enemy.container);
             enemy.destroy();
           }
@@ -322,6 +332,21 @@ export default function ArenaCanvas({
           app.stage.removeChild(orb.container);
           orb.destroy();
           xpOrbs.splice(i, 1);
+        }
+      }
+      
+      // Update loot items
+      for (let i = lootItems.length - 1; i >= 0; i--) {
+        const loot = lootItems[i];
+        
+        if (loot.update(player.state.x, player.state.y)) {
+          // Loot collected
+          console.log(`📦 Collected: ${loot.getName()} (${loot.getEffect()})`);
+          // TODO: Apply loot effects
+          
+          app.stage.removeChild(loot.container);
+          loot.destroy();
+          lootItems.splice(i, 1);
         }
       }
       

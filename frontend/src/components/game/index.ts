@@ -7,3 +7,5 @@ export { Enemy, spawnEnemies } from './Enemy';
 export { ParticleSystem } from './Particles';
 export { SoundManager, getSoundManager } from './Sound';
 export { XPOrb } from './XPOrb';
+export { Loot, randomLootType } from './Loot';
+export type { LootType } from './Loot';
