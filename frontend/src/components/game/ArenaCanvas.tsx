@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Application, Graphics, Container } from 'pixi.js';
+import { Player } from './Player';
 
 interface ArenaCanvasProps {
   width?: number;
@@ -130,13 +131,23 @@ export default function ArenaCanvas({
     const walls = createArenaWalls(width, height);
     app.stage.addChild(walls);
     
+    // Create player at center of arena
+    const player = new Player(width / 2, height / 2, width, height, WALL_THICKNESS);
+    app.stage.addChild(player.container);
+    
+    // Game loop
+    app.ticker.add(() => {
+      player.update();
+    });
+    
     setIsReady(true);
-    console.log('🎮 ArenaCanvas initialized');
+    console.log('🎮 ArenaCanvas initialized with player');
 
     // Cleanup on unmount
     return () => {
       if (appRef.current) {
         console.log('🎮 ArenaCanvas destroyed');
+        player.destroy();
         appRef.current.destroy(true, { children: true, texture: true });
         appRef.current = null;
       }
