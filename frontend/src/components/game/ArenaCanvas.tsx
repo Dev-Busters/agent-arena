@@ -137,8 +137,38 @@ export default function ArenaCanvas({
     app.stage.addChild(player.container);
     
     // Spawn enemies
-    const enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
+    let enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
     enemies.forEach(enemy => app.stage.addChild(enemy.container));
+    
+    // Handle player attacks
+    player.onAttack = (px, py, range, damage) => {
+      enemies.forEach(enemy => {
+        const dx = enemy.state.x - px;
+        const dy = enemy.state.y - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist <= range) {
+          enemy.state.hp -= damage;
+          console.log(`⚔️ Hit ${enemy.state.type} for ${damage}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
+          
+          // Flash enemy red (scale effect as visual feedback)
+          enemy.container.scale.set(1.3);
+          setTimeout(() => {
+            enemy.container.scale.set(1.0);
+          }, 100);
+          
+          // Check if dead
+          if (enemy.state.hp <= 0) {
+            console.log(`💀 ${enemy.state.type} defeated!`);
+            app.stage.removeChild(enemy.container);
+            enemy.destroy();
+          }
+        }
+      });
+      
+      // Remove dead enemies from array
+      enemies = enemies.filter(e => e.state.hp > 0);
+    };
     
     // Game loop
     app.ticker.add(() => {
