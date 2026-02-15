@@ -5,10 +5,20 @@ import { Application, Graphics, Container } from 'pixi.js';
 import { Player } from './Player';
 import { Enemy, spawnEnemies } from './Enemy';
 
+export interface GameStats {
+  playerHp: number;
+  playerMaxHp: number;
+  kills: number;
+  wave: number;
+  enemiesRemaining: number;
+}
+
 interface ArenaCanvasProps {
   width?: number;
   height?: number;
   className?: string;
+  onGameStateChange?: (stats: GameStats) => void;
+  isPaused?: boolean;
 }
 
 // Floor tile configuration
@@ -101,11 +111,26 @@ function createArenaWalls(width: number, height: number): Container {
 export default function ArenaCanvas({ 
   width = 1280, 
   height = 720,
-  className = ''
+  className = '',
+  onGameStateChange,
+  isPaused = false
 }: ArenaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const isPausedRef = useRef(isPaused);
+  const gameStatsRef = useRef<GameStats>({
+    playerHp: 100,
+    playerMaxHp: 100,
+    kills: 0,
+    wave: 1,
+    enemiesRemaining: 3
+  });
+  
+  // Keep pause ref in sync
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     if (!containerRef.current || appRef.current) return;
@@ -140,6 +165,18 @@ export default function ArenaCanvas({
     let enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
     enemies.forEach(enemy => app.stage.addChild(enemy.container));
     
+    // Helper to update game stats
+    const updateStats = () => {
+      gameStatsRef.current = {
+        playerHp: 100, // TODO: Add player HP tracking
+        playerMaxHp: 100,
+        kills: gameStatsRef.current.kills,
+        wave: gameStatsRef.current.wave,
+        enemiesRemaining: enemies.length
+      };
+      onGameStateChange?.(gameStatsRef.current);
+    };
+    
     // Handle player attacks
     player.onAttack = (px, py, range, damage) => {
       enemies.forEach(enemy => {
@@ -160,6 +197,7 @@ export default function ArenaCanvas({
           // Check if dead
           if (enemy.state.hp <= 0) {
             console.log(`💀 ${enemy.state.type} defeated!`);
+            gameStatsRef.current.kills++;
             app.stage.removeChild(enemy.container);
             enemy.destroy();
           }
@@ -168,10 +206,17 @@ export default function ArenaCanvas({
       
       // Remove dead enemies from array
       enemies = enemies.filter(e => e.state.hp > 0);
+      updateStats();
     };
+    
+    // Initial stats
+    updateStats();
     
     // Game loop
     app.ticker.add(() => {
+      // Skip updates when paused
+      if (isPausedRef.current) return;
+      
       player.update();
       
       // Update enemies to chase player

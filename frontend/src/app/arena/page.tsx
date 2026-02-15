@@ -1,24 +1,52 @@
 'use client';
 
-import { ArenaCanvas } from '@/components/game';
+import { useState, useCallback } from 'react';
+import { ArenaCanvas, GameHUD, GameStats, GameState } from '@/components/game';
 
 /**
- * Arena Test Page - For verifying PixiJS setup
+ * Arena Page - Playable PixiJS game with React HUD overlay
  * Route: /arena
  */
 export default function ArenaPage() {
+  const [gameState, setGameState] = useState<GameState>({
+    playerHp: 100,
+    playerMaxHp: 100,
+    kills: 0,
+    wave: 1,
+    enemiesRemaining: 3,
+    isPaused: false
+  });
+
+  const handleGameStateChange = useCallback((stats: GameStats) => {
+    setGameState(prev => ({
+      ...prev,
+      ...stats
+    }));
+  }, []);
+
+  const handlePause = useCallback(() => {
+    setGameState(prev => ({ ...prev, isPaused: true }));
+  }, []);
+
+  const handleResume = useCallback(() => {
+    setGameState(prev => ({ ...prev, isPaused: false }));
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold text-white mb-4">🎮 Arena Test</h1>
-      <p className="text-purple-300 mb-6">PixiJS Canvas - Phase A-1</p>
-      
-      <div className="border-2 border-purple-500/30 rounded-lg overflow-hidden shadow-2xl shadow-purple-500/20">
-        <ArenaCanvas width={1280} height={720} />
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+      <div className="relative border-2 border-purple-500/30 rounded-lg overflow-hidden shadow-2xl shadow-purple-500/20">
+        <ArenaCanvas 
+          width={1280} 
+          height={720} 
+          onGameStateChange={handleGameStateChange}
+          isPaused={gameState.isPaused}
+        />
+        <GameHUD 
+          gameState={gameState}
+          onPause={handlePause}
+          onResume={handleResume}
+        />
       </div>
-      
-      <p className="text-slate-400 mt-4 text-sm">
-        Expected: Dark background (0x0a0a12) with "Loading Arena..." briefly shown
-      </p>
     </div>
   );
 }
