@@ -20,11 +20,19 @@ export interface GameStats {
   enemiesRemaining: number;
 }
 
+export interface DamageEvent {
+  damage: number;
+  x: number;
+  y: number;
+  isCrit: boolean;
+}
+
 interface ArenaCanvasProps {
   width?: number;
   height?: number;
   className?: string;
   onGameStateChange?: (stats: GameStats) => void;
+  onDamage?: (event: DamageEvent) => void;
   isPaused?: boolean;
 }
 
@@ -130,6 +138,7 @@ export default function ArenaCanvas({
   height = 720,
   className = '',
   onGameStateChange,
+  onDamage,
   isPaused = false
 }: ArenaCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -249,8 +258,20 @@ export default function ArenaCanvas({
         const dist = Math.sqrt(dx * dx + dy * dy);
         
         if (dist <= range) {
-          enemy.state.hp -= damage;
-          console.log(`⚔️ Hit ${enemy.state.type} for ${damage}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
+          // Crit chance (10%)
+          const isCrit = Math.random() < 0.1;
+          const finalDamage = isCrit ? damage * 2 : damage;
+          
+          enemy.state.hp -= finalDamage;
+          console.log(`⚔️ Hit ${enemy.state.type} for ${finalDamage}${isCrit ? ' (CRIT)' : ''}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
+          
+          // Trigger damage number
+          onDamage?.({ 
+            damage: finalDamage, 
+            x: enemy.state.x, 
+            y: enemy.state.y, 
+            isCrit 
+          });
           
           // Hit effect and sound
           particles.hit(enemy.state.x, enemy.state.y);

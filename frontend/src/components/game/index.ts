@@ -1,5 +1,5 @@
 export { default as ArenaCanvas } from './ArenaCanvas';
-export type { GameStats } from './ArenaCanvas';
+export type { GameStats, DamageEvent } from './ArenaCanvas';
 export { default as GameHUD } from './GameHUD';
 export type { GameState } from './GameHUD';
 export { Player } from './Player';

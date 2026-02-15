@@ -1,7 +1,17 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ArenaCanvas, GameHUD, GameStats, GameState } from '@/components/game';
+import { ArenaCanvas, GameHUD, GameStats, GameState, DamageEvent } from '@/components/game';
+import DamageNumber from '@/components/game/DamageNumber';
+
+interface DamageNumberData {
+  id: string;
+  damage: number;
+  x: number;
+  y: number;
+  isCrit: boolean;
+  isHeal: boolean;
+}
 
 /**
  * Arena Page - Playable PixiJS game with React HUD overlay
@@ -19,6 +29,8 @@ export default function ArenaPage() {
     enemiesRemaining: 3,
     isPaused: false
   });
+  
+  const [damageNumbers, setDamageNumbers] = useState<DamageNumberData[]>([]);
 
   const handleGameStateChange = useCallback((stats: GameStats) => {
     setGameState(prev => ({
@@ -34,6 +46,22 @@ export default function ArenaPage() {
   const handleResume = useCallback(() => {
     setGameState(prev => ({ ...prev, isPaused: false }));
   }, []);
+  
+  const handleDamage = useCallback((event: DamageEvent) => {
+    const id = `dmg-${Date.now()}-${Math.random()}`;
+    setDamageNumbers(prev => [...prev, {
+      id,
+      damage: event.damage,
+      x: event.x,
+      y: event.y,
+      isCrit: event.isCrit,
+      isHeal: false
+    }]);
+  }, []);
+  
+  const removeDamageNumber = useCallback((id: string) => {
+    setDamageNumbers(prev => prev.filter(d => d.id !== id));
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
@@ -42,6 +70,7 @@ export default function ArenaPage() {
           width={1280} 
           height={720} 
           onGameStateChange={handleGameStateChange}
+          onDamage={handleDamage}
           isPaused={gameState.isPaused}
         />
         <GameHUD 
@@ -49,6 +78,19 @@ export default function ArenaPage() {
           onPause={handlePause}
           onResume={handleResume}
         />
+        
+        {/* Damage numbers overlay */}
+        {damageNumbers.map(dmg => (
+          <DamageNumber
+            key={dmg.id}
+            damage={dmg.damage}
+            x={dmg.x}
+            y={dmg.y}
+            isCrit={dmg.isCrit}
+            isHeal={dmg.isHeal}
+            onComplete={() => removeDamageNumber(dmg.id)}
+          />
+        ))}
       </div>
     </div>
   );
