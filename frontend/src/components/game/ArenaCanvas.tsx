@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Application } from 'pixi.js';
+import { Application, Graphics, Container } from 'pixi.js';
 
 interface ArenaCanvasProps {
   width?: number;
@@ -9,13 +9,54 @@ interface ArenaCanvasProps {
   className?: string;
 }
 
+// Floor tile configuration
+const TILE_SIZE = 64;
+const FLOOR_COLORS = [0x1a1a24, 0x181820, 0x1c1c28, 0x161622]; // Dark stone variations
+
+/**
+ * Creates the arena floor with tiled pattern
+ */
+function createArenaFloor(width: number, height: number): Container {
+  const floorContainer = new Container();
+  
+  const tilesX = Math.ceil(width / TILE_SIZE);
+  const tilesY = Math.ceil(height / TILE_SIZE);
+  
+  for (let y = 0; y < tilesY; y++) {
+    for (let x = 0; x < tilesX; x++) {
+      const tile = new Graphics();
+      
+      // Pick a random dark color for variation
+      const colorIndex = (x + y * 7) % FLOOR_COLORS.length;
+      const color = FLOOR_COLORS[colorIndex];
+      
+      // Draw tile
+      tile.beginFill(color);
+      tile.drawRect(0, 0, TILE_SIZE - 1, TILE_SIZE - 1); // -1 for grid gap
+      tile.endFill();
+      
+      // Add subtle border/crack effect
+      tile.lineStyle(1, 0x0a0a12, 0.5);
+      tile.moveTo(0, TILE_SIZE - 1);
+      tile.lineTo(TILE_SIZE - 1, TILE_SIZE - 1);
+      tile.lineTo(TILE_SIZE - 1, 0);
+      
+      tile.x = x * TILE_SIZE;
+      tile.y = y * TILE_SIZE;
+      
+      floorContainer.addChild(tile);
+    }
+  }
+  
+  console.log('🎮 Arena floor rendered:', tilesX * tilesY, 'tiles');
+  return floorContainer;
+}
+
 /**
  * ArenaCanvas - Main PixiJS rendering canvas for Agent Arena
  * 
- * Phase A-1: Basic canvas setup with dark background
- * - Creates PixiJS Application (v7 API)
- * - Handles resize and cleanup
- * - Dark dungeon aesthetic background
+ * Phase A-1: Basic canvas setup ✅
+ * Phase A-2: Arena floor with tiled pattern ✅
  */
 export default function ArenaCanvas({ 
   width = 1280, 
@@ -33,7 +74,7 @@ export default function ArenaCanvas({
     const app = new Application({
       width,
       height,
-      backgroundColor: 0x0a0a12, // Dark dungeon color
+      backgroundColor: 0x0a0a12,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
       antialias: true,
@@ -42,6 +83,11 @@ export default function ArenaCanvas({
     // Append canvas to container
     containerRef.current.appendChild(app.view as HTMLCanvasElement);
     appRef.current = app;
+    
+    // Add arena floor
+    const floor = createArenaFloor(width, height);
+    app.stage.addChild(floor);
+    
     setIsReady(true);
     console.log('🎮 ArenaCanvas initialized');
 
