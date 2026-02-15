@@ -1,14 +1,39 @@
 import { Graphics, Container } from 'pixi.js';
 
-// Enemy configuration
-const ENEMY_SIZE = 28;
-const ENEMY_SPEED = 2;
-
-// Enemy types with different colors
+// Enemy type configurations with varied stats
 const ENEMY_TYPES = {
-  goblin: { color: 0x4a9a4a, outline: 0x2a6a2a, speed: 2.5 },
-  skeleton: { color: 0xd4d4d4, outline: 0x8a8a8a, speed: 1.8 },
-  demon: { color: 0xc44a4a, outline: 0x8a2a2a, speed: 2.0 },
+  goblin: { 
+    color: 0x4a9a4a, 
+    outline: 0x2a6a2a, 
+    size: 20,       // Small
+    speed: 3.0,     // Fast
+    hp: 40,
+    damage: 5 
+  },
+  skeleton: { 
+    color: 0xd4d4d4, 
+    outline: 0x8a8a8a, 
+    size: 24,       // Medium-small
+    speed: 2.0,     // Medium
+    hp: 50,
+    damage: 8 
+  },
+  demon: { 
+    color: 0xc44a4a, 
+    outline: 0x8a2a2a, 
+    size: 28,       // Medium
+    speed: 2.5,     // Medium-fast
+    hp: 60,
+    damage: 10 
+  },
+  brute: {
+    color: 0x8a2a2a,
+    outline: 0x5a1a1a,
+    size: 40,       // Large
+    speed: 1.2,     // Slow
+    hp: 120,
+    damage: 15
+  }
 } as const;
 
 type EnemyType = keyof typeof ENEMY_TYPES;
@@ -53,17 +78,18 @@ export class Enemy {
     this.state = { 
       x, y, 
       vx: 0, vy: 0,
-      hp: 30,
-      maxHp: 30,
+      hp: this.config.hp,
+      maxHp: this.config.hp,
       type 
     };
     
-    // Set movement bounds (inside walls)
+    // Set movement bounds (inside walls, using this enemy's size)
+    const halfSize = this.config.size / 2;
     this.bounds = {
-      minX: wallThickness + ENEMY_SIZE / 2,
-      minY: wallThickness + ENEMY_SIZE / 2,
-      maxX: arenaWidth - wallThickness - ENEMY_SIZE / 2,
-      maxY: arenaHeight - wallThickness - ENEMY_SIZE / 2,
+      minX: wallThickness + halfSize,
+      minY: wallThickness + halfSize,
+      maxX: arenaWidth - wallThickness - halfSize,
+      maxY: arenaHeight - wallThickness - halfSize,
     };
     
     this.drawEnemy();
@@ -76,14 +102,13 @@ export class Enemy {
   }
   
   private drawEnemy(): void {
-    const { color, outline } = this.config;
+    const { color, outline, size } = this.config;
     
-    // Body - slightly angular shape for enemies
+    // Body - diamond/rhombus shape scaled to enemy size
     this.graphics.beginFill(color);
     this.graphics.lineStyle(2, outline);
     
-    // Draw a diamond/rhombus shape
-    const s = ENEMY_SIZE / 2;
+    const s = size / 2;
     this.graphics.moveTo(0, -s);
     this.graphics.lineTo(s, 0);
     this.graphics.lineTo(0, s);
@@ -91,25 +116,28 @@ export class Enemy {
     this.graphics.closePath();
     this.graphics.endFill();
     
-    // Eyes (two small dots)
+    // Eyes (scaled relative to size)
+    const eyeSize = Math.max(2, size / 10);
+    const eyeOffset = size / 7;
     this.graphics.beginFill(0x000000);
-    this.graphics.drawCircle(-4, -2, 3);
-    this.graphics.drawCircle(4, -2, 3);
+    this.graphics.drawCircle(-eyeOffset, -eyeOffset / 2, eyeSize);
+    this.graphics.drawCircle(eyeOffset, -eyeOffset / 2, eyeSize);
     this.graphics.endFill();
     
     // Red pupil glow
     this.graphics.beginFill(0xff0000, 0.8);
-    this.graphics.drawCircle(-4, -2, 1.5);
-    this.graphics.drawCircle(4, -2, 1.5);
+    this.graphics.drawCircle(-eyeOffset, -eyeOffset / 2, eyeSize / 2);
+    this.graphics.drawCircle(eyeOffset, -eyeOffset / 2, eyeSize / 2);
     this.graphics.endFill();
   }
   
   private drawHealthBar(): void {
     this.healthBar.clear();
     
-    const barWidth = 30;
+    // Scale bar width with enemy size
+    const barWidth = Math.max(30, this.config.size + 10);
     const barHeight = 4;
-    const yOffset = -ENEMY_SIZE / 2 - 10;
+    const yOffset = -this.config.size / 2 - 10;
     
     // Background (dark)
     this.healthBar.beginFill(0x333333);
@@ -179,6 +207,7 @@ export class Enemy {
 
 /**
  * Spawn enemies at random positions away from player
+ * Uses weighted random selection to vary enemy types
  */
 export function spawnEnemies(
   count: number,
@@ -189,8 +218,17 @@ export function spawnEnemies(
   wallThickness: number = 16
 ): Enemy[] {
   const enemies: Enemy[] = [];
-  const types: EnemyType[] = ['goblin', 'skeleton', 'demon'];
   const minDistFromPlayer = 200;
+  
+  // Weighted spawn chances (higher = more common)
+  const typeWeights: [EnemyType, number][] = [
+    ['goblin', 40],   // Most common
+    ['skeleton', 30], // Common
+    ['demon', 20],    // Less common
+    ['brute', 10]     // Rare (large, tanky)
+  ];
+  
+  const totalWeight = typeWeights.reduce((sum, [, weight]) => sum + weight, 0);
   
   for (let i = 0; i < count; i++) {
     let x: number, y: number;
@@ -206,8 +244,19 @@ export function spawnEnemies(
       attempts < 20
     );
     
-    const type = types[i % types.length];
-    enemies.push(new Enemy(x, y, type, arenaWidth, arenaHeight, wallThickness));
+    // Weighted random type selection
+    let random = Math.random() * totalWeight;
+    let selectedType: EnemyType = 'goblin';
+    
+    for (const [type, weight] of typeWeights) {
+      random -= weight;
+      if (random <= 0) {
+        selectedType = type;
+        break;
+      }
+    }
+    
+    enemies.push(new Enemy(x, y, selectedType, arenaWidth, arenaHeight, wallThickness));
   }
   
   return enemies;
