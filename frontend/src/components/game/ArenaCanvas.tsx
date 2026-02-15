@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Application, Graphics, Container } from 'pixi.js';
 import { Player } from './Player';
+import { Enemy, spawnEnemies } from './Enemy';
 
 interface ArenaCanvasProps {
   width?: number;
@@ -135,19 +136,29 @@ export default function ArenaCanvas({
     const player = new Player(width / 2, height / 2, width, height, WALL_THICKNESS);
     app.stage.addChild(player.container);
     
+    // Spawn enemies
+    const enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
+    enemies.forEach(enemy => app.stage.addChild(enemy.container));
+    
     // Game loop
     app.ticker.add(() => {
       player.update();
+      
+      // Update enemies to chase player
+      enemies.forEach(enemy => {
+        enemy.update(player.state.x, player.state.y);
+      });
     });
     
     setIsReady(true);
-    console.log('🎮 ArenaCanvas initialized with player');
+    console.log('🎮 ArenaCanvas initialized with player and', enemies.length, 'enemies');
 
     // Cleanup on unmount
     return () => {
       if (appRef.current) {
         console.log('🎮 ArenaCanvas destroyed');
         player.destroy();
+        enemies.forEach(enemy => enemy.destroy());
         appRef.current.destroy(true, { children: true, texture: true });
         appRef.current = null;
       }
