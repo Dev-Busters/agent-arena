@@ -30,6 +30,16 @@ const WALL_THICKNESS = 16;
 const WALL_COLOR = 0x2a2a3a;
 const WALL_HIGHLIGHT = 0x3a3a4a;
 
+// Wave configuration
+const WAVES = [
+  { wave: 1, count: 3, delay: 0 },      // Starting wave
+  { wave: 2, count: 5, delay: 3000 },   // 3s delay after wave 1
+  { wave: 3, count: 7, delay: 3000 },
+  { wave: 4, count: 9, delay: 3000 },
+  { wave: 5, count: 12, delay: 3000 },  // Gets harder
+];
+const WAVE_DELAY_MS = 3000;
+
 /**
  * Creates the arena floor with tiled pattern
  */
@@ -167,9 +177,39 @@ export default function ArenaCanvas({
     const particles = new ParticleSystem();
     app.stage.addChild(particles.container);
     
-    // Spawn enemies
-    let enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
-    enemies.forEach(enemy => app.stage.addChild(enemy.container));
+    // Wave management
+    let currentWaveIndex = 0;
+    let waveTransitioning = false;
+    let enemies: Enemy[] = [];
+    
+    // Function to spawn a wave
+    const spawnWave = (waveIndex: number) => {
+      if (waveIndex >= WAVES.length) {
+        console.log('🎉 All waves complete!');
+        return;
+      }
+      
+      const waveConfig = WAVES[waveIndex];
+      console.log(`🌊 Spawning Wave ${waveConfig.wave} (${waveConfig.count} enemies)`);
+      
+      const newEnemies = spawnEnemies(
+        waveConfig.count,
+        player.state.x,
+        player.state.y,
+        width,
+        height,
+        WALL_THICKNESS
+      );
+      
+      newEnemies.forEach(enemy => app.stage.addChild(enemy.container));
+      enemies = newEnemies;
+      
+      gameStatsRef.current.wave = waveConfig.wave;
+      updateStats();
+    };
+    
+    // Spawn first wave
+    spawnWave(0);
     
     // Helper to update game stats
     const updateStats = () => {
@@ -248,6 +288,21 @@ export default function ArenaCanvas({
       enemies.forEach(enemy => {
         enemy.update(player.state.x, player.state.y);
       });
+      
+      // Check for wave completion
+      if (enemies.length === 0 && !waveTransitioning && currentWaveIndex < WAVES.length) {
+        waveTransitioning = true;
+        console.log(`✅ Wave ${WAVES[currentWaveIndex].wave} complete!`);
+        
+        // Delay before next wave
+        setTimeout(() => {
+          currentWaveIndex++;
+          if (currentWaveIndex < WAVES.length) {
+            spawnWave(currentWaveIndex);
+          }
+          waveTransitioning = false;
+        }, WAVE_DELAY_MS);
+      }
     });
     
     setIsReady(true);
