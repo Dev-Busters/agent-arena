@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Application, Graphics, Container } from 'pixi.js';
 import { Player } from './Player';
 import { Enemy, spawnEnemies } from './Enemy';
+import { ParticleSystem } from './Particles';
 
 export interface GameStats {
   playerHp: number;
@@ -161,6 +162,10 @@ export default function ArenaCanvas({
     const player = new Player(width / 2, height / 2, width, height, WALL_THICKNESS);
     app.stage.addChild(player.container);
     
+    // Create particle system
+    const particles = new ParticleSystem();
+    app.stage.addChild(particles.container);
+    
     // Spawn enemies
     let enemies = spawnEnemies(3, width / 2, height / 2, width, height, WALL_THICKNESS);
     enemies.forEach(enemy => app.stage.addChild(enemy.container));
@@ -188,7 +193,10 @@ export default function ArenaCanvas({
           enemy.state.hp -= damage;
           console.log(`⚔️ Hit ${enemy.state.type} for ${damage}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
           
-          // Flash enemy red (scale effect as visual feedback)
+          // Hit effect
+          particles.hit(enemy.state.x, enemy.state.y);
+          
+          // Flash enemy (scale effect as visual feedback)
           enemy.container.scale.set(1.3);
           setTimeout(() => {
             enemy.container.scale.set(1.0);
@@ -198,6 +206,12 @@ export default function ArenaCanvas({
           if (enemy.state.hp <= 0) {
             console.log(`💀 ${enemy.state.type} defeated!`);
             gameStatsRef.current.kills++;
+            
+            // Death burst effect
+            const deathColor = enemy.state.type === 'goblin' ? 0x44aa44 :
+                              enemy.state.type === 'demon' ? 0xaa4444 : 0xaaaaaa;
+            particles.burst(enemy.state.x, enemy.state.y, deathColor);
+            
             app.stage.removeChild(enemy.container);
             enemy.destroy();
           }
@@ -214,7 +228,10 @@ export default function ArenaCanvas({
     
     // Game loop
     app.ticker.add(() => {
-      // Skip updates when paused
+      // Always update particles (even when paused for visual continuity)
+      particles.update();
+      
+      // Skip game updates when paused
       if (isPausedRef.current) return;
       
       player.update();
@@ -234,6 +251,7 @@ export default function ArenaCanvas({
         console.log('🎮 ArenaCanvas destroyed');
         player.destroy();
         enemies.forEach(enemy => enemy.destroy());
+        particles.destroy();
         appRef.current.destroy(true, { children: true, texture: true });
         appRef.current = null;
       }
