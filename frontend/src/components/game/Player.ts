@@ -9,6 +9,11 @@ const ATTACK_RANGE = 60;
 const ATTACK_DAMAGE = 10;
 const ATTACK_COOLDOWN = 300; // ms
 
+// Abilities
+const DASH_COOLDOWN = 3000; // 3s
+const DASH_SPEED = 20;
+const DASH_DURATION = 150; // ms
+
 export interface PlayerState {
   x: number;
   y: number;
@@ -16,6 +21,8 @@ export interface PlayerState {
   vy: number;
   isAttacking: boolean;
   lastAttackTime: number;
+  isDashing: boolean;
+  lastDashTime: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -47,6 +54,8 @@ export class Player {
       vx: 0, vy: 0, 
       isAttacking: false, 
       lastAttackTime: 0,
+      isDashing: false,
+      lastDashTime: 0,
       level: 1,
       xp: 0,
       xpToNext: 100, // XP needed for level 2
@@ -103,6 +112,49 @@ export class Player {
     return true;
   }
   
+  /**
+   * Dash ability (Q key) - quick burst forward
+   */
+  public dash(): boolean {
+    const now = Date.now();
+    if (now - this.state.lastDashTime < DASH_COOLDOWN) {
+      return false;
+    }
+    
+    this.state.isDashing = true;
+    this.state.lastDashTime = now;
+    
+    // Dash in current velocity direction (or up if stationary)
+    let dashX = this.state.vx;
+    let dashY = this.state.vy;
+    
+    if (dashX === 0 && dashY === 0) {
+      // Default to up if not moving
+      dashY = -1;
+    } else {
+      // Normalize
+      const mag = Math.sqrt(dashX * dashX + dashY * dashY);
+      dashX /= mag;
+      dashY /= mag;
+    }
+    
+    // Apply dash velocity
+    this.state.vx = dashX * DASH_SPEED;
+    this.state.vy = dashY * DASH_SPEED;
+    
+    // Visual effect (quick flash)
+    this.graphics.tint = 0xccccff;
+    
+    // Reset after dash duration
+    setTimeout(() => {
+      this.state.isDashing = false;
+      this.graphics.tint = 0xffffff;
+    }, DASH_DURATION);
+    
+    console.log('💨 Dash!');
+    return true;
+  }
+  
   private showAttackEffect(): void {
     this.attackGraphics.clear();
     this.attackGraphics.lineStyle(3, 0xffff00, 0.8);
@@ -143,6 +195,11 @@ export class Player {
         this.attack();
         e.preventDefault();
       }
+      // Q to dash
+      if (e.code === 'KeyQ') {
+        this.dash();
+        e.preventDefault();
+      }
     };
     
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -162,20 +219,23 @@ export class Player {
    * Update player state - call this every frame
    */
   public update(): void {
-    // Calculate velocity from keys
-    this.state.vx = 0;
-    this.state.vy = 0;
-    
-    if (this.keys.has('w') || this.keys.has('arrowup')) this.state.vy = -MOVE_SPEED;
-    if (this.keys.has('s') || this.keys.has('arrowdown')) this.state.vy = MOVE_SPEED;
-    if (this.keys.has('a') || this.keys.has('arrowleft')) this.state.vx = -MOVE_SPEED;
-    if (this.keys.has('d') || this.keys.has('arrowright')) this.state.vx = MOVE_SPEED;
-    
-    // Normalize diagonal movement
-    if (this.state.vx !== 0 && this.state.vy !== 0) {
-      const factor = 0.707; // 1/sqrt(2)
-      this.state.vx *= factor;
-      this.state.vy *= factor;
+    // Skip normal movement if dashing
+    if (!this.state.isDashing) {
+      // Calculate velocity from keys
+      this.state.vx = 0;
+      this.state.vy = 0;
+      
+      if (this.keys.has('w') || this.keys.has('arrowup')) this.state.vy = -MOVE_SPEED;
+      if (this.keys.has('s') || this.keys.has('arrowdown')) this.state.vy = MOVE_SPEED;
+      if (this.keys.has('a') || this.keys.has('arrowleft')) this.state.vx = -MOVE_SPEED;
+      if (this.keys.has('d') || this.keys.has('arrowright')) this.state.vx = MOVE_SPEED;
+      
+      // Normalize diagonal movement
+      if (this.state.vx !== 0 && this.state.vy !== 0) {
+        const factor = 0.707; // 1/sqrt(2)
+        this.state.vx *= factor;
+        this.state.vy *= factor;
+      }
     }
     
     // Apply velocity
