@@ -1,7 +1,11 @@
 /**
  * Roguelike Dungeon Generation & Management
- * Uses rot.js for procedural generation
+ * Uses BSP (Binary Space Partitioning) for sophisticated room layouts
+ * with fallback to rot.js Digger for simple maps
  */
+import { BSPDungeonMap, BSPRoom, RoomType, Tile, Corridor, RoomFeature, getRoomGraph, findRoomPath, dungeonToASCII } from "./bsp-dungeon.js";
+export { BSPDungeonMap, BSPRoom, RoomType, Tile, Corridor, RoomFeature };
+export { getRoomGraph, findRoomPath, dungeonToASCII };
 export type DungeonDifficulty = "easy" | "normal" | "hard" | "nightmare";
 export type EnemyType = "goblin" | "orc" | "skeleton" | "wraith" | "boss_skeleton" | "boss_dragon" | "boss_lich";
 export type SpecialZoneType = "boss_chamber" | "treasure_vault" | "cursed_hall" | "dragon_lair" | "arcane_sanctum" | "shadow_den";
@@ -41,9 +45,16 @@ export interface EnemyTemplate {
 }
 export declare const ENEMY_TEMPLATES: Record<EnemyType, EnemyTemplate>;
 /**
- * Generate a procedurally random dungeon using rot.js
+ * Generate a BSP dungeon with sophisticated room layouts.
+ * Returns the full BSPDungeonMap with typed rooms, corridors, features.
  */
-export declare function generateDungeon(seed: number, _difficulty: DungeonDifficulty, _depth: number, _playerLevel: number): DungeonMap;
+export declare function generateBSPDungeonMap(seed: number, difficulty: DungeonDifficulty, depth: number, playerLevel: number): BSPDungeonMap;
+/**
+ * Generate a procedurally random dungeon using BSP algorithm.
+ * Backward-compatible: returns the legacy DungeonMap format.
+ * Internally uses BSP for much better room layouts.
+ */
+export declare function generateDungeon(seed: number, difficulty: DungeonDifficulty, depth: number, playerLevel: number): DungeonMap;
 /**
  * Generate enemies for a specific room based on difficulty and depth
  */

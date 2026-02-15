@@ -21,7 +21,26 @@ export default function DungeonStart({ onStart }: DungeonStartProps) {
     // Fetch available agents
     const fetchAgents = async () => {
       try {
+        // Dev mode: create mock agent if no token
         const token = localStorage.getItem('token');
+        if (!token && process.env.NODE_ENV === 'development') {
+          console.log('🔧 [DEV] Using mock agent');
+          const mockAgent = {
+            id: 'dev-agent-001',
+            name: 'Dev Warrior',
+            class: 'warrior',
+            level: 1,
+            current_hp: 100,
+            max_hp: 100,
+            attack: 10,
+            defense: 5,
+            speed: 5
+          };
+          setAgents([mockAgent]);
+          setSelectedAgent(mockAgent.id);
+          return;
+        }
+        
         const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/me/current`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -31,6 +50,24 @@ export default function DungeonStart({ onStart }: DungeonStartProps) {
         }
       } catch (error) {
         console.error('Failed to fetch agents:', error);
+        
+        // Dev mode fallback: create mock agent on error
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔧 [DEV] Agent fetch failed, using mock agent');
+          const mockAgent = {
+            id: 'dev-agent-001',
+            name: 'Dev Warrior',
+            class: 'warrior',
+            level: 1,
+            current_hp: 100,
+            max_hp: 100,
+            attack: 10,
+            defense: 5,
+            speed: 5
+          };
+          setAgents([mockAgent]);
+          setSelectedAgent(mockAgent.id);
+        }
       }
     };
 

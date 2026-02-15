@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { generateDungeon, generateEncounter, scaleEnemyStats, ENEMY_TEMPLATES, getDifficultyForFloor, generateBranchingPaths, getSpecialZoneBonus, } from '../game/dungeon.js';
 import { decideEnemyAction, AI_PATTERNS } from '../game/enemy-ai.js';
 import { generateLoot, calculateLevelUp } from '../game/loot.js';
+import { ENEMY_EFFECT_ABILITIES, PLAYER_EFFECT_ABILITIES, rollAttackEffects, processStatusEffects, isStunned, getAttackModifier, serializeEffects, } from '../game/status-effects.js';
 import SeededRandom from "seedrandom";
 const activeDungeonSessions = new Map();
 export function setupDungeonSockets(io) {
@@ -29,28 +30,58 @@ export function setupDungeonSockets(io) {
                 const floor = 1;
                 const difficulty = getDifficultyForFloor(floor);
                 // Create dungeon in database
-                const dungeonResult = await query(`INSERT INTO dungeons (user_id, agent_id, difficulty, seed, depth, max_depth)
-             VALUES ($1, $2, $3, $4, 1, 10)
-             RETURNING *`, [userId, agentId, difficulty, seed]);
-                const dungeon = dungeonResult.rows[0];
+                let dungeon;
+                try {
+                    console.log('🔄 [DUNGEON] Inserting dungeon with:', { userId, agentId, difficulty, seed });
+                    const dungeonResult = await query(`INSERT INTO dungeons (user_id, agent_id, difficulty, seed, depth, max_depth)
+               VALUES ($1, $2, $3::dungeon_difficulty, $4, 1, 10)
+               RETURNING *`, [userId, agentId, difficulty, seed]);
+                    dungeon = dungeonResult.rows[0];
+                    console.log('✅ [DUNGEON] Dungeon created:', dungeon.id);
+                }
+                catch (err) {
+                    console.error('❌ [DUNGEON] Failed to insert dungeon:', {
+                        code: err?.code,
+                        message: err?.message,
+                        params: [userId, agentId, difficulty, seed]
+                    });
+                    throw err;
+                }
                 // Generate dungeon map
                 const map = generateDungeon(seed, difficulty, floor, agent.level);
                 // Create progress record
-                await query(`INSERT INTO dungeon_progress (dungeon_id, map_data, current_room_id, discovered_rooms)
-             VALUES ($1, $2, $3, ARRAY[0])`, [
-                    dungeon.id,
-                    JSON.stringify(map),
-                    0,
-                ]);
+                try {
+                    console.log('🔄 [DUNGEON] Inserting dungeon_progress with map and discovered_rooms');
+                    await query(`INSERT INTO dungeon_progress (dungeon_id, map_data, current_room_id, discovered_rooms)
+               VALUES ($1, $2, $3, $4::INT[])`, [
+                        dungeon.id,
+                        JSON.stringify(map),
+                        0,
+                        [0], // Starting room
+                    ]);
+                    console.log('✅ [DUNGEON] Dungeon progress created');
+                }
+                catch (err) {
+                    console.error('❌ [DUNGEON] Failed to insert dungeon_progress:', {
+                        code: err?.code,
+                        message: err?.message
+                    });
+                    throw err;
+                }
                 // Store session
                 const session = {
                     dungeonId: dungeon.id,
                     userId,
                     agentId,
+                    agentClass: agent.class || 'warrior',
                     depth: floor,
                     currentRoomId: 0,
                     playerHp: agent.current_hp,
                     playerMaxHp: agent.max_hp,
+                    playerAttack: agent.attack || 15,
+                    playerDefense: agent.defense || 8,
+                    playerEffects: [],
+                    turnCount: 0,
                     inEncounter: false,
                     currentEnemies: [],
                 };
@@ -72,11 +103,12 @@ export function setupDungeonSockets(io) {
                 });
             }
             catch (error) {
-                console.error('❌ [DUNGEON] start_dungeon error:', {
+                console.error('❌ [DUNGEON] start_dungeon error detailed:', {
                     message: error?.message,
                     code: error?.code,
                     detail: error?.detail,
-                    stack: error?.stack?.split('\n').slice(0, 3).join('\n'),
+                    hint: error?.hint,
+                    stack: error?.stack,
                 });
                 socket.emit("dungeon_error", {
                     message: "Failed to start dungeon: " + error?.message,
@@ -103,7 +135,7 @@ export function setupDungeonSockets(io) {
                     const difficulty = getDifficultyForFloor(session.depth);
                     const enemyTypes = generateEncounter(roomId, difficulty, session.depth, session.playerHp, // Simplified: use HP instead of full agent data
                     rng);
-                    // Create enemies
+                    // Create enemies with effects tracking
                     const enemies = enemyTypes.map((type) => {
                         const template = ENEMY_TEMPLATES[type];
                         const stats = scaleEnemyStats(template, 1, // Simplified: assume level 1 player
@@ -117,17 +149,24 @@ export function setupDungeonSockets(io) {
                             attack: stats.attack,
                             defense: stats.defense,
                             speed: stats.speed,
+                            effects: [],
                         };
                     });
                     session.inEncounter = true;
                     session.currentEnemies = enemies;
+                    session.turnCount = 0;
+                    // Clear player effects from previous encounters
+                    session.playerEffects = [];
                     socket.emit("encounter_started", {
                         enemies: enemies.map((e) => ({
                             id: e.id,
                             name: e.name,
+                            type: e.type,
                             hp: e.hp,
                             maxHp: e.maxHp,
+                            effects: [],
                         })),
+                        playerEffects: [],
                     });
                 }
                 else {
@@ -151,6 +190,7 @@ export function setupDungeonSockets(io) {
         });
         /**
          * Player performs an action in combat
+         * Now includes full status effects system
          */
         socket.on("dungeon_action", async (payload) => {
             try {
@@ -160,29 +200,201 @@ export function setupDungeonSockets(io) {
                     return;
                 }
                 const { action, targetId } = payload;
-                // Resolve player action
-                let damage = 0;
-                if (action === "attack" && targetId) {
-                    const target = session.currentEnemies.find((e) => e.id === targetId);
+                session.turnCount++;
+                const turnMessages = [];
+                const effectEvents = [];
+                // ─── Check if player is stunned ─────────────────────────
+                const playerStunned = isStunned(session.playerEffects);
+                let playerDamage = 0;
+                let playerCritical = false;
+                let playerEffectsApplied = [];
+                if (playerStunned) {
+                    turnMessages.push('💫 You are stunned and cannot act!');
+                    effectEvents.push({ type: 'stun', target: 'player', message: 'Stunned! Turn skipped.' });
+                }
+                else if (action === "attack" && targetId) {
+                    // ─── Player Attack with Status Effects ────────────────
+                    const target = session.currentEnemies.find(e => e.id === targetId);
                     if (target) {
-                        // Damage calculation (simplified)
-                        damage = Math.max(1, 10 + Math.floor(Math.random() * 5) - 2);
-                        target.hp -= damage;
+                        // Apply attack modifier from weakness debuff
+                        const atkMod = getAttackModifier(session.playerEffects);
+                        const baseAtk = Math.floor(session.playerAttack * atkMod);
+                        // Damage calculation
+                        const variance = Math.floor(Math.random() * 7) - 3;
+                        playerCritical = Math.random() < 0.12;
+                        playerDamage = Math.max(1, baseAtk - Math.floor(target.defense * 0.5) + variance);
+                        if (playerCritical) {
+                            playerDamage = Math.floor(playerDamage * 1.5);
+                            turnMessages.push('💥 Critical hit!');
+                        }
+                        target.hp = Math.max(0, target.hp - playerDamage);
+                        // Roll for player's status effects on the target
+                        const playerAbilities = PLAYER_EFFECT_ABILITIES[session.agentClass] || PLAYER_EFFECT_ABILITIES.warrior;
+                        playerEffectsApplied = rollAttackEffects(playerAbilities, target.effects, 'player', session.turnCount, target.defense, playerCritical, Math.random);
+                        for (const eResult of playerEffectsApplied) {
+                            turnMessages.push(eResult.message);
+                            effectEvents.push({
+                                type: eResult.effect?.type || 'unknown',
+                                target: target.id,
+                                message: eResult.message,
+                            });
+                        }
                     }
                 }
-                // Resolve enemy actions
-                const enemyActions = session.currentEnemies
-                    .filter((e) => e.hp > 0)
-                    .map((enemy) => {
+                else if (action === "defend") {
+                    // Add defend effect to player
+                    session.playerEffects = session.playerEffects.filter(e => e.type !== 'defend');
+                    session.playerEffects.push({
+                        type: 'defend',
+                        duration: 1,
+                        stacks: 1,
+                        sourceId: 'player',
+                        appliedOnTurn: session.turnCount,
+                    });
+                    turnMessages.push('🛡️ You brace for incoming attacks! (40% damage reduction)');
+                }
+                // ─── Enemy Actions with Status Effects ──────────────────
+                const enemyActionResults = [];
+                for (const enemy of session.currentEnemies.filter(e => e.hp > 0)) {
+                    const enemyStunned = isStunned(enemy.effects);
+                    if (enemyStunned) {
+                        enemyActionResults.push({
+                            enemyId: enemy.id,
+                            enemyName: enemy.name,
+                            action: 'stunned',
+                            damage: 0,
+                            effectsApplied: [],
+                            stunned: true,
+                        });
+                        turnMessages.push(`💫 ${enemy.name} is stunned!`);
+                        effectEvents.push({ type: 'stun', target: enemy.id, message: `${enemy.name} stunned` });
+                        continue;
+                    }
                     const aiPattern = AI_PATTERNS[enemy.type] || AI_PATTERNS.goblin;
-                    const rng = SeededRandom(enemy.id);
-                    return {
-                        enemyId: enemy.id,
-                        action: decideEnemyAction(aiPattern, {}, rng),
+                    const rng = SeededRandom(enemy.id + session.turnCount);
+                    const enemyDecision = decideEnemyAction(aiPattern, {
+                        playerHp: session.playerHp,
+                        playerMaxHp: session.playerMaxHp,
+                        playerAttack: session.playerAttack,
+                        playerDefense: session.playerDefense,
+                        enemyHp: enemy.hp,
+                        enemyMaxHp: enemy.maxHp,
+                        enemyAttack: enemy.attack,
+                        enemyDefense: enemy.defense,
+                        playerDefended: session.playerEffects.some(e => e.type === 'defend'),
+                        enemyDefended: false,
+                        turnsElapsed: session.turnCount,
+                    }, rng);
+                    if (enemyDecision === 'attack' || enemyDecision === 'ability') {
+                        // Enemy attacks player
+                        const atkMod = getAttackModifier(enemy.effects);
+                        const baseAtk = Math.floor(enemy.attack * atkMod);
+                        const variance = Math.floor(Math.random() * 7) - 3;
+                        const enemyCrit = Math.random() < 0.08;
+                        let enemyDmg = Math.max(1, baseAtk - Math.floor(session.playerDefense * 0.5) + variance);
+                        if (enemyCrit)
+                            enemyDmg = Math.floor(enemyDmg * 1.5);
+                        // Player defend reduction
+                        const isDefending = session.playerEffects.some(e => e.type === 'defend');
+                        if (isDefending) {
+                            enemyDmg = Math.floor(enemyDmg * 0.6);
+                        }
+                        session.playerHp = Math.max(0, session.playerHp - enemyDmg);
+                        // Roll for enemy's status effects on the player
+                        const enemyAbilities = ENEMY_EFFECT_ABILITIES[enemy.type] || [];
+                        const enemyEffectsApplied = rollAttackEffects(enemyAbilities, session.playerEffects, enemy.id, session.turnCount, session.playerDefense, enemyCrit, Math.random);
+                        for (const eResult of enemyEffectsApplied) {
+                            turnMessages.push(`${enemy.name}: ${eResult.message}`);
+                            effectEvents.push({
+                                type: eResult.effect?.type || 'unknown',
+                                target: 'player',
+                                message: eResult.message,
+                            });
+                        }
+                        enemyActionResults.push({
+                            enemyId: enemy.id,
+                            enemyName: enemy.name,
+                            action: enemyDecision,
+                            damage: enemyDmg,
+                            effectsApplied: enemyEffectsApplied,
+                            stunned: false,
+                        });
+                        if (enemyCrit) {
+                            turnMessages.push(`💥 ${enemy.name} lands a critical hit for ${enemyDmg} damage!`);
+                        }
+                        else {
+                            turnMessages.push(`${enemy.name} attacks for ${enemyDmg} damage!`);
+                        }
+                    }
+                    else if (enemyDecision === 'defend') {
+                        enemy.effects.push({
+                            type: 'defend',
+                            duration: 1,
+                            stacks: 1,
+                            sourceId: enemy.id,
+                            appliedOnTurn: session.turnCount,
+                        });
+                        enemyActionResults.push({
+                            enemyId: enemy.id,
+                            enemyName: enemy.name,
+                            action: 'defend',
+                            damage: 0,
+                            effectsApplied: [],
+                            stunned: false,
+                        });
+                        turnMessages.push(`🛡️ ${enemy.name} takes a defensive stance!`);
+                    }
+                    else {
+                        enemyActionResults.push({
+                            enemyId: enemy.id,
+                            enemyName: enemy.name,
+                            action: enemyDecision,
+                            damage: 0,
+                            effectsApplied: [],
+                            stunned: false,
+                        });
+                    }
+                }
+                // ─── End-of-Turn: Process DoT effects ───────────────────
+                // Player DoTs
+                const playerDotResult = processStatusEffects(session.playerEffects, session.playerMaxHp, session.playerHp);
+                session.playerHp = playerDotResult.newHp;
+                for (const r of playerDotResult.results) {
+                    turnMessages.push(`[You] ${r.message}`);
+                    if (r.damage > 0) {
+                        effectEvents.push({ type: r.type, target: 'player', message: r.message });
+                    }
+                }
+                // Enemy DoTs
+                const enemyDotResults = {};
+                for (const enemy of session.currentEnemies.filter(e => e.hp > 0)) {
+                    const dotResult = processStatusEffects(enemy.effects, enemy.maxHp, enemy.hp);
+                    enemy.hp = dotResult.newHp;
+                    enemyDotResults[enemy.id] = {
+                        damage: dotResult.totalDamage,
+                        messages: dotResult.results.map(r => r.message),
                     };
-                });
-                // Remove defeated enemies
-                session.currentEnemies = session.currentEnemies.filter((e) => e.hp > 0);
+                    for (const r of dotResult.results) {
+                        turnMessages.push(`[${enemy.name}] ${r.message}`);
+                        if (r.damage > 0) {
+                            effectEvents.push({ type: r.type, target: enemy.id, message: r.message });
+                        }
+                    }
+                }
+                // ─── Remove defeated enemies ────────────────────────────
+                session.currentEnemies = session.currentEnemies.filter(e => e.hp > 0);
+                // ─── Check player death ─────────────────────────────────
+                if (session.playerHp <= 0) {
+                    session.inEncounter = false;
+                    socket.emit("encounter_lost", {
+                        message: "You have been defeated!",
+                        turnMessages,
+                        effectEvents,
+                        playerEffects: serializeEffects(session.playerEffects),
+                    });
+                    return;
+                }
+                // ─── Check victory ──────────────────────────────────────
                 if (session.currentEnemies.length === 0) {
                     // Combat won - generate loot and update player
                     const rng = SeededRandom(session.dungeonId + Date.now());
@@ -198,7 +410,7 @@ export function setupDungeonSockets(io) {
                     // Calculate level up
                     const levelUpData = calculateLevelUp(1, 0, loot.xp); // Simplified: assume level 1
                     session.inEncounter = false;
-                    // Emit rewards
+                    // Emit rewards with combat summary
                     socket.emit("encounter_won", {
                         gold: loot.gold,
                         xp: loot.xp,
@@ -214,19 +426,35 @@ export function setupDungeonSockets(io) {
                         newLevel: levelUpData.newLevel,
                         totalXp: levelUpData.newXp,
                         zoneBonus: session.specialZoneBonus || null,
+                        turnMessages,
+                        effectEvents,
+                        combatStats: {
+                            turnsElapsed: session.turnCount,
+                        },
                     });
                 }
                 else {
-                    // Send turn result
+                    // ─── Send turn result with full effect data ───────────
                     socket.emit("turn_result", {
-                        playerAction: action,
-                        playerDamage: damage,
+                        playerAction: playerStunned ? 'stunned' : action,
+                        playerDamage,
+                        playerCritical,
+                        playerHp: session.playerHp,
+                        playerMaxHp: session.playerMaxHp,
+                        playerEffects: serializeEffects(session.playerEffects),
                         enemies: session.currentEnemies.map((e) => ({
                             id: e.id,
+                            name: e.name,
+                            type: e.type,
                             hp: e.hp,
                             maxHp: e.maxHp,
+                            effects: serializeEffects(e.effects),
                         })),
-                        enemyActions,
+                        enemyActions: enemyActionResults,
+                        enemyDotResults,
+                        turnMessages,
+                        effectEvents,
+                        turnNumber: session.turnCount,
                     });
                 }
             }

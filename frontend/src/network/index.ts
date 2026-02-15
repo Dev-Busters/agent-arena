@@ -1,32 +1,17 @@
 /**
  * Network Optimization Module
- * Central export point for all network utilities
+ * Client-side prediction, entity interpolation, and latency compensation
  */
 
-// Type definitions
-export * from './types';
-
-// Compression utilities
 export {
-  compressDelta,
-  decompressDelta,
-  calculateCompressionRatio,
-  calculateBandwidthSavings,
-  createChecksum,
-  compressBatch,
-} from './compression';
+  ClientPrediction,
+  type PredictedState,
+  type ServerState,
+  type InputCommand,
+} from './clientPrediction';
 
-// Throttling utilities
 export {
-  throttle,
-  debounce,
-  throttleRAF,
-  RequestQueue,
-} from './throttling';
-
-// Monitoring utilities
-export {
-  NetworkMonitor,
-  getNetworkMonitor,
-  resetNetworkMonitor,
-} from './stats';
+  EntityInterpolation,
+  EntityInterpolationManager,
+  type EntitySnapshot,
+} from './entityInterpolation';

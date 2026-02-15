@@ -12,7 +12,10 @@ export enum PlayerAction {
 
   // Combat
   ATTACK = 'attack',
-  USE_SKILL = 'use-skill',
+  USE_SKILL_1 = 'use-skill-1', // Q key
+  USE_SKILL_2 = 'use-skill-2', // E key
+  USE_SKILL_3 = 'use-skill-3', // R key
+  USE_SKILL_4 = 'use-skill-4', // F key
   INTERACT = 'interact',
 
   // Items & Inventory
@@ -32,6 +35,10 @@ export enum PlayerAction {
   // Special
   DASH = 'dash',
   JUMP = 'jump',
+
+  // Targeting
+  TARGET_ENEMY = 'target-enemy',
+  CLEAR_TARGET = 'clear-target',
 }
 
 export interface InputState {
@@ -58,6 +65,15 @@ export interface InputState {
 
   /** Gamepad state if connected */
   gamepadState: GamepadInputState | null;
+
+  /** Ability cooldowns (skill slot -> timestamp when ready) */
+  abilityCooldowns: Map<PlayerAction, number>;
+
+  /** Currently targeted enemy ID (null = no target) */
+  targetedEnemyId: string | null;
+
+  /** Buffered inputs waiting for network confirmation */
+  inputBuffer: BufferedInput[];
 }
 
 export interface GamepadInputState {
@@ -76,6 +92,26 @@ export interface GamepadInputState {
     left: number;
     right: number;
   };
+}
+
+/** Input buffered during network lag */
+export interface BufferedInput {
+  /** Unique ID for this input */
+  id: string;
+  /** Action to perform */
+  action: PlayerAction;
+  /** Timestamp when input was created */
+  timestamp: number;
+  /** Optional payload (e.g., target position, skill ID) */
+  payload?: {
+    targetId?: string;
+    position?: { x: number; y: number; z: number };
+    skillSlot?: number;
+  };
+  /** Has this been sent to server? */
+  sent: boolean;
+  /** Has server confirmed? */
+  confirmed: boolean;
 }
 
 /** Custom key binding that maps a key to an action */

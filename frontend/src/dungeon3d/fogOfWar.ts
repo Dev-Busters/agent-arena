@@ -43,21 +43,21 @@ const FOG_OF_WAR_FRAGMENT_SHADER = `
     vec2 worldPos2D = vWorldPosition.xz;
     float distanceFromPlayer = length(worldPos2D - playerPosition);
     
-    // Visibility falloff
+    // Visibility falloff (wider, softer gradient)
     float visibility = 1.0 - smoothstep(
-      visibilityRadius * 0.7,
-      visibilityRadius,
+      visibilityRadius * 0.5,
+      visibilityRadius * 1.2,
       distanceFromPlayer
     );
     
     // Combine exploration and current visibility
-    float finalVisibility = max(explored * 0.4, visibility);
+    float finalVisibility = max(explored * 0.5, visibility);
     
-    // Apply fog
+    // Apply fog (reduced opacity for better room visibility)
     float fogAmount = 1.0 - finalVisibility;
     vec3 finalColor = mix(vec3(1.0), fogColor, fogAmount * fogDensity);
     
-    gl_FragColor = vec4(finalColor, fogAmount * 0.9);
+    gl_FragColor = vec4(finalColor, fogAmount * 0.6);
   }
 `;
 
@@ -76,7 +76,7 @@ export class FogOfWar {
   private roomStates: Map<string, FogOfWarState>;
   private material: THREE.ShaderMaterial | null = null;
 
-  constructor(scene: THREE.Scene, gridSize: number = 10, visibilityRadius: number = 8) {
+  constructor(scene: THREE.Scene, gridSize: number = 10, visibilityRadius: number = 15) {
     this.scene = scene;
     this.gridSize = gridSize;
     this.visibilityRadius = visibilityRadius;

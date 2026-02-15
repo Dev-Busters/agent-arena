@@ -90,22 +90,43 @@ export function setupDungeonSockets(io: any) {
           console.log('🎮 [DUNGEON] start_dungeon triggered:', { userId: payload.userId, agentId: payload.agentId });
           const { userId, agentId } = payload;
 
-          // Fetch agent stats
-          const agentResult = await query(
-            "SELECT * FROM agents WHERE id = $1 AND user_id = $2",
-            [agentId, userId]
-          );
-          if (agentResult.rows.length === 0) {
-            socket.emit("dungeon_error", { message: "Agent not found" });
-            return;
+          // Fetch agent stats (with dev mode fallback)
+          let agent;
+          try {
+            const agentResult = await query(
+              "SELECT * FROM agents WHERE id = $1 AND user_id = $2",
+              [agentId, userId]
+            );
+            if (agentResult.rows.length === 0) {
+              throw new Error("Agent not found");
+            }
+            agent = agentResult.rows[0];
+          } catch (dbError) {
+            // Dev mode: create mock agent if database is unavailable
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔧 [DEV] Database unavailable, using mock agent');
+              agent = {
+                id: agentId,
+                user_id: userId,
+                name: 'Dev Warrior',
+                class: 'warrior',
+                level: 1,
+                current_hp: 100,
+                max_hp: 100,
+                attack: 15,
+                defense: 8,
+                speed: 10,
+              };
+            } else {
+              socket.emit("dungeon_error", { message: "Agent not found" });
+              return;
+            }
           }
-
-          const agent = agentResult.rows[0];
           const seed = Math.floor(Math.random() * 1000000);
           const floor = 1;
           const difficulty = getDifficultyForFloor(floor);
 
-          // Create dungeon in database
+          // Create dungeon in database (with dev mode fallback)
           let dungeon;
           try {
             console.log('🔄 [DUNGEON] Inserting dungeon with:', { userId, agentId, difficulty, seed });
@@ -118,18 +139,35 @@ export function setupDungeonSockets(io: any) {
             dungeon = dungeonResult.rows[0];
             console.log('✅ [DUNGEON] Dungeon created:', dungeon.id);
           } catch (err: any) {
-            console.error('❌ [DUNGEON] Failed to insert dungeon:', { 
-              code: err?.code, 
-              message: err?.message,
-              params: [userId, agentId, difficulty, seed]
-            });
-            throw err;
+            // Dev mode: create mock dungeon if database is unavailable
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔧 [DEV] Database unavailable, using mock dungeon');
+              dungeon = {
+                id: uuidv4(),
+                user_id: userId,
+                agent_id: agentId,
+                difficulty,
+                seed,
+                depth: 1,
+                max_depth: 10,
+                gold_collected: 0,
+                experience_earned: 0,
+                started_at: new Date(),
+              };
+            } else {
+              console.error('❌ [DUNGEON] Failed to insert dungeon:', { 
+                code: err?.code, 
+                message: err?.message,
+                params: [userId, agentId, difficulty, seed]
+              });
+              throw err;
+            }
           }
 
           // Generate dungeon map
           const map = generateDungeon(seed, difficulty, floor, agent.level);
 
-          // Create progress record
+          // Create progress record (with dev mode bypass)
           try {
             console.log('🔄 [DUNGEON] Inserting dungeon_progress with map and discovered_rooms');
             await query(
@@ -144,11 +182,16 @@ export function setupDungeonSockets(io: any) {
             );
             console.log('✅ [DUNGEON] Dungeon progress created');
           } catch (err: any) {
-            console.error('❌ [DUNGEON] Failed to insert dungeon_progress:', { 
-              code: err?.code, 
-              message: err?.message
-            });
-            throw err;
+            // Dev mode: skip progress record creation if database is unavailable
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔧 [DEV] Database unavailable, skipping dungeon_progress insert');
+            } else {
+              console.error('❌ [DUNGEON] Failed to insert dungeon_progress:', { 
+                code: err?.code, 
+                message: err?.message
+              });
+              throw err;
+            }
           }
 
           // Store session

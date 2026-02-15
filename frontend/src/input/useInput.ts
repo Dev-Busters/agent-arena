@@ -124,7 +124,7 @@ export function useInputConfig() {
         'arrowright': PlayerAction.MOVE_RIGHT,
         ' ': PlayerAction.ATTACK,
         'e': PlayerAction.INTERACT,
-        'q': PlayerAction.USE_SKILL,
+        'q': PlayerAction.USE_SKILL_1,
         'shift': PlayerAction.DASH,
         'i': PlayerAction.OPEN_INVENTORY,
         'esc': PlayerAction.OPEN_MENU,

@@ -69,9 +69,13 @@ router.post('/', async (req, res) => {
 router.get('/me/current', async (req, res) => {
     try {
         const user = req.user;
+        console.log('👤 [AGENT] Fetching current agent for user:', user.id);
         const result = await pool.query(`SELECT a.*, 
-              array_agg(
-                json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
+              COALESCE(
+                array_agg(
+                  json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
+                ) FILTER (WHERE e.id IS NOT NULL),
+                '{}'
               ) AS equipment
        FROM agents a
        LEFT JOIN equipment e ON a.id = e.agent_id
@@ -80,12 +84,19 @@ router.get('/me/current', async (req, res) => {
        GROUP BY a.id
        LIMIT 1`, [user.id]);
         if (result.rows.length === 0) {
+            console.log('👤 [AGENT] No active agent found for user:', user.id);
             return res.status(404).json({ error: 'No active agent' });
         }
+        console.log('✅ [AGENT] Agent found:', result.rows[0].id);
         res.json(result.rows[0]);
     }
     catch (err) {
-        res.status(400).json({ error: err.message });
+        console.error('❌ [AGENT] /me/current error:', {
+            message: err.message,
+            code: err.code,
+            stack: err.stack
+        });
+        res.status(500).json({ error: err.message });
     }
 });
 /**
@@ -97,8 +108,11 @@ router.get('/:id', async (req, res) => {
         const user = req.user;
         const { id } = req.params;
         const result = await pool.query(`SELECT a.*, 
-              array_agg(
-                json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
+              COALESCE(
+                array_agg(
+                  json_build_object('id', e.id, 'slot', e.slot, 'item_id', e.item_id, 'item_name', i.name)
+                ) FILTER (WHERE e.id IS NOT NULL),
+                '{}'
               ) AS equipment
        FROM agents a
        LEFT JOIN equipment e ON a.id = e.agent_id

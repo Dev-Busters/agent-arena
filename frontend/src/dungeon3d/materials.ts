@@ -38,8 +38,8 @@ export class MaterialLibrary {
    */
   private createWallMaterial(): void {
     const material = new THREE.MeshStandardMaterial({
-      color: 0x4a4a4a,
-      roughness: 0.9,
+      color: 0x8b7355, // Warm stone brown
+      roughness: 0.8,
       metalness: 0.1,
       flatShading: false,
     });
@@ -56,7 +56,7 @@ export class MaterialLibrary {
    */
   private createFloorMaterial(): void {
     const material = new THREE.MeshStandardMaterial({
-      color: 0x3a3a3a,
+      color: 0x6b5d52, // Darker brown cobblestone
       roughness: 0.85,
       metalness: 0.05,
       flatShading: false,
@@ -74,8 +74,8 @@ export class MaterialLibrary {
    */
   private createCeilingMaterial(): void {
     const material = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.95,
+      color: 0x5a4a3f, // Medium brown
+      roughness: 0.9,
       metalness: 0.0,
       flatShading: false,
     });

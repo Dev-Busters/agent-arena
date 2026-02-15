@@ -1,4 +1,12 @@
 // Set up global error handlers BEFORE anything else
+import dns from 'dns';
+try {
+    dns.setDefaultResultOrder('ipv4first');
+    console.log('✅ [NETWORK] Set default DNS result order to ipv4first');
+}
+catch (e) {
+    console.warn('⚠️ [NETWORK] Could not set default DNS result order (Node version likely too old)');
+}
 process.on('uncaughtException', (err) => {
     console.error('❌ [FATAL] Uncaught Exception:', err);
     process.exit(1);
@@ -29,6 +37,7 @@ import { setupDungeonSockets } from './sockets/dungeon.socket.js';
 console.log('🚀 [STARTUP] Loading game modules...');
 import { matchmakingQueue, updateLeaderboard } from './game/matchmaking.js';
 import { verifyToken } from './api/auth.js';
+import { query as executeQuery } from './database/connection.js';
 console.log('🚀 [STARTUP] All modules loaded successfully');
 const app = express();
 const httpServer = createServer(app);
@@ -39,19 +48,29 @@ const io = new SocketIOServer(httpServer, {
     }
 });
 const PORT = process.env.PORT || 3000;
+import cors from 'cors';
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// CORS middleware
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+// CORS configuration
+const corsOptions = {
+    origin: (origin, callback) => {
+        const allowed = process.env.SOCKET_IO_CORS_ORIGIN || process.env.CORS_ORIGIN || '*';
+        if (allowed === '*' || !origin || origin === allowed) {
+            callback(null, true);
+        }
+        else {
+            console.warn(`⚠️ [CORS] Rejected: ${origin}. Expected: ${allowed}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+};
+app.use(cors(corsOptions));
+// Explicitly handle OPTIONS for preflight comfort
+app.options('*', cors(corsOptions));
 // Socket.io authentication middleware
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -147,7 +166,6 @@ httpServer.on('error', (err) => {
 httpServer.listen(PORT, () => {
     serverReady = true; // Mark server as ready after listening
     console.log(`✅ [READY] Agent Arena server running on port ${PORT}`);
-    console.log(`🌐 Server URL: http://localhost:${PORT}`);
     console.log(`📡 Socket.io ready for connections`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`\n📊 API endpoints:`);
@@ -201,5 +219,103 @@ catch (err) {
     // Don't exit - this is not critical
 }
 console.log('✅ [STARTUP] Server fully initialized and ready to receive requests');
+// Run schema cleanup on startup (drop and recreate dungeon tables)
+(async () => {
+    try {
+        console.log('🔄 [STARTUP] Running schema cleanup for dungeon tables...');
+        // Drop dependent tables first
+        await executeQuery('DROP TABLE IF EXISTS dungeon_progress CASCADE');
+        console.log('✓ Dropped dungeon_progress table');
+        await executeQuery('DROP TABLE IF EXISTS loot_drops CASCADE');
+        console.log('✓ Dropped loot_drops table');
+        await executeQuery('DROP TABLE IF EXISTS encounters CASCADE');
+        console.log('✓ Dropped encounters table');
+        await executeQuery('DROP TABLE IF EXISTS dungeons CASCADE');
+        console.log('✓ Dropped dungeons table');
+        // Recreate tables without bad constraints (execute each statement individually)
+        await executeQuery(`
+      CREATE TABLE IF NOT EXISTS dungeons (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        difficulty dungeon_difficulty DEFAULT 'normal',
+        seed INT NOT NULL,
+        depth INT DEFAULT 1,
+        max_depth INT DEFAULT 1,
+        gold_collected INT DEFAULT 0,
+        experience_earned INT DEFAULT 0,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP,
+        abandoned_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+        console.log('✓ Created dungeons table');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_dungeons_user_id ON dungeons(user_id)');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_dungeons_agent_id ON dungeons(agent_id)');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_dungeons_difficulty ON dungeons(difficulty)');
+        await executeQuery(`
+      CREATE TABLE IF NOT EXISTS encounters (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE,
+        room_id INT NOT NULL,
+        enemy_type VARCHAR(50) NOT NULL,
+        enemy_level INT DEFAULT 1,
+        enemy_hp INT NOT NULL,
+        enemy_max_hp INT NOT NULL,
+        enemy_attack INT NOT NULL,
+        enemy_defense INT NOT NULL,
+        enemy_speed INT NOT NULL,
+        enemy_loot_table JSONB DEFAULT '{}',
+        encountered_at TIMESTAMP,
+        defeated_at TIMESTAMP,
+        victory BOOLEAN,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+        console.log('✓ Created encounters table');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_encounters_dungeon_id ON encounters(dungeon_id)');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_encounters_room_id ON encounters(room_id)');
+        await executeQuery(`
+      CREATE TABLE IF NOT EXISTS loot_drops (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE,
+        encounter_id UUID REFERENCES encounters(id) ON DELETE SET NULL,
+        item_id UUID REFERENCES items(id),
+        gold INT DEFAULT 0,
+        experience INT DEFAULT 0,
+        found_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        collected BOOLEAN DEFAULT FALSE,
+        collected_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+        console.log('✓ Created loot_drops table');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_loot_drops_dungeon_id ON loot_drops(dungeon_id)');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_loot_drops_encounter_id ON loot_drops(encounter_id)');
+        await executeQuery(`
+      CREATE TABLE IF NOT EXISTS dungeon_progress (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        dungeon_id UUID NOT NULL REFERENCES dungeons(id) ON DELETE CASCADE UNIQUE,
+        map_data JSONB NOT NULL DEFAULT '{}',
+        current_room_id INT DEFAULT 1,
+        visited_rooms INT[] DEFAULT ARRAY[]::INT[],
+        discovered_rooms INT[] DEFAULT ARRAY[]::INT[],
+        player_x INT DEFAULT 0,
+        player_y INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+        console.log('✓ Created dungeon_progress table');
+        await executeQuery('CREATE INDEX IF NOT EXISTS idx_dungeon_progress_dungeon_id ON dungeon_progress(dungeon_id)');
+        console.log('✅ [STARTUP] Dungeon tables recreated successfully (no bad constraints)');
+    }
+    catch (err) {
+        console.error('⚠️  [STARTUP] Schema cleanup warning (may be okay):', err.message);
+        // Don't exit - this is cleanup, not critical
+    }
+})();
 export { app, io };
 //# sourceMappingURL=server.js.map

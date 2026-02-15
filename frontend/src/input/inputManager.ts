@@ -9,6 +9,7 @@ import {
   KeyBindings,
   InputConfig,
   GamepadInputState,
+  BufferedInput,
 } from './types';
 
 const DEFAULT_KEY_BINDINGS: KeyBindings = {
@@ -21,12 +22,16 @@ const DEFAULT_KEY_BINDINGS: KeyBindings = {
   'd': PlayerAction.MOVE_RIGHT,
   'arrowright': PlayerAction.MOVE_RIGHT,
   ' ': PlayerAction.ATTACK,
-  'e': PlayerAction.INTERACT,
-  'q': PlayerAction.USE_SKILL,
+  'q': PlayerAction.USE_SKILL_1,    // Skill slot 1
+  'e': PlayerAction.USE_SKILL_2,    // Skill slot 2
+  'r': PlayerAction.USE_SKILL_3,    // Skill slot 3
+  'f': PlayerAction.USE_SKILL_4,    // Skill slot 4
+  't': PlayerAction.INTERACT,       // Changed from 'e' (now skill 2)
   'shift': PlayerAction.DASH,
   'i': PlayerAction.OPEN_INVENTORY,
   'esc': PlayerAction.OPEN_MENU,
   'p': PlayerAction.PAUSE,
+  'tab': PlayerAction.CLEAR_TARGET, // Clear current target
 };
 
 const DEFAULT_CONFIG: InputConfig = {
@@ -58,6 +63,9 @@ class InputManager {
       lastUpdate: Date.now(),
       gamepadConnected: false,
       gamepadState: null,
+      abilityCooldowns: new Map(),
+      targetedEnemyId: null,
+      inputBuffer: [],
     };
   }
 
@@ -220,7 +228,7 @@ class InputManager {
     // Button mapping
     const buttonActions: Record<number, PlayerAction> = {
       0: PlayerAction.ATTACK,
-      1: PlayerAction.USE_SKILL,
+      1: PlayerAction.USE_SKILL_1,
       2: PlayerAction.DASH,
       3: PlayerAction.INTERACT,
     };
@@ -347,6 +355,138 @@ class InputManager {
   }
 
   /**
+   * Set ability on cooldown
+   * @param action - Skill action (USE_SKILL_1, etc.)
+   * @param durationMs - Cooldown duration in milliseconds
+   */
+  setAbilityCooldown(action: PlayerAction, durationMs: number): void {
+    const readyAt = Date.now() + durationMs;
+    this.state.abilityCooldowns.set(action, readyAt);
+    this.notifyStateListeners();
+  }
+
+  /**
+   * Check if ability is on cooldown
+   * @param action - Skill action to check
+   * @returns true if on cooldown, false if ready to use
+   */
+  isAbilityOnCooldown(action: PlayerAction): boolean {
+    const readyAt = this.state.abilityCooldowns.get(action);
+    if (!readyAt) return false;
+    const now = Date.now();
+    if (now >= readyAt) {
+      // Cooldown expired, clean up
+      this.state.abilityCooldowns.delete(action);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Get remaining cooldown time for an ability
+   * @param action - Skill action
+   * @returns milliseconds remaining, or 0 if ready
+   */
+  getAbilityCooldown(action: PlayerAction): number {
+    const readyAt = this.state.abilityCooldowns.get(action);
+    if (!readyAt) return 0;
+    const remaining = readyAt - Date.now();
+    return Math.max(0, remaining);
+  }
+
+  /**
+   * Set targeted enemy
+   * @param enemyId - Enemy ID to target (null to clear)
+   */
+  setTarget(enemyId: string | null): void {
+    this.state.targetedEnemyId = enemyId;
+    if (enemyId) {
+      this.enqueueAction(PlayerAction.TARGET_ENEMY);
+    } else {
+      this.enqueueAction(PlayerAction.CLEAR_TARGET);
+    }
+    this.notifyStateListeners();
+  }
+
+  /**
+   * Get currently targeted enemy
+   */
+  getTarget(): string | null {
+    return this.state.targetedEnemyId;
+  }
+
+  /**
+   * Buffer an input for network sync
+   * @param action - Action to buffer
+   * @param payload - Optional payload data
+   * @returns Unique input ID
+   */
+  bufferInput(action: PlayerAction, payload?: BufferedInput['payload']): string {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const bufferedInput: BufferedInput = {
+      id,
+      action,
+      timestamp: Date.now(),
+      payload,
+      sent: false,
+      confirmed: false,
+    };
+
+    this.state.inputBuffer.push(bufferedInput);
+    
+    // Clean up old inputs (older than 5 seconds)
+    const cutoff = Date.now() - 5000;
+    this.state.inputBuffer = this.state.inputBuffer.filter(
+      (input) => input.timestamp > cutoff || !input.confirmed
+    );
+
+    this.notifyStateListeners();
+    return id;
+  }
+
+  /**
+   * Mark input as sent to server
+   * @param inputId - Input ID from bufferInput()
+   */
+  markInputSent(inputId: string): void {
+    const input = this.state.inputBuffer.find((i) => i.id === inputId);
+    if (input) {
+      input.sent = true;
+      this.notifyStateListeners();
+    }
+  }
+
+  /**
+   * Confirm input received by server
+   * @param inputId - Input ID to confirm
+   */
+  confirmInput(inputId: string): void {
+    const input = this.state.inputBuffer.find((i) => i.id === inputId);
+    if (input) {
+      input.confirmed = true;
+      this.notifyStateListeners();
+    }
+  }
+
+  /**
+   * Get all unconfirmed buffered inputs
+   */
+  getUnconfirmedInputs(): BufferedInput[] {
+    return this.state.inputBuffer.filter((input) => !input.confirmed);
+  }
+
+  /**
+   * Clear confirmed inputs older than specified age
+   * @param maxAgeMs - Maximum age in milliseconds (default 1000ms)
+   */
+  clearOldInputs(maxAgeMs: number = 1000): void {
+    const cutoff = Date.now() - maxAgeMs;
+    this.state.inputBuffer = this.state.inputBuffer.filter(
+      (input) => input.timestamp > cutoff || !input.confirmed
+    );
+  }
+
+  /**
    * Clear all listeners and timers
    */
   destroy(): void {
@@ -357,6 +497,8 @@ class InputManager {
     this.stopGamepadPolling();
     this.state.actionQueue = [];
     this.state.pressedKeys.clear();
+    this.state.abilityCooldowns.clear();
+    this.state.inputBuffer = [];
   }
 }
 

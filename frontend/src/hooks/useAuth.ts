@@ -18,6 +18,20 @@ export function useAuth() {
     const checkAuth = async () => {
       try {
         const token = localStorage.getItem('token');
+        
+        // Dev mode: create mock user if no token
+        if (!token && process.env.NODE_ENV === 'development') {
+          console.log('🔧 [DEV] Using mock user (no token)');
+          setUser({
+            id: 'dev-user-001',
+            email: 'dev@test.local',
+            username: 'DevTester',
+            level: 1
+          });
+          setLoading(false);
+          return;
+        }
+        
         if (!token) {
           setLoading(false);
           return;
@@ -41,6 +55,17 @@ export function useAuth() {
       } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('token');
+        
+        // Dev mode fallback: create mock user on error
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔧 [DEV] Auth failed, using mock user');
+          setUser({
+            id: 'dev-user-001',
+            email: 'dev@test.local',
+            username: 'DevTester',
+            level: 1
+          });
+        }
       } finally {
         setLoading(false);
       }

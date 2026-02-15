@@ -89,6 +89,20 @@ app.options('*', cors(corsOptions));
 // Socket.io authentication middleware
 io.use((socket: any, next) => {
   const token = socket.handshake.auth.token;
+  
+  // Dev mode: allow unauthenticated connections for testing
+  if (process.env.NODE_ENV === 'development' && !token) {
+    console.log('⚠️  [DEV] Allowing unauthenticated socket connection (dev mode)');
+    socket.user = {
+      id: 'dev-user-001',
+      email: 'dev@test.local',
+      username: 'DevTester',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 86400
+    };
+    return next();
+  }
+  
   if (!token) {
     return next(new Error('Authentication required'));
   }

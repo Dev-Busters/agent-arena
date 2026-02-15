@@ -28,6 +28,8 @@ import { EntityModelFactory } from '@/entities/models';
 import { AnimationController } from '@/entities/animations';
 import { ParticleEffectManager } from '@/entities/particles';
 import { getInputManager } from '@/input/inputManager';
+import { MouseTargeting } from '@/input/mouseTargeting';
+import type { TargetableEntity } from '@/input/mouseTargeting';
 import { RoomLightingManager } from '@/lighting/roomLighting';
 import { TorchLight } from '@/lighting/torches';
 import { LightPool } from '@/lighting/lightPool';
@@ -35,11 +37,27 @@ import { PostProcessingComposer } from '@/postprocessing/composer';
 import { Minimap } from '@/camera/minimap';
 import { FollowCamera } from '@/camera/follow';
 
+// Network Optimization
+import { ClientPrediction, EntityInterpolationManager } from '@/network';
+
+// Phase 2 Enhancements
+import { AtmosphericParticleSystem } from '@/dungeon3d/atmosphericParticles';
+import { TorchManager } from '@/lighting/dynamicTorches';
+import {
+  createRoomTheme,
+  determineRoomType,
+  determineBiomeFromDepth,
+  applyThemeToMaterials,
+  RoomType,
+  type RoomTheme,
+} from '@/dungeon3d/roomThemes';
+
 // Types
 import type { BackendDungeonData } from '@/dungeon3d/types';
 import type { EntityModel } from '@/entities/types';
-import { EntityType, AnimationState } from '@/entities/types';
-import type { InputState, PlayerAction } from '@/input/types';
+import { EntityType, AnimationState, ParticleEffectType } from '@/entities/types';
+import type { InputState } from '@/input/types';
+import { PlayerAction } from '@/input/types'; // Import as value (not type) for enum access
 
 interface Dungeon3DViewProps {
   dungeonId: string;
@@ -99,17 +117,33 @@ export default function Dungeon3DView({
   // Particle system
   const particleManagerRef = useRef<ParticleEffectManager | null>(null);
 
+  // Phase 2 Enhancement systems
+  const atmosphericParticlesRef = useRef<AtmosphericParticleSystem | null>(null);
+  const torchManagerRef = useRef<TorchManager | null>(null);
+  const currentRoomThemeRef = useRef<RoomTheme | null>(null);
+
   // Input
   const inputManagerRef = useRef(getInputManager());
+  const mouseTargetingRef = useRef<MouseTargeting | null>(null);
+
+  // Network optimization
+  const clientPredictionRef = useRef(new ClientPrediction());
+  const entityInterpolationRef = useRef(new EntityInterpolationManager());
 
   // Animation frame
   const animationFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef(0);
 
-  // State
+  // Mouse targeting state (use refs to avoid stale closures in update loop)
+  const hoveredEnemyIdRef = useRef<string | null>(null);
+  const selectedEnemyIdRef = useRef<string | null>(null);
+
+  // State (also keep state for UI rendering)
   const [isInitialized, setIsInitialized] = useState(false);
   const [fps, setFps] = useState(60);
   const [renderStats, setRenderStats] = useState({ drawCalls: 0, triangles: 0 });
+  const [hoveredEnemyId, setHoveredEnemyId] = useState<string | null>(null);
+  const [selectedEnemyId, setSelectedEnemyId] = useState<string | null>(null);
 
   /**
    * Initialize Three.js scene and all systems
@@ -125,7 +159,7 @@ export default function Dungeon3DView({
     // 1. Create Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a0a);
-    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.02);
+    scene.fog = new THREE.FogExp2(0x0a0a0a, 0.008);
     sceneRef.current = scene;
 
     // 2. Create Camera
@@ -198,7 +232,7 @@ export default function Dungeon3DView({
           radius: 0.5,
         },
         filmGrain: {
-          intensity: 0.15,
+          intensity: 0.05,
           animated: true,
         },
       });
@@ -240,20 +274,25 @@ export default function Dungeon3DView({
       const particleManager = new ParticleEffectManager(scene);
       particleManagerRef.current = particleManager;
 
+      // Phase 2 Enhancement: Atmospheric Particles & Dynamic Torches
+      atmosphericParticlesRef.current = new AtmosphericParticleSystem(scene);
+      torchManagerRef.current = new TorchManager(scene);
+
       console.log('✅ All Phase 2 systems initialized');
     } catch (error) {
       console.error('❌ System initialization failed:', error);
       return;
     }
 
-    // 5. Load Dungeon from Backend Data
+    // 5. Setup Input (CRITICAL: Must run BEFORE spawning enemies!)
+    // This initializes MouseTargeting so enemies can register as targetable
+    setupInput();
+
+    // 6. Load Dungeon from Backend Data (spawns enemies that register with MouseTargeting)
     loadDungeonRooms();
 
-    // 6. Spawn Player
+    // 7. Spawn Player
     spawnPlayer();
-
-    // 7. Setup Input
-    setupInput();
 
     // 8. Start Game Loop
     startGameLoop();
@@ -311,32 +350,100 @@ export default function Dungeon3DView({
       })),
     };
 
+    // Phase 2: Single scene-level biome lighting (avoids per-room light explosion)
+    {
+      const depth = parseInt(dungeonId) || 1;
+      const biome = determineBiomeFromDepth(depth);
+      const theme = createRoomTheme(RoomType.NORMAL, biome);
+
+      // Strong ambient light so rooms are always visible
+      const sceneAmbient = new THREE.AmbientLight(0xffffff, 1.2);
+      sceneAmbient.name = 'biome-ambient';
+      scene.add(sceneAmbient);
+
+      // Hemisphere light for biome color tinting (sky=biome color, ground=floor)
+      const sceneHemi = new THREE.HemisphereLight(theme.ambientLight, theme.floorColor, 0.8);
+      sceneHemi.name = 'biome-hemisphere';
+      scene.add(sceneHemi);
+
+      // Directional "sun" light from above for depth/shadows
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(10, 20, 10);
+      dirLight.name = 'biome-directional';
+      scene.add(dirLight);
+    }
+
     // Generate all rooms
     backendData.rooms.forEach((roomData) => {
+      const w = roomData.width;
+      const h = roomData.height;
+      const wallHeight = 4;
+      const thickness = 0.2;
+      
+      // Create wall configurations for room perimeter
+      const walls = [
+        // North wall
+        {
+          position: new THREE.Vector3(0, wallHeight / 2, -h / 2),
+          width: w,
+          height: wallHeight,
+          depth: thickness,
+          rotation: { y: 0 },
+          hasDoor: false,
+        },
+        // South wall
+        {
+          position: new THREE.Vector3(0, wallHeight / 2, h / 2),
+          width: w,
+          height: wallHeight,
+          depth: thickness,
+          rotation: { y: 0 },
+          hasDoor: false,
+        },
+        // East wall
+        {
+          position: new THREE.Vector3(w / 2, wallHeight / 2, 0),
+          width: thickness,
+          height: wallHeight,
+          depth: h,
+          rotation: { y: 0 },
+          hasDoor: false,
+        },
+        // West wall
+        {
+          position: new THREE.Vector3(-w / 2, wallHeight / 2, 0),
+          width: thickness,
+          height: wallHeight,
+          depth: h,
+          rotation: { y: 0 },
+          hasDoor: false,
+        },
+      ];
+      
       const room3D: any = {
         id: roomData.id,
         roomType: roomData.type || 'combat',
         position: new THREE.Vector3(roomData.x, 0, roomData.y),
         dimensions: {
           width: roomData.width,
-          height: 4, // Wall height
+          height: wallHeight,
           depth: roomData.height,
         },
         gridSize: 10,
         tiles: [], // Will be generated
-        walls: [], // Will be generated
+        walls: walls,
         floor: {
-          position: new THREE.Vector3(roomData.x, 0, roomData.y),
+          position: new THREE.Vector3(0, 0, 0),
           width: roomData.width,
           depth: roomData.height,
           tileSize: 2,
           uvScale: 1,
         },
         ceiling: {
-          position: new THREE.Vector3(roomData.x, 4, roomData.y),
+          position: new THREE.Vector3(0, wallHeight, 0),
           width: roomData.width,
           depth: roomData.height,
-          height: 4,
+          height: wallHeight,
           uvScale: 1,
         },
         doors: [],
@@ -361,11 +468,80 @@ export default function Dungeon3DView({
         });
       }
 
-      // Setup lighting for room (using createRoomLights method)
-      if (lightingManagerRef.current) {
-        lightingManagerRef.current.createRoomLights(
-          roomData.type as any || 'combat',
-          { width: roomData.width, depth: roomData.height }
+      // Phase 2: Skip old RoomLightingManager — replaced by biome-aware lighting below
+      // (Old createRoomLights added too many lights per room, causing WebGL texture unit overflow)
+
+      // Phase 2: Apply room theme (biome + room type)
+      const depth = parseInt(dungeonId) || 1;
+      const biome = determineBiomeFromDepth(depth);
+      const roomType = determineRoomType(roomData, depth);
+      const theme = createRoomTheme(roomType, biome);
+      currentRoomThemeRef.current = theme;
+
+      // Apply theme fog (lighter to show biome atmosphere)
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color(theme.fogColor);
+        if (sceneRef.current.fog instanceof THREE.FogExp2) {
+          sceneRef.current.fog.color.setHex(theme.fogColor);
+          sceneRef.current.fog.density = theme.fogDensity;
+        }
+      }
+
+      // Apply theme colors to room meshes
+      meshes.group.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const mat = child.material as THREE.MeshPhongMaterial | THREE.MeshStandardMaterial;
+          if ('color' in mat) {
+            if (child.name.includes('floor')) {
+              mat.color.setHex(theme.floorColor);
+            } else if (child.name.includes('wall')) {
+              mat.color.setHex(theme.wallColor);
+            } else if (child.name.includes('ceiling')) {
+              mat.color.setHex(theme.ceilingColor);
+            }
+          }
+        }
+      });
+
+      // Phase 2: Room bounds for torches and particles
+      const roomBounds = new THREE.Box3(
+        new THREE.Vector3(
+          roomData.x - roomData.width / 2,
+          0,
+          roomData.y - roomData.height / 2
+        ),
+        new THREE.Vector3(
+          roomData.x + roomData.width / 2,
+          4,
+          roomData.y + roomData.height / 2
+        )
+      );
+
+      // Phase 2: Add dynamic torches along walls
+      if (torchManagerRef.current) {
+        const torchColors: Record<string, number> = {
+          cave: 0xff8844,
+          crypt: 0x8888ff,
+          lava: 0xff4400,
+          ice: 0x88ccff,
+          forest: 0x88ff44,
+        };
+        // Spacing 20 = ~1 torch per wall (keeps total lights low for WebGL)
+        torchManagerRef.current.addWallTorches(
+          roomData.id,
+          roomBounds,
+          torchColors[biome] || 0xff8844,
+          20
+        );
+      }
+
+      // Phase 2: Add atmospheric particles
+      if (atmosphericParticlesRef.current && theme.particleType) {
+        atmosphericParticlesRef.current.createParticles(
+          roomData.id,
+          theme.particleType,
+          theme.particleDensity || 0.3,
+          roomBounds
         );
       }
     });
@@ -433,6 +609,15 @@ export default function Dungeon3DView({
     // Create enemy model using static method
     const model = EntityModelFactory.createModel(type, 1);
     model.mesh.position.set(x, 0, z);
+    
+    // Clone materials so each enemy can have independent visual feedback
+    // (Factory caches materials, so we need unique instances for emissive effects)
+    model.mesh.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        child.material = (child.material as THREE.Material).clone();
+      }
+    });
+    
     scene.add(model.mesh);
 
     // Create animation controller
@@ -462,6 +647,18 @@ export default function Dungeon3DView({
         type: 'enemy',
       });
     }
+
+    // Register as targetable for mouse targeting
+    if (mouseTargetingRef.current) {
+      mouseTargetingRef.current.registerEntity({
+        id: enemyId,
+        mesh: model.mesh,
+        type: 'enemy',
+        position: model.mesh.position,
+      });
+    }
+
+    console.log(`✅ Spawned ${type} at (${x.toFixed(1)}, ${z.toFixed(1)})`);
   }, []);
 
   /**
@@ -477,11 +674,158 @@ export default function Dungeon3DView({
    */
   const setupInput = useCallback(() => {
     const inputManager = inputManagerRef.current;
+    const canvas = canvasRef.current;
+    const camera = cameraRef.current;
+
+    if (!canvas || !camera) {
+      console.warn('⚠️ Cannot setup input: missing canvas or camera');
+      return;
+    }
 
     // Initialize input manager
     inputManager.initialize();
 
-    console.log('✅ Input configured');
+    // Listen for ability actions and apply cooldowns (demo)
+    inputManager.onAction((action) => {
+      // Handle TAB to clear target
+      if (action === PlayerAction.CLEAR_TARGET) {
+        inputManager.setTarget(null);
+        selectedEnemyIdRef.current = null;
+        setSelectedEnemyId(null);
+        return;
+      }
+
+      const skillActions = [
+        PlayerAction.USE_SKILL_1,
+        PlayerAction.USE_SKILL_2,
+        PlayerAction.USE_SKILL_3,
+        PlayerAction.USE_SKILL_4,
+      ];
+
+      if (skillActions.includes(action)) {
+        // Check if on cooldown
+        if (!inputManager.isAbilityOnCooldown(action)) {
+          // Cast ability
+          console.log(`[Abilities] Cast ${action}`);
+          
+          // Apply cooldown (5 seconds for demo)
+          inputManager.setAbilityCooldown(action, 5000);
+
+          const skillNames = ['Fireball', 'Ice Shard', 'Lightning Bolt', 'Heal'];
+          const skillIndex = skillActions.indexOf(action);
+          const skillName = skillNames[skillIndex];
+          console.log(`✨ Used ${skillName}!`);
+
+          // Trigger particle effect at targeted enemy or player position
+          if (particleManagerRef.current && selectedEnemyIdRef.current) {
+            const enemy = enemiesRef.current.get(selectedEnemyIdRef.current);
+            if (enemy && enemy.model) {
+              const effectTypeMap = [
+                ParticleEffectType.ABILITY_FIRE,      // Fireball
+                ParticleEffectType.ABILITY_ICE,       // Ice Shard
+                ParticleEffectType.ABILITY_LIGHTNING, // Lightning Bolt
+                ParticleEffectType.HEAL,              // Heal
+              ];
+              const effectType = effectTypeMap[skillIndex];
+              if (effectType) {
+                // Spawn effect at enemy
+                particleManagerRef.current.createAbilityEffect(
+                  effectType,
+                  enemy.model.mesh.position.clone()
+                );
+                // Also create hit effect
+                setTimeout(() => {
+                  particleManagerRef.current?.createHitEffect(
+                    enemy.model!.mesh.position.clone()
+                  );
+                }, 200);
+              }
+            }
+          } else if (particleManagerRef.current && skillIndex === 3) {
+            // Heal spell - effect at player
+            if (playerModelRef.current) {
+              particleManagerRef.current.createAbilityEffect(
+                ParticleEffectType.HEAL,
+                playerModelRef.current.mesh.position.clone()
+              );
+            }
+          }
+        } else {
+          console.log(`⏳ ${action} is on cooldown`);
+        }
+      }
+    });
+
+    // Initialize mouse targeting
+    const mouseTargeting = new MouseTargeting();
+    mouseTargeting.initialize(camera, canvas);
+    mouseTargetingRef.current = mouseTargeting;
+
+    // Mouse move handler - update targeting hover
+    const handleMouseMove = (event: MouseEvent) => {
+      mouseTargeting.updateMousePosition(event.clientX, event.clientY);
+      const hovered = mouseTargeting.updateHover();
+      
+      // Update hover state for visual feedback (both ref and state)
+      const newHoverId = hovered?.id || null;
+      hoveredEnemyIdRef.current = newHoverId;
+      setHoveredEnemyId(newHoverId);
+    };
+
+    // Mouse click handler - target selection
+    const handleMouseClick = (event: MouseEvent) => {
+      const clicked = mouseTargeting.handleClick();
+      
+      if (clicked) {
+        // Set target in input manager (update both ref and state)
+        inputManager.setTarget(clicked.id);
+        selectedEnemyIdRef.current = clicked.id;
+        setSelectedEnemyId(clicked.id);
+      } else {
+        // Clicked empty space - clear target
+        inputManager.setTarget(null);
+        selectedEnemyIdRef.current = null;
+        setSelectedEnemyId(null);
+      }
+    };
+
+    // Test death animation (press 'D' on selected enemy)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() === 'd') {
+        if (selectedEnemyIdRef.current) {
+          const enemy = enemiesRef.current.get(selectedEnemyIdRef.current);
+          if (enemy && enemy.model && enemy.animation) {
+            console.log(`💀 Testing death on ${enemy.type}...`);
+            
+            // Play death animation
+            enemy.animation.playAnimation(AnimationState.DEATH, false);
+            
+            // Trigger ragdoll if available (note: need to add ragdoll to Enemy interface)
+            // For now, just play death animation
+            
+            // Create death particle effect
+            if (particleManagerRef.current) {
+              particleManagerRef.current.createDeathEffect(
+                enemy.model.mesh.position.clone()
+              );
+            }
+          }
+        }
+      }
+    };
+
+    // Attach event listeners
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('click', handleMouseClick);
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Store cleanup function
+    (canvas as any).__mouseHandlers = {
+      mousemove: handleMouseMove,
+      click: handleMouseClick,
+    };
+
+    console.log('✅ Input configured (keyboard + mouse targeting)');
   }, []);
 
   /**
@@ -519,10 +863,37 @@ export default function Dungeon3DView({
       playerAnimationRef.current.update(deltaTime);
     }
 
-    // Update enemy animations
+    // Update enemy animations and visual feedback
     enemiesRef.current.forEach((enemy) => {
       if (enemy.animation) {
         enemy.animation.update(deltaTime);
+      }
+
+      // Apply visual feedback for hover/selection (use refs to avoid stale closure)
+      const isHovered = enemy.id === hoveredEnemyIdRef.current;
+      const isSelected = enemy.id === selectedEnemyIdRef.current;
+
+      // Apply emissive glow to enemy mesh
+      if (enemy.model?.mesh) {
+        enemy.model.mesh.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            const material = child.material as THREE.MeshPhongMaterial;
+            
+            if (isSelected) {
+              // Selected: red glow
+              material.emissive.setHex(0xff0000);
+              material.emissiveIntensity = 0.5;
+            } else if (isHovered) {
+              // Hovered: yellow glow
+              material.emissive.setHex(0xffff00);
+              material.emissiveIntensity = 0.3;
+            } else {
+              // Default: no glow
+              material.emissive.setHex(0x000000);
+              material.emissiveIntensity = 0;
+            }
+          }
+        });
       }
     });
 
@@ -537,6 +908,14 @@ export default function Dungeon3DView({
     // Update particles
     if (particleManagerRef.current) {
       particleManagerRef.current.update(deltaTime);
+    }
+
+    // Update Phase 2 systems
+    if (torchManagerRef.current) {
+      torchManagerRef.current.update(deltaTime);
+    }
+    if (atmosphericParticlesRef.current) {
+      atmosphericParticlesRef.current.update(deltaTime);
     }
 
     // Update minimap
@@ -563,36 +942,67 @@ export default function Dungeon3DView({
 
   /**
    * Update player movement based on input
+   * Camera-relative movement for isometric view with client-side prediction
    */
   const updatePlayerMovement = useCallback((inputState: InputState, deltaTime: number) => {
-    if (!playerModelRef.current) return;
+    if (!playerModelRef.current || !cameraRef.current) return;
 
     const player = playerModelRef.current;
     const velocity = playerVelocityRef.current;
+    const camera = cameraRef.current;
     const moveSpeed = 8; // units per second
 
-    // Reset velocity
-    velocity.set(0, 0, 0);
+    // Get camera direction vectors for screen-relative movement
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    
+    // Get camera right vector (cross product order: direction × up = right)
+    const cameraRight = new THREE.Vector3();
+    const cameraUp = camera.up.clone();
+    cameraRight.crossVectors(cameraDirection, cameraUp).normalize();
+    
+    // Project camera direction and right onto world XZ plane (horizontal)
+    cameraDirection.y = 0;
+    cameraDirection.normalize();
+    cameraRight.y = 0;
+    cameraRight.normalize();
 
-    // WASD movement (check pressedKeys Map)
+    // WASD movement (camera-relative, screen-space)
+    let inputDir = new THREE.Vector3(0, 0, 0);
+    
     if (inputState.pressedKeys.get('w') || inputState.pressedKeys.get('arrowup')) {
-      velocity.z -= 1;
+      inputDir.add(cameraDirection);
     }
     if (inputState.pressedKeys.get('s') || inputState.pressedKeys.get('arrowdown')) {
-      velocity.z += 1;
+      inputDir.sub(cameraDirection);
     }
     if (inputState.pressedKeys.get('a') || inputState.pressedKeys.get('arrowleft')) {
-      velocity.x -= 1;
+      inputDir.sub(cameraRight);
     }
     if (inputState.pressedKeys.get('d') || inputState.pressedKeys.get('arrowright')) {
-      velocity.x += 1;
+      inputDir.add(cameraRight);
     }
 
-    // Normalize and apply speed
-    if (velocity.length() > 0) {
-      velocity.normalize().multiplyScalar(moveSpeed * deltaTime);
-      player.mesh.position.add(velocity);
+    // Normalize and calculate movement vector
+    if (inputDir.length() > 0) {
+      inputDir.normalize();
+      const moveX = inputDir.x * moveSpeed;
+      const moveZ = inputDir.z * moveSpeed;
+      
+      // Apply client-side prediction
+      const prediction = clientPredictionRef.current.applyInput(
+        player.mesh.position,
+        velocity,
+        moveX,
+        moveZ,
+        deltaTime
+      );
+      
+      // Update player position and velocity from prediction
+      player.mesh.position.copy(prediction.position);
+      velocity.copy(prediction.velocity);
       playerPositionRef.current.copy(player.mesh.position);
+      playerVelocityRef.current.copy(velocity);
 
       // Play walk animation
       if (playerAnimationRef.current?.getCurrentState() !== AnimationState.WALK) {
@@ -600,9 +1010,15 @@ export default function Dungeon3DView({
       }
 
       // Face movement direction
-      const angle = Math.atan2(velocity.x, velocity.z);
+      const angle = Math.atan2(inputDir.x, inputDir.z);
       player.mesh.rotation.y = angle;
+      
+      // TODO: Send input to server with prediction.sequenceNumber
+      // This allows server to confirm/correct our prediction later
     } else {
+      // Reset velocity when not moving
+      velocity.set(0, 0, 0);
+      
       // Play idle animation
       if (playerAnimationRef.current?.getCurrentState() !== AnimationState.IDLE) {
         playerAnimationRef.current?.playAnimation(AnimationState.IDLE);
@@ -665,6 +1081,18 @@ export default function Dungeon3DView({
     postProcessingRef.current?.dispose();
     minimapRef.current?.dispose();
     particleManagerRef.current?.dispose();
+    mouseTargetingRef.current?.destroy();
+    atmosphericParticlesRef.current?.dispose();
+    torchManagerRef.current?.dispose();
+
+    // Remove mouse event listeners
+    const canvas = canvasRef.current;
+    if (canvas && (canvas as any).__mouseHandlers) {
+      const handlers = (canvas as any).__mouseHandlers;
+      canvas.removeEventListener('mousemove', handlers.mousemove);
+      canvas.removeEventListener('click', handlers.click);
+      delete (canvas as any).__mouseHandlers;
+    }
 
     // Dispose renderer
     rendererRef.current?.dispose();
@@ -696,7 +1124,7 @@ export default function Dungeon3DView({
       {/* HUD Overlay */}
       {isInitialized && (
         <>
-          {/* FPS Counter (Debug) */}
+          {/* FPS Counter + Biome Indicator */}
           <div className="absolute top-4 left-4 px-3 py-2 rounded-lg bg-black/60 backdrop-blur-sm border border-green-500/30">
             <div className="text-xs text-green-400 font-mono">
               FPS: <span className="font-bold">{fps}</span>
@@ -704,6 +1132,79 @@ export default function Dungeon3DView({
             <div className="text-[10px] text-slate-400 font-mono">
               Calls: {renderStats.drawCalls} | Tris: {renderStats.triangles}
             </div>
+            {currentRoomThemeRef.current && (
+              <div className="text-[10px] text-purple-400 font-mono mt-1">
+                🏔️ {currentRoomThemeRef.current.biome.toUpperCase()} • {currentRoomThemeRef.current.type}
+              </div>
+            )}
+          </div>
+
+          {/* Target Info */}
+          {selectedEnemyId && (() => {
+            const enemy = enemiesRef.current.get(selectedEnemyId);
+            if (!enemy) return null;
+            
+            const enemyName = enemy.type.charAt(0).toUpperCase() + enemy.type.slice(1);
+            
+            return (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-red-900/40 backdrop-blur-sm border-2 border-red-500/60">
+                <div className="text-sm text-red-300 font-bold text-center">
+                  🎯 {enemyName}
+                </div>
+                <div className="text-xs text-red-400 font-mono text-center mt-1">
+                  Click to attack • TAB to clear
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Ability Bar */}
+          <div className="absolute bottom-32 left-8 flex gap-2">
+            {['Q', 'E', 'R', 'F'].map((key, index) => {
+              const action = [
+                PlayerAction.USE_SKILL_1,
+                PlayerAction.USE_SKILL_2,
+                PlayerAction.USE_SKILL_3,
+                PlayerAction.USE_SKILL_4,
+              ][index];
+              
+              const onCooldown = inputManagerRef.current?.isAbilityOnCooldown(action) || false;
+              const cooldownMs = inputManagerRef.current?.getAbilityCooldown(action) || 0;
+              const cooldownPct = cooldownMs > 0 ? Math.min(100, (cooldownMs / 5000) * 100) : 0;
+
+              return (
+                <div
+                  key={key}
+                  className={`relative w-14 h-14 rounded-lg border-2 ${
+                    onCooldown
+                      ? 'bg-gray-800/80 border-gray-600'
+                      : 'bg-purple-900/40 border-purple-500/60 hover:border-purple-400'
+                  } backdrop-blur-sm transition-all`}
+                >
+                  {/* Key Label */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-lg font-bold ${onCooldown ? 'text-gray-500' : 'text-purple-300'}`}>
+                      {key}
+                    </span>
+                  </div>
+                  
+                  {/* Cooldown Overlay */}
+                  {onCooldown && (
+                    <>
+                      <div
+                        className="absolute inset-0 bg-black/60 rounded-lg transition-all"
+                        style={{ height: `${cooldownPct}%` }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xs text-white font-bold">
+                          {(cooldownMs / 1000).toFixed(1)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Health/Mana Bar */}
@@ -740,7 +1241,9 @@ export default function Dungeon3DView({
             <div className="text-[10px] text-slate-300 font-mono space-y-1">
               <div><span className="text-green-400">WASD</span> - Move</div>
               <div><span className="text-green-400">SPACE</span> - Attack</div>
-              <div><span className="text-green-400">E</span> - Interact</div>
+              <div><span className="text-purple-400">Q/E/R/F</span> - Skills</div>
+              <div><span className="text-blue-400">CLICK</span> - Target</div>
+              <div><span className="text-yellow-400">T</span> - Interact</div>
             </div>
           </div>
 

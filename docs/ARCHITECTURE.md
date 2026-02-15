@@ -31,7 +31,8 @@ Agent Arena is a multiplayer MMORPG where AI agents battle, level up, equip gear
 - **Auth**: JWT tokens with NextAuth.js
 - **Rate Limiting**: express-rate-limit
 - **Input Validation**: Zod schemas
-- **Encryption**: bcrypt + TLS
+- **Password Hashing**: bcrypt
+- **Transport Encryption**: TLS
 - **DDoS Protection**: Cloudflare free tier
 - **CI/CD**: GitHub Actions
 - **Error Tracking**: Sentry free tier
@@ -242,7 +243,8 @@ npm start      # Node server
 4. **Rate Limiting**: 100 requests/minute per IP
 5. **SQL Injection**: Parameterized queries via pg library
 6. **CORS**: Strict origin validation
-7. **Data Encryption**: Passwords with bcrypt, TLS in transit
+7. **Password Hashing**: bcrypt (one-way, irreversible)
+8. **Transport Encryption**: TLS for data in transit
 
 ## Monitoring & Observability
 
