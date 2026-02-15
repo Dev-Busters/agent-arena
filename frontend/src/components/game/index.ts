@@ -5,3 +5,4 @@ export type { GameState } from './GameHUD';
 export { Player } from './Player';
 export { Enemy, spawnEnemies } from './Enemy';
 export { ParticleSystem } from './Particles';
+export { SoundManager, getSoundManager } from './Sound';

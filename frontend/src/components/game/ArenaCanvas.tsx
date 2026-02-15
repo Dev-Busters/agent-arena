@@ -5,6 +5,7 @@ import { Application, Graphics, Container } from 'pixi.js';
 import { Player } from './Player';
 import { Enemy, spawnEnemies } from './Enemy';
 import { ParticleSystem } from './Particles';
+import { getSoundManager } from './Sound';
 
 export interface GameStats {
   playerHp: number;
@@ -182,8 +183,13 @@ export default function ArenaCanvas({
       onGameStateChange?.(gameStatsRef.current);
     };
     
+    // Sound manager
+    const sound = getSoundManager();
+    
     // Handle player attacks
     player.onAttack = (px, py, range, damage) => {
+      sound.playAttack();
+      
       enemies.forEach(enemy => {
         const dx = enemy.state.x - px;
         const dy = enemy.state.y - py;
@@ -193,8 +199,9 @@ export default function ArenaCanvas({
           enemy.state.hp -= damage;
           console.log(`⚔️ Hit ${enemy.state.type} for ${damage}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
           
-          // Hit effect
+          // Hit effect and sound
           particles.hit(enemy.state.x, enemy.state.y);
+          sound.playHit();
           
           // Flash enemy (scale effect as visual feedback)
           enemy.container.scale.set(1.3);
@@ -206,6 +213,7 @@ export default function ArenaCanvas({
           if (enemy.state.hp <= 0) {
             console.log(`💀 ${enemy.state.type} defeated!`);
             gameStatsRef.current.kills++;
+            sound.playDeath();
             
             // Death burst effect
             const deathColor = enemy.state.type === 'goblin' ? 0x44aa44 :
