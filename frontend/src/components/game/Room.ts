@@ -4,7 +4,7 @@ import { Enemy } from './Enemy';
  * Enemy spawn configuration for a room
  */
 export interface EnemySpawn {
-  type: 'goblin' | 'skeleton' | 'demon';
+  type: 'charger' | 'ranger' | 'dasher';
   count: number;
 }
 
@@ -53,23 +53,23 @@ function generateEnemySpawns(floor: number, roomNumber: number): EnemySpawn[] {
   const spawns: EnemySpawn[] = [];
   
   if (floor === 1) {
-    // Floor 1: Mostly goblins
-    spawns.push({ type: 'goblin', count: totalEnemies });
+    // Floor 1: Mostly chargers (easier to understand)
+    spawns.push({ type: 'charger', count: totalEnemies });
   } else if (floor === 2) {
-    // Floor 2: Goblins + some skeletons
-    const goblins = Math.floor(totalEnemies * 0.7);
-    const skeletons = totalEnemies - goblins;
-    spawns.push({ type: 'goblin', count: goblins });
-    if (skeletons > 0) spawns.push({ type: 'skeleton', count: skeletons });
+    // Floor 2: Chargers + rangers
+    const chargers = Math.floor(totalEnemies * 0.6);
+    const rangers = totalEnemies - chargers;
+    spawns.push({ type: 'charger', count: chargers });
+    if (rangers > 0) spawns.push({ type: 'ranger', count: rangers });
   } else {
-    // Floor 3+: Mix of all types
-    const goblins = Math.floor(totalEnemies * 0.4);
-    const skeletons = Math.floor(totalEnemies * 0.4);
-    const demons = totalEnemies - goblins - skeletons;
+    // Floor 3+: Mix of all 3 archetypes
+    const chargers = Math.floor(totalEnemies * 0.4);
+    const rangers = Math.floor(totalEnemies * 0.35);
+    const dashers = totalEnemies - chargers - rangers;
     
-    spawns.push({ type: 'goblin', count: goblins });
-    spawns.push({ type: 'skeleton', count: skeletons });
-    if (demons > 0) spawns.push({ type: 'demon', count: demons });
+    spawns.push({ type: 'charger', count: chargers });
+    spawns.push({ type: 'ranger', count: rangers });
+    if (dashers > 0) spawns.push({ type: 'dasher', count: dashers });
   }
   
   return spawns;

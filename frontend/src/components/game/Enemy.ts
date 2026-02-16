@@ -1,38 +1,38 @@
 import { Graphics, Container } from 'pixi.js';
 
-// Enemy type configurations with varied stats
+// Enemy archetypes with distinct AI behaviors
 const ENEMY_TYPES = {
-  goblin: { 
-    color: 0x4a9a4a, 
-    outline: 0x2a6a2a, 
-    size: 20,       // Small
-    speed: 3.0,     // Fast
-    hp: 40,
-    damage: 5 
+  // CHARGER: Red, aggressive chase, melee, high HP
+  charger: { 
+    color: 0xff4444, 
+    outline: 0xaa2222, 
+    size: 28,
+    speed: 2.5,     // Medium-fast chase
+    hp: 100,
+    damage: 15,
+    aiType: 'chase' as const
   },
-  skeleton: { 
-    color: 0xd4d4d4, 
-    outline: 0x8a8a8a, 
-    size: 24,       // Medium-small
-    speed: 2.0,     // Medium
-    hp: 50,
-    damage: 8 
-  },
-  demon: { 
-    color: 0xc44a4a, 
-    outline: 0x8a2a2a, 
-    size: 28,       // Medium
-    speed: 2.5,     // Medium-fast
+  // RANGER: Purple, maintains distance, ranged, medium HP
+  ranger: { 
+    color: 0xa855f7, 
+    outline: 0x7c3aed, 
+    size: 24,
+    speed: 2.0,     // Medium speed
     hp: 60,
-    damage: 10 
+    damage: 10,
+    aiType: 'kite' as const,
+    preferredRange: 150  // Stays at range
   },
-  brute: {
-    color: 0x8a2a2a,
-    outline: 0x5a1a1a,
-    size: 40,       // Large
-    speed: 1.2,     // Slow
-    hp: 120,
-    damage: 15
+  // DASHER: Green, fast, teleports, low HP
+  dasher: {
+    color: 0x22c55e,
+    outline: 0x16a34a,
+    size: 20,
+    speed: 4.0,     // Very fast
+    hp: 40,
+    damage: 12,
+    aiType: 'teleport' as const,
+    teleportCooldown: 3000  // 3 seconds between teleports
   }
 } as const;
 
@@ -55,11 +55,13 @@ export class Enemy {
   public container: Container;
   public state: EnemyState;
   public id: string;
+  public dead: boolean = false;
   
   private graphics: Graphics;
   private healthBar: Graphics;
   private config: typeof ENEMY_TYPES[EnemyType];
   private bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  private lastTeleportTime: number = 0;
   
   constructor(
     x: number, 
@@ -169,7 +171,7 @@ export class Enemy {
   }
   
   /**
-   * Update enemy AI - chase the player
+   * Update enemy AI - behavior varies by archetype
    */
   public update(playerX: number, playerY: number): void {
     // Calculate direction to player
@@ -177,14 +179,67 @@ export class Enemy {
     const dy = playerY - this.state.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     
-    // Don't move if too close (prevents stacking)
-    if (dist < 40) {
-      this.state.vx = 0;
-      this.state.vy = 0;
-    } else {
-      // Normalize and apply speed
-      this.state.vx = (dx / dist) * this.config.speed;
-      this.state.vy = (dy / dist) * this.config.speed;
+    // AI behavior based on archetype
+    switch (this.config.aiType) {
+      case 'chase':
+        // CHARGER: Aggressive chase, no stopping
+        if (dist > 20) {
+          this.state.vx = (dx / dist) * this.config.speed;
+          this.state.vy = (dy / dist) * this.config.speed;
+        } else {
+          this.state.vx = 0;
+          this.state.vy = 0;
+        }
+        break;
+        
+      case 'kite':
+        // RANGER: Maintain distance (preferred range)
+        const preferredRange = (this.config as any).preferredRange || 150;
+        if (dist < preferredRange - 20) {
+          // Too close - move away
+          this.state.vx = -(dx / dist) * this.config.speed;
+          this.state.vy = -(dy / dist) * this.config.speed;
+        } else if (dist > preferredRange + 20) {
+          // Too far - move closer
+          this.state.vx = (dx / dist) * this.config.speed;
+          this.state.vy = (dy / dist) * this.config.speed;
+        } else {
+          // At good range - stay still
+          this.state.vx = 0;
+          this.state.vy = 0;
+        }
+        break;
+        
+      case 'teleport':
+        // DASHER: Fast movement + occasional teleports
+        const now = Date.now();
+        const teleportCooldown = (this.config as any).teleportCooldown || 3000;
+        
+        // Check if can teleport (close to player + cooldown ready)
+        if (dist < 200 && dist > 80 && now - this.lastTeleportTime > teleportCooldown) {
+          // Teleport behind player
+          const teleportDist = 60;
+          const angle = Math.atan2(dy, dx) + Math.PI; // Behind player
+          this.state.x = playerX + Math.cos(angle) * teleportDist;
+          this.state.y = playerY + Math.sin(angle) * teleportDist;
+          this.lastTeleportTime = now;
+          
+          // Visual flash
+          this.graphics.tint = 0x00ff00;
+          setTimeout(() => {
+            if (this.graphics) this.graphics.tint = 0xffffff;
+          }, 100);
+        } else {
+          // Normal fast movement
+          if (dist > 40) {
+            this.state.vx = (dx / dist) * this.config.speed;
+            this.state.vy = (dy / dist) * this.config.speed;
+          } else {
+            this.state.vx = 0;
+            this.state.vy = 0;
+          }
+        }
+        break;
     }
     
     // Apply velocity
@@ -228,12 +283,11 @@ export function spawnEnemies(
   const enemies: Enemy[] = [];
   const minDistFromPlayer = 200;
   
-  // Weighted spawn chances (higher = more common)
+  // Weighted spawn chances for 3 archetypes
   const typeWeights: [EnemyType, number][] = [
-    ['goblin', 40],   // Most common
-    ['skeleton', 30], // Common
-    ['demon', 20],    // Less common
-    ['brute', 10]     // Rare (large, tanky)
+    ['charger', 40],  // Red aggressive chasers - most common
+    ['ranger', 35],   // Purple kiting ranged - common
+    ['dasher', 25]    // Green fast teleporters - less common
   ];
   
   const totalWeight = typeWeights.reduce((sum, [, weight]) => sum + weight, 0);
