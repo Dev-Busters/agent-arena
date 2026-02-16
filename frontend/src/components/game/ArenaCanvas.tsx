@@ -12,6 +12,8 @@ import { Loot, randomLootType } from './Loot';
 import { Room, generateRooms, getRoomCount } from './Room';
 import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
+import ModifierSelection from './ModifierSelection';
+import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -155,8 +157,11 @@ export default function ArenaCanvas({
   const [showRoomClear, setShowRoomClear] = useState(false);
   const [showFloorTransition, setShowFloorTransition] = useState(false);
   const [nextFloorNumber, setNextFloorNumber] = useState(1);
+  const [showModifierSelection, setShowModifierSelection] = useState(false);
+  const [modifierChoices, setModifierChoices] = useState<Modifier[]>([]);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
+  const activeModifiersRef = useRef<ActiveModifier[]>([]);
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
@@ -282,6 +287,51 @@ export default function ArenaCanvas({
     // Spawn first room
     spawnRoom(rooms[currentRoomIndex]);
     
+    // Handler for modifier selection
+    const handleModifierSelect = (modifier: Modifier) => {
+      console.log(`✨ Selected modifier: ${modifier.name}`);
+      
+      // Apply modifier
+      applyModifier(modifier, activeModifiersRef.current);
+      
+      // Apply damage multiplier to agent attacks
+      const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
+      console.log(`🔥 Current damage multiplier: ${damageMultiplier.toFixed(2)}x`);
+      
+      // Hide modifier selection
+      setShowModifierSelection(false);
+      setModifierChoices([]);
+      
+      // Resume game
+      app.ticker.start();
+      
+      // Advance to next room
+      currentRoomIndex++;
+      
+      // Check if floor is complete
+      if (currentRoomIndex >= rooms.length) {
+        console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
+        console.log(`⬇️  DESCENDING TO FLOOR ${currentFloor + 1}...`);
+        
+        // Show floor transition overlay
+        setNextFloorNumber(currentFloor + 1);
+        setShowFloorTransition(true);
+        setTimeout(() => setShowFloorTransition(false), 2000);
+        
+        currentFloor++;
+        currentRoomIndex = 0;
+        rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
+        console.log(`📊 Floor ${currentFloor}: ${rooms.length} rooms to clear`);
+      }
+      
+      // Spawn next room
+      spawnRoom(rooms[currentRoomIndex]);
+      roomTransitioning = false;
+    };
+    
+    // Store handler in window for access from React component
+    (window as any).handleModifierSelect = handleModifierSelect;
+    
     // Sound manager
     const sound = getSoundManager();
     
@@ -297,7 +347,8 @@ export default function ArenaCanvas({
         if (dist <= range) {
           // Crit chance (10%)
           const isCrit = Math.random() < 0.1;
-          const finalDamage = isCrit ? damage * 2 : damage;
+          const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
+          const finalDamage = (isCrit ? damage * 2 : damage) * damageMultiplier;
           
           enemy.state.hp -= finalDamage;
           console.log(`⚔️ Hit ${enemy.state.type} for ${finalDamage}${isCrit ? ' (CRIT)' : ''}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
@@ -364,11 +415,13 @@ export default function ArenaCanvas({
         
         if (dist <= range) {
           hitCount++;
-          enemy.state.hp -= damage;
+          const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
+          const finalDamage = damage * damageMultiplier;
+          enemy.state.hp -= finalDamage;
           particles.hit(enemy.state.x, enemy.state.y);
           
           onDamage?.({
-            damage,
+            damage: finalDamage,
             x: enemy.state.x,
             y: enemy.state.y,
             isCrit: false
@@ -439,12 +492,14 @@ export default function ArenaCanvas({
           const edist = Math.sqrt(ex * ex + ey * ey);
           
           if (edist < 30) {
-            enemy.state.hp -= damage;
+            const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
+            const finalDamage = damage * damageMultiplier;
+            enemy.state.hp -= finalDamage;
             particles.hit(enemy.state.x, enemy.state.y);
             sound.playHit();
             
             onDamage?.({
-              damage,
+              damage: finalDamage,
               x: enemy.state.x,
               y: enemy.state.y,
               isCrit: false
@@ -585,30 +640,17 @@ export default function ArenaCanvas({
         setShowRoomClear(true);
         setTimeout(() => setShowRoomClear(false), 1500);
         
-        // Delay before next room
+        // After room clear, show modifier selection
         setTimeout(() => {
-          currentRoomIndex++;
+          // Pause ticker while selecting modifier
+          app.ticker.stop();
           
-          // Check if floor is complete
-          if (currentRoomIndex >= rooms.length) {
-            console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
-            console.log(`⬇️  DESCENDING TO FLOOR ${currentFloor + 1}...`);
-            
-            // Show floor transition overlay
-            setNextFloorNumber(currentFloor + 1);
-            setShowFloorTransition(true);
-            setTimeout(() => setShowFloorTransition(false), 2000);
-            
-            currentFloor++;
-            currentRoomIndex = 0;
-            rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
-            console.log(`📊 Floor ${currentFloor}: ${rooms.length} rooms to clear`);
-          }
-          
-          // Spawn next room
-          spawnRoom(rooms[currentRoomIndex]);
-          roomTransitioning = false;
-        }, ROOM_CLEAR_DELAY_MS);
+          // Generate 3 random modifiers
+          const choices = getRandomModifiers(3);
+          setModifierChoices(choices);
+          setShowModifierSelection(true);
+          console.log('🔮 Showing modifier selection:', choices.map(m => m.name).join(', '));
+        }, 1500);
       }
     });
     
@@ -705,6 +747,18 @@ export default function ArenaCanvas({
             </div>
           </motion.div>
         </motion.div>
+      )}
+      
+      {/* Modifier Selection overlay */}
+      {showModifierSelection && modifierChoices.length > 0 && (
+        <ModifierSelection
+          modifiers={modifierChoices}
+          onSelect={(modifier) => {
+            if ((window as any).handleModifierSelect) {
+              (window as any).handleModifierSelect(modifier);
+            }
+          }}
+        />
       )}
       
       {/* Show RunEndScreen when agent dies */}
