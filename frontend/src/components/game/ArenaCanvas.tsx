@@ -297,8 +297,8 @@ export default function ArenaCanvas({
             sound.playDeath();
             
             // Death burst effect
-            const deathColor = enemy.state.type === 'goblin' ? 0x44aa44 :
-                              enemy.state.type === 'demon' ? 0xaa4444 : 0xaaaaaa;
+            const deathColor = enemy.state.type === 'charger' ? 0xff4444 :
+                              enemy.state.type === 'ranger' ? 0xa855f7 : 0x22c55e;
             particles.burst(enemy.state.x, enemy.state.y, deathColor);
             
             // Spawn XP orb
@@ -325,6 +325,135 @@ export default function ArenaCanvas({
       // Remove dead enemies from array
       enemies = enemies.filter(e => e.state.hp > 0);
       updateStats();
+    };
+    
+    // Handle agent area blast (E ability)
+    agent.onBlast = (px, py, range, damage) => {
+      sound.playAttack();
+      let hitCount = 0;
+      
+      enemies.forEach(enemy => {
+        const dx = enemy.state.x - px;
+        const dy = enemy.state.y - py;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist <= range) {
+          hitCount++;
+          enemy.state.hp -= damage;
+          particles.hit(enemy.state.x, enemy.state.y);
+          
+          onDamage?.({
+            damage,
+            x: enemy.state.x,
+            y: enemy.state.y,
+            isCrit: false
+          });
+          
+          // Check if dead
+          if (enemy.state.hp <= 0) {
+            gameStatsRef.current.kills++;
+            sound.playDeath();
+            const deathColor = enemy.state.type === 'charger' ? 0xff4444 :
+                              enemy.state.type === 'ranger' ? 0xa855f7 : 0x22c55e;
+            particles.burst(enemy.state.x, enemy.state.y, deathColor);
+            
+            const xpOrb = new XPOrb(enemy.state.x, enemy.state.y, 10);
+            xpOrbs.push(xpOrb);
+            app.stage.addChild(xpOrb.container);
+            
+            if (enemy.container) app.stage.removeChild(enemy.container);
+            enemy.destroy();
+          }
+        }
+      });
+      
+      console.log(`💥 Area blast hit ${hitCount} enemies!`);
+      
+      // Yellow explosion particle
+      particles.burst(px, py, 0xffff00, 30);
+      
+      enemies = enemies.filter(e => e.state.hp > 0);
+      updateStats();
+    };
+    
+    // Handle agent projectile (R ability)
+    agent.onProjectile = (px, py, targetX, targetY, damage) => {
+      sound.playAttack();
+      
+      // Create simple projectile visual (orange circle moving toward target)
+      const projectileGraphic = new Graphics();
+      projectileGraphic.beginFill(0xff8800);
+      projectileGraphic.drawCircle(0, 0, 8);
+      projectileGraphic.endFill();
+      projectileGraphic.x = px;
+      projectileGraphic.y = py;
+      app.stage.addChild(projectileGraphic);
+      
+      // Calculate direction
+      const dx = targetX - px;
+      const dy = targetY - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const vx = (dx / dist) * 10; // Speed 10
+      const vy = (dy / dist) * 10;
+      
+      // Animate projectile
+      let traveled = 0;
+      const maxDist = 400; // Max range
+      
+      const projectileTicker = () => {
+        projectileGraphic.x += vx;
+        projectileGraphic.y += vy;
+        traveled += 10;
+        
+        // Check collision with enemies
+        let hit = false;
+        for (const enemy of enemies) {
+          const ex = enemy.state.x - projectileGraphic.x;
+          const ey = enemy.state.y - projectileGraphic.y;
+          const edist = Math.sqrt(ex * ex + ey * ey);
+          
+          if (edist < 30) {
+            enemy.state.hp -= damage;
+            particles.hit(enemy.state.x, enemy.state.y);
+            sound.playHit();
+            
+            onDamage?.({
+              damage,
+              x: enemy.state.x,
+              y: enemy.state.y,
+              isCrit: false
+            });
+            
+            if (enemy.state.hp <= 0) {
+              gameStatsRef.current.kills++;
+              sound.playDeath();
+              const deathColor = enemy.state.type === 'charger' ? 0xff4444 :
+                                enemy.state.type === 'ranger' ? 0xa855f7 : 0x22c55e;
+              particles.burst(enemy.state.x, enemy.state.y, deathColor);
+              
+              const xpOrb = new XPOrb(enemy.state.x, enemy.state.y, 10);
+              xpOrbs.push(xpOrb);
+              app.stage.addChild(xpOrb.container);
+              
+              if (enemy.container) app.stage.removeChild(enemy.container);
+              enemy.destroy();
+            }
+            
+            hit = true;
+            break;
+          }
+        }
+        
+        if (hit || traveled >= maxDist) {
+          app.ticker.remove(projectileTicker);
+          app.stage.removeChild(projectileGraphic);
+          projectileGraphic.destroy();
+          enemies = enemies.filter(e => e.state.hp > 0);
+          updateStats();
+        }
+      };
+      
+      app.ticker.add(projectileTicker);
     };
     
     // Initial stats

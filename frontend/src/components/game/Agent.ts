@@ -18,6 +18,14 @@ const RETREAT_DURATION = 1000; // ms to retreat
 const DASH_COOLDOWN = 3000; // 3s
 const DASH_SPEED = 20;
 const DASH_DURATION = 150; // ms
+const BLAST_COOLDOWN = 6000; // 6s
+const BLAST_RANGE = 100; // pixels
+const BLAST_DAMAGE = 30;
+const PROJECTILE_COOLDOWN = 5000; // 5s
+const PROJECTILE_SPEED = 10;
+const PROJECTILE_DAMAGE = 25;
+const HEAL_COOLDOWN = 12000; // 12s
+const HEAL_PERCENT = 0.3; // 30% of max HP
 
 /**
  * AI State Machine States
@@ -41,6 +49,9 @@ export interface AgentState {
   lastAttackTime: number;
   isDashing: boolean;
   lastDashTime: number;
+  lastBlastTime: number;
+  lastProjectileTime: number;
+  lastHealTime: number;
   level: number;
   xp: number;
   xpToNext: number;
@@ -61,6 +72,8 @@ export class Agent {
   public container: Container;
   public state: AgentState;
   public onAttack?: (x: number, y: number, range: number, damage: number) => void;
+  public onBlast?: (x: number, y: number, range: number, damage: number) => void;
+  public onProjectile?: (x: number, y: number, targetX: number, targetY: number, damage: number) => void;
   
   private graphics: Graphics;
   private bounds: { minX: number; minY: number; maxX: number; maxY: number };
@@ -82,6 +95,9 @@ export class Agent {
       lastAttackTime: 0,
       isDashing: false,
       lastDashTime: 0,
+      lastBlastTime: 0,
+      lastProjectileTime: 0,
+      lastHealTime: 0,
       level: 1,
       xp: 0,
       xpToNext: 100,
@@ -194,6 +210,90 @@ export class Agent {
   }
   
   /**
+   * Area Blast ability (E key) - commanded by player
+   */
+  public areaBlast(): boolean {
+    const now = Date.now();
+    if (now - this.state.lastBlastTime < BLAST_COOLDOWN) {
+      return false;
+    }
+    
+    this.state.lastBlastTime = now;
+    
+    // Trigger callback for damage
+    if (this.onBlast) {
+      this.onBlast(this.state.x, this.state.y, BLAST_RANGE, BLAST_DAMAGE);
+    }
+    
+    // Visual flash
+    this.graphics.tint = 0xffff00;
+    setTimeout(() => {
+      if (this.graphics) this.graphics.tint = 0xffffff;
+    }, 200);
+    
+    console.log('💥 Agent area blast!');
+    return true;
+  }
+  
+  /**
+   * Projectile ability (R key) - commanded by player
+   */
+  public fireProjectile(): boolean {
+    const now = Date.now();
+    if (now - this.state.lastProjectileTime < PROJECTILE_COOLDOWN) {
+      return false;
+    }
+    
+    this.state.lastProjectileTime = now;
+    
+    // Fire toward current target if available, otherwise forward
+    let targetX = this.state.x;
+    let targetY = this.state.y - 100; // Default: up
+    
+    if (this.state.target) {
+      targetX = this.state.target.x;
+      targetY = this.state.target.y;
+    }
+    
+    // Trigger callback
+    if (this.onProjectile) {
+      this.onProjectile(this.state.x, this.state.y, targetX, targetY, PROJECTILE_DAMAGE);
+    }
+    
+    console.log('🔮 Agent projectile!');
+    return true;
+  }
+  
+  /**
+   * Heal ability (F key) - commanded by player
+   */
+  public heal(): boolean {
+    const now = Date.now();
+    if (now - this.state.lastHealTime < HEAL_COOLDOWN) {
+      return false;
+    }
+    
+    // Can't overheal
+    if (this.state.hp >= this.state.maxHp) {
+      return false;
+    }
+    
+    this.state.lastHealTime = now;
+    
+    const healAmount = Math.floor(this.state.maxHp * HEAL_PERCENT);
+    this.state.hp = Math.min(this.state.maxHp, this.state.hp + healAmount);
+    
+    // Visual flash
+    this.graphics.tint = 0x00ff00;
+    setTimeout(() => {
+      if (this.graphics) this.graphics.tint = 0xffffff;
+    }, 300);
+    
+    console.log(`💚 Agent heal! +${healAmount} HP (${this.state.hp}/${this.state.maxHp})`);
+    return true;
+  }
+  
+  /**
    * Take damage - updates HP and triggers retreat if needed
    */
   public takeDamage(amount: number): void {
@@ -231,12 +331,26 @@ export class Agent {
   private setupInput(): void {
     // ONLY ability inputs - NO WASD movement
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Q to dash
+      // Q: Dash
       if (e.code === 'KeyQ') {
         this.dash();
         e.preventDefault();
       }
-      // E, R, F abilities will be added in D5
+      // E: Area Blast
+      if (e.code === 'KeyE') {
+        this.areaBlast();
+        e.preventDefault();
+      }
+      // R: Projectile
+      if (e.code === 'KeyR') {
+        this.fireProjectile();
+        e.preventDefault();
+      }
+      // F: Heal
+      if (e.code === 'KeyF') {
+        this.heal();
+        e.preventDefault();
+      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
