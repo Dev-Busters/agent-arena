@@ -308,7 +308,7 @@ export function spawnEnemies(
     
     // Weighted random type selection
     let random = Math.random() * totalWeight;
-    let selectedType: EnemyType = 'goblin';
+    let selectedType: EnemyType = 'charger';
     
     for (const [type, weight] of typeWeights) {
       random -= weight;

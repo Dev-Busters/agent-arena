@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Application, Graphics, Container } from 'pixi.js';
+import { motion } from 'framer-motion';
 import { Agent } from './Agent';
 import { Enemy, spawnEnemies } from './Enemy';
 import { ParticleSystem } from './Particles';
@@ -11,6 +12,13 @@ import { Loot, randomLootType } from './Loot';
 import { Room, generateRooms, getRoomCount } from './Room';
 import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
+
+export interface AbilityCooldownState {
+  dash: { cooldown: number; lastUsed: number; };
+  blast: { cooldown: number; lastUsed: number; };
+  projectile: { cooldown: number; lastUsed: number; };
+  heal: { cooldown: number; lastUsed: number; };
+}
 
 export interface GameStats {
   playerHp: number;
@@ -22,6 +30,7 @@ export interface GameStats {
   floor: number;
   roomsCompleted: number;
   enemiesRemaining: number;
+  abilities: AbilityCooldownState;
 }
 
 export interface DamageEvent {
@@ -143,6 +152,9 @@ export default function ArenaCanvas({
   const [isReady, setIsReady] = useState(false);
   const [runEnded, setRunEnded] = useState(false);
   const [finalRunStats, setFinalRunStats] = useState<RunStats | null>(null);
+  const [showRoomClear, setShowRoomClear] = useState(false);
+  const [showFloorTransition, setShowFloorTransition] = useState(false);
+  const [nextFloorNumber, setNextFloorNumber] = useState(1);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const gameStatsRef = useRef<GameStats>({
@@ -154,7 +166,13 @@ export default function ArenaCanvas({
     kills: 0,
     floor: 1,
     roomsCompleted: 0,
-    enemiesRemaining: 0
+    enemiesRemaining: 0,
+    abilities: {
+      dash: { cooldown: 3000, lastUsed: 0 },
+      blast: { cooldown: 6000, lastUsed: 0 },
+      projectile: { cooldown: 5000, lastUsed: 0 },
+      heal: { cooldown: 12000, lastUsed: 0 }
+    }
   });
   
   // Keep pause ref in sync
@@ -215,7 +233,13 @@ export default function ArenaCanvas({
         kills: gameStatsRef.current.kills,
         floor: currentFloor,
         roomsCompleted: currentRoomIndex,
-        enemiesRemaining: enemies.length
+        enemiesRemaining: enemies.length,
+        abilities: {
+          dash: { cooldown: 3000, lastUsed: agent.state.lastDashTime },
+          blast: { cooldown: 6000, lastUsed: agent.state.lastBlastTime },
+          projectile: { cooldown: 5000, lastUsed: agent.state.lastProjectileTime },
+          heal: { cooldown: 12000, lastUsed: agent.state.lastHealTime }
+        }
       };
       onGameStateChange?.(gameStatsRef.current);
     };
@@ -554,7 +578,9 @@ export default function ArenaCanvas({
         
         console.log(`✅ Floor ${currentFloor} Room ${currentRoomIndex + 1} CLEAR!`);
         
-        // TODO: Show "ROOM CLEAR" overlay (will add in next commit)
+        // Show "ROOM CLEAR" overlay
+        setShowRoomClear(true);
+        setTimeout(() => setShowRoomClear(false), 1500);
         
         // Delay before next room
         setTimeout(() => {
@@ -564,7 +590,12 @@ export default function ArenaCanvas({
           if (currentRoomIndex >= rooms.length) {
             console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
             console.log(`⬇️  DESCENDING TO FLOOR ${currentFloor + 1}...`);
-            // TODO: Show "DESCENDING TO FLOOR X" overlay (visual in later phase)
+            
+            // Show floor transition overlay
+            setNextFloorNumber(currentFloor + 1);
+            setShowFloorTransition(true);
+            setTimeout(() => setShowFloorTransition(false), 2000);
+            
             currentFloor++;
             currentRoomIndex = 0;
             rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
@@ -625,6 +656,52 @@ export default function ArenaCanvas({
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
           <div className="text-purple-400 animate-pulse">Loading Arena...</div>
         </div>
+      )}
+      
+      {/* Room Clear overlay */}
+      {showRoomClear && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        >
+          <div 
+            className="text-6xl font-bold text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]"
+            style={{ textShadow: '0 0 30px rgba(250, 204, 21, 0.8)' }}
+          >
+            ROOM CLEAR
+          </div>
+        </motion.div>
+      )}
+      
+      {/* Floor Transition overlay */}
+      {showFloorTransition && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 flex items-center justify-center bg-black/70 pointer-events-none"
+        >
+          <motion.div 
+            initial={{ scale: 0.7 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="text-center"
+          >
+            <div 
+              className="text-7xl font-bold text-purple-400 mb-4 drop-shadow-[0_0_30px_rgba(192,132,252,0.9)]"
+              style={{ textShadow: '0 0 40px rgba(192, 132, 252, 0.9)' }}
+            >
+              DESCENDING
+            </div>
+            <div className="text-5xl font-bold text-white">
+              FLOOR {nextFloorNumber}
+            </div>
+          </motion.div>
+        </motion.div>
       )}
       
       {/* Show RunEndScreen when agent dies */}

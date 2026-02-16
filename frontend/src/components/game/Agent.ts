@@ -81,6 +81,9 @@ export class Agent {
   // Enemy tracking
   private enemies: Enemy[] = [];
   
+  // Keyboard handler for cleanup
+  private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+  
   constructor(x: number, y: number, arenaWidth: number, arenaHeight: number, wallThickness: number = 16) {
     this.container = new Container();
     this.graphics = new Graphics();
@@ -330,7 +333,7 @@ export class Agent {
   
   private setupInput(): void {
     // ONLY ability inputs - NO WASD movement
-    const handleKeyDown = (e: KeyboardEvent) => {
+    this.keydownHandler = (e: KeyboardEvent) => {
       // Q: Dash
       if (e.code === 'KeyQ') {
         this.dash();
@@ -353,7 +356,7 @@ export class Agent {
       }
     };
     
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', this.keydownHandler);
   }
   
   private updatePosition(): void {
@@ -564,6 +567,10 @@ export class Agent {
    * Clean up event listeners
    */
   public destroy(): void {
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = null;
+    }
     console.log('🤖 Agent destroyed');
   }
 }
