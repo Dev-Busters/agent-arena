@@ -25,8 +25,15 @@ export default function ArenaPage() {
     playerXP: 0,
     playerXPToNext: 100,
     kills: 0,
-    wave: 1,
-    enemiesRemaining: 3,
+    floor: 1,
+    roomsCompleted: 0,
+    enemiesRemaining: 0,
+    abilities: {
+      dash: { cooldown: 3000, lastUsed: 0 },
+      blast: { cooldown: 6000, lastUsed: 0 },
+      projectile: { cooldown: 5000, lastUsed: 0 },
+      heal: { cooldown: 12000, lastUsed: 0 }
+    },
     isPaused: false
   });
   

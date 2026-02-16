@@ -39,7 +39,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const xpPercent = (playerXP / playerXPToNext) * 100;
   
-  // Calculate cooldown percentages for abilities
+  // Calculate cooldown percentages for abilities (with safety check)
   const now = Date.now();
   const calculateCooldownPercent = (lastUsed: number, cooldown: number) => {
     const elapsed = now - lastUsed;
@@ -47,10 +47,18 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
     return ((cooldown - elapsed) / cooldown) * 100;
   };
   
-  const dashCooldownPercent = calculateCooldownPercent(abilities.dash.lastUsed, abilities.dash.cooldown);
-  const blastCooldownPercent = calculateCooldownPercent(abilities.blast.lastUsed, abilities.blast.cooldown);
-  const projectileCooldownPercent = calculateCooldownPercent(abilities.projectile.lastUsed, abilities.projectile.cooldown);
-  const healCooldownPercent = calculateCooldownPercent(abilities.heal.lastUsed, abilities.heal.cooldown);
+  // Safety: Use default values if abilities is undefined
+  const safeAbilities = abilities || {
+    dash: { cooldown: 3000, lastUsed: 0 },
+    blast: { cooldown: 6000, lastUsed: 0 },
+    projectile: { cooldown: 5000, lastUsed: 0 },
+    heal: { cooldown: 12000, lastUsed: 0 }
+  };
+  
+  const dashCooldownPercent = calculateCooldownPercent(safeAbilities.dash.lastUsed, safeAbilities.dash.cooldown);
+  const blastCooldownPercent = calculateCooldownPercent(safeAbilities.blast.lastUsed, safeAbilities.blast.cooldown);
+  const projectileCooldownPercent = calculateCooldownPercent(safeAbilities.projectile.lastUsed, safeAbilities.projectile.cooldown);
+  const healCooldownPercent = calculateCooldownPercent(safeAbilities.heal.lastUsed, safeAbilities.heal.cooldown);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
