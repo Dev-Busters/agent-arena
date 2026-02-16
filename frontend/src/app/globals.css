@@ -8,39 +8,41 @@
    ============================================ */
 
 :root {
-  /* Backgrounds */
-  --bg-deepest: #0a0a0f;
-  --bg-dark: #12121a;
-  --bg-card: #1a1a28;
-  --bg-elevated: #222236;
+  /* Backgrounds - deep blue-black with warmth */
+  --bg-void: #06060b;
+  --bg-deepest: #0b0b14;
+  --bg-deep: #10101c;
+  --bg-card: #151522;
+  --bg-elevated: #1c1c30;
 
-  /* Gold accent */
-  --gold: #f59e0b;
-  --gold-bright: #fbbf24;
-  --gold-dim: #92600a;
+  /* Gold accent - warm, muted */
+  --gold: #d4a843;
+  --gold-bright: #f0c654;
+  --gold-dim: #8a6d2b;
 
   /* Secondary accents */
-  --fire-orange: #f97316;
-  --blood-red: #ef4444;
-  --arcane-purple: #a855f7;
-  --ice-blue: #38bdf8;
-  --venom-green: #22c55e;
+  --fire-orange: #e8722a;
+  --blood-red: #d44040;
+  --arcane-purple: #9b5de5;
+  --ice-blue: #4da8da;
+  --venom-green: #3dba6f;
 
-  /* Text */
-  --text-primary: #e8e6e3;
-  --text-secondary: #9ca3af;
-  --text-dim: #6b7280;
+  /* Text - warm off-whites */
+  --text-hero: #f5f0e8;
+  --text-primary: #d4cfc5;
+  --text-secondary: #8a8478;
+  --text-dim: #5c574e;
 
-  /* Borders */
-  --border-subtle: #2a2a3d;
-  --border-hover: #3d3d56;
+  /* Borders - very subtle */
+  --border-ghost: rgba(255, 255, 255, 0.04);
+  --border-whisper: rgba(255, 255, 255, 0.07);
 
   /* Rarity */
-  --rarity-common: #9ca3af;
-  --rarity-uncommon: #22c55e;
-  --rarity-rare: #3b82f6;
-  --rarity-epic: #a855f7;
-  --rarity-legendary: #f97316;
+  --rarity-common: #8a8478;
+  --rarity-uncommon: #3dba6f;
+  --rarity-rare: #4da8da;
+  --rarity-epic: #9b5de5;
+  --rarity-legendary: #e8722a;
 }
 
 * {
@@ -54,22 +56,40 @@ html {
 }
 
 body {
-  background-color: var(--bg-deepest);
+  background-color: var(--bg-void);
   background-image:
-    /* Warm radial glow from top-center (distant torchlight) */
+    /* Warm gold radial from top */
     radial-gradient(
-      ellipse 80% 50% at 50% 0%,
-      rgba(245, 158, 11, 0.03) 0%,
-      transparent 70%
-    ),
-    /* Cool glow at bottom (depth effect) */
-    radial-gradient(
-      ellipse 60% 40% at 50% 100%,
-      rgba(56, 100, 180, 0.02) 0%,
+      ellipse 100% 60% at 50% -10%,
+      rgba(212, 168, 67, 0.04) 0%,
       transparent 60%
+    ),
+    /* Warm brown accent left */
+    radial-gradient(
+      ellipse 80% 40% at 20% 50%,
+      rgba(140, 80, 30, 0.02) 0%,
+      transparent 50%
+    ),
+    /* Cool purple accent right */
+    radial-gradient(
+      ellipse 80% 40% at 80% 60%,
+      rgba(100, 60, 140, 0.015) 0%,
+      transparent 50%
     );
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
+  position: relative;
+}
+
+/* Noise grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ============================================
@@ -97,26 +117,31 @@ body {
    ============================================ */
 @layer components {
   .game-card {
-    @apply relative overflow-hidden transition-all duration-300;
-    background: linear-gradient(180deg, rgba(30, 30, 50, 0.8) 0%, rgba(15, 15, 25, 0.9) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
+    @apply relative overflow-hidden transition-all duration-300 rounded-2xl;
+    background: linear-gradient(180deg, rgba(18, 18, 28, 0.6) 0%, rgba(10, 10, 16, 0.8) 100%);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
 
   .game-card:hover {
-    border-color: rgba(245, 158, 11, 0.15);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 40px rgba(245, 158, 11, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
-  /* Highlighted variant for podium #1, featured cards */
+  /* Podium #1 - Gold variant, TALLER */
   .game-card-gold {
-    background: linear-gradient(180deg, rgba(40, 35, 30, 0.85) 0%, rgba(20, 18, 15, 0.95) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    border-top: 2px solid rgba(245, 158, 11, 0.3);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 60px rgba(245, 158, 11, 0.08);
+    background: linear-gradient(180deg, rgba(30, 26, 20, 0.8) 0%, rgba(14, 12, 10, 0.9) 100%);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), 0 0 80px rgba(212, 168, 67, 0.06);
+    position: relative;
+  }
+
+  .game-card-gold::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 168, 67, 0.4), transparent);
   }
 
   /* Gold shimmer text */
@@ -186,46 +211,44 @@ body {
 
   /* Action card — Enter the Depths (fire) */
   .action-card-fire {
-    background: linear-gradient(135deg, rgba(30, 20, 15, 0.9) 0%, rgba(20, 15, 12, 0.95) 100%);
-    border: 1px solid rgba(249, 115, 22, 0.12);
+    background: linear-gradient(135deg, rgba(28, 18, 12, 0.9) 0%, rgba(14, 12, 10, 0.95) 100%);
     position: relative;
     overflow: hidden;
   }
   .action-card-fire::before {
     content: '';
     position: absolute;
-    top: -30px;
-    left: -30px;
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, transparent 70%);
+    top: -20px;
+    left: -20px;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(232, 114, 42, 0.12) 0%, transparent 70%);
     pointer-events: none;
   }
   .action-card-fire:hover {
-    border-color: rgba(249, 115, 22, 0.3);
-    box-shadow: 0 0 30px rgba(249, 115, 22, 0.1);
+    box-shadow: 0 4px 24px rgba(232, 114, 42, 0.1);
+    transform: translateY(-2px);
   }
 
   /* Action card — Visit the Armory (gold) */
   .action-card-gold {
-    background: linear-gradient(135deg, rgba(25, 22, 15, 0.9) 0%, rgba(18, 16, 12, 0.95) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.12);
+    background: linear-gradient(135deg, rgba(24, 22, 14, 0.9) 0%, rgba(14, 13, 10, 0.95) 100%);
     position: relative;
     overflow: hidden;
   }
   .action-card-gold::before {
     content: '';
     position: absolute;
-    top: -30px;
-    left: -30px;
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%);
+    top: -20px;
+    left: -20px;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(212, 168, 67, 0.1) 0%, transparent 70%);
     pointer-events: none;
   }
   .action-card-gold:hover {
-    border-color: rgba(245, 158, 11, 0.3);
-    box-shadow: 0 0 30px rgba(245, 158, 11, 0.08);
+    box-shadow: 0 4px 24px rgba(212, 168, 67, 0.08);
+    transform: translateY(-2px);
   }
 
   /* Battle row */
