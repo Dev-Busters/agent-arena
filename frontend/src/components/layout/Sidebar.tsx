@@ -14,80 +14,105 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  
+
   return (
-    <aside 
-      className="fixed left-0 top-0 h-screen w-[60px] flex flex-col items-center py-4 gap-1 z-50"
-      style={{ 
-        background: 'rgba(10, 10, 18, 0.95)',
+    <aside
+      className="fixed left-0 top-0 h-screen flex flex-col items-center z-50"
+      style={{
+        width: 60,
+        paddingTop: 16,
+        paddingBottom: 16,
+        gap: 2,
+        background: 'rgba(8, 8, 14, 0.9)',
         borderRight: '1px solid rgba(255, 255, 255, 0.04)',
       }}
     >
       {/* Logo */}
-      <Link 
+      <Link
         href="/"
-        className="flex items-center justify-center w-10 h-10 rounded-xl mb-3"
+        className="flex items-center justify-center"
         style={{
-          background: 'rgba(245, 158, 11, 0.15)',
-          boxShadow: '0 0 20px rgba(245, 158, 11, 0.1)',
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: 'radial-gradient(circle at 50% 40%, rgba(212, 168, 67, 0.25), rgba(212, 168, 67, 0.08))',
+          boxShadow: '0 0 24px rgba(212, 168, 67, 0.08)',
+          marginBottom: 16,
         }}
       >
-        <Flame size={20} className="text-gold" />
+        <Flame size={18} style={{ color: '#d4a843' }} />
       </Link>
-      
+
       {/* Divider */}
-      <div className="w-7 h-px mb-2" style={{ background: 'rgba(255,255,255,0.06)' }} />
-      
+      <div
+        style={{
+          width: 28,
+          height: 1,
+          marginBottom: 8,
+          background: 'rgba(255, 255, 255, 0.06)',
+        }}
+      />
+
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-1">
+      <nav className="flex-1 flex flex-col" style={{ gap: 2 }}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-          
+
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200"
+              className="group relative flex items-center justify-center transition-all duration-200"
               style={{
-                color: isActive ? '#f59e0b' : '#6b7280',
-                background: isActive ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                color: isActive ? '#d4a843' : '#5c574e',
+                background: isActive ? 'rgba(212, 168, 67, 0.08)' : 'transparent',
               }}
               title={item.label}
-              onMouseEnter={e => {
+              onMouseEnter={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.color = '#9ca3af';
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.color = '#8a8478';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
                 }
               }}
-              onMouseLeave={e => {
+              onMouseLeave={(e) => {
                 if (!isActive) {
-                  e.currentTarget.style.color = '#6b7280';
+                  e.currentTarget.style.color = '#5c574e';
                   e.currentTarget.style.background = 'transparent';
                 }
               }}
             >
               {/* Gold left-edge indicator */}
               {isActive && (
-                <span 
-                  className="absolute rounded-r"
+                <span
+                  className="absolute"
                   style={{
-                    left: -8, top: '25%', bottom: '25%', width: 3,
-                    background: '#f59e0b',
-                    borderRadius: '0 3px 3px 0',
+                    left: -10,
+                    top: '30%',
+                    bottom: '30%',
+                    width: 2.5,
+                    background: '#d4a843',
+                    borderRadius: '0 2px 2px 0',
                   }}
                 />
               )}
-              
-              <Icon size={18} />
-              
+
+              <Icon size={16} />
+
               {/* Tooltip */}
-              <span 
-                className="absolute left-full ml-3 px-2.5 py-1 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
+              <span
+                className="absolute left-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
                 style={{
-                  background: 'rgba(30,30,50,0.95)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  color: '#e8e6e3',
+                  marginLeft: 12,
+                  padding: '4px 10px',
+                  fontSize: '0.7rem',
+                  borderRadius: 8,
+                  background: 'rgba(20, 20, 34, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  color: '#d4cfc5',
                 }}
               >
                 {item.label}
@@ -96,13 +121,17 @@ export default function Sidebar() {
           );
         })}
       </nav>
-      
-      {/* User */}
-      <div 
-        className="w-9 h-9 rounded-full flex items-center justify-center text-sm"
+
+      {/* Bottom user icon */}
+      <div
+        className="flex items-center justify-center"
         style={{
-          background: 'rgba(245, 158, 11, 0.1)',
-          border: '1px solid rgba(245, 158, 11, 0.2)',
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          fontSize: 13,
+          background: 'rgba(212, 168, 67, 0.08)',
+          border: '1px solid rgba(212, 168, 67, 0.15)',
         }}
       >
         ⚔️

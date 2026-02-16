@@ -9,41 +9,44 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Backgrounds — dark with warm undertones
+        // Backgrounds — aligned with globals.css CSS variables
         arena: {
-          deep: '#0a0a0f',
-          dark: '#12121a',
-          card: '#1a1a28',
-          elevated: '#222236',
+          void: '#06060b',
+          deep: '#0b0b14',
+          surface: '#10101c',
+          card: '#151522',
+          elevated: '#1c1c30',
         },
-        // Primary accent — warm gold
+        // Primary accent — warm MUTED gold (not bright amber)
         gold: {
-          DEFAULT: '#f59e0b',
-          bright: '#fbbf24',
-          dim: '#92600a',
+          DEFAULT: '#d4a843',
+          bright: '#f0c654',
+          dim: '#8a6d2b',
         },
         // Secondary accents
-        fire: '#f97316',
-        blood: '#ef4444',
-        arcane: '#a855f7',
-        ice: '#38bdf8',
-        venom: '#22c55e',
+        fire: '#e8722a',
+        blood: '#d44040',
+        arcane: '#9b5de5',
+        ice: '#4da8da',
+        venom: '#3dba6f',
         // Rarity system
         rarity: {
-          common: '#9ca3af',
-          uncommon: '#22c55e',
-          rare: '#3b82f6',
-          epic: '#a855f7',
-          legendary: '#f97316',
+          common: '#8a8478',
+          uncommon: '#3dba6f',
+          rare: '#4da8da',
+          epic: '#9b5de5',
+          legendary: '#e8722a',
         },
-        // Borders
-        'border-warm': '#2a2a3d',
-        'border-hover': '#3d3d56',
+        // Text — warm off-whites
+        'text-hero': '#f5f0e8',
+        'text-primary': '#d4cfc5',
+        'text-secondary': '#8a8478',
+        'text-dim': '#5c574e',
       },
       fontFamily: {
-        display: ['Cinzel', 'serif'],
-        body: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        display: ['var(--font-display)', 'Cinzel', 'serif'],
+        body: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'JetBrains Mono', 'Fira Code', 'monospace'],
       },
       keyframes: {
         fadeInUp: {
@@ -90,4 +93,5 @@ const config: Config = {
   },
   plugins: [],
 }
+
 export default config
