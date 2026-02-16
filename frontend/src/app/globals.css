@@ -120,6 +120,7 @@ body::after {
     @apply relative overflow-hidden transition-all duration-300 rounded-2xl;
     background: linear-gradient(180deg, rgba(18, 18, 28, 0.6) 0%, rgba(10, 10, 16, 0.8) 100%);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-ghost);
   }
 
   .game-card:hover {

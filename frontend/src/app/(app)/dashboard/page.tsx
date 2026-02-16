@@ -29,18 +29,18 @@ const mockBattles = [
 ];
 
 const typeIcons: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-  warrior: { icon: '⚔️', color: '#f97316', bg: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.4)' },
-  rogue:   { icon: '🗡️', color: '#22c55e', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
-  mage:    { icon: '✦',  color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.4)' },
-  tank:    { icon: '🛡️', color: '#a855f7', bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.4)' },
+  warrior: { icon: '⚔️', color: '#f97316', bg: 'radial-gradient(circle, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.08) 70%)', border: 'rgba(249,115,22,0.35)' },
+  rogue:   { icon: '🗡️', color: '#22c55e', bg: 'radial-gradient(circle, rgba(34,197,94,0.25) 0%, rgba(34,197,94,0.08) 70%)',  border: 'rgba(34,197,94,0.35)' },
+  mage:    { icon: '✦',  color: '#38bdf8', bg: 'radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(56,189,248,0.08) 70%)', border: 'rgba(56,189,248,0.35)' },
+  tank:    { icon: '🛡️', color: '#a855f7', bg: 'radial-gradient(circle, rgba(168,85,247,0.25) 0%, rgba(168,85,247,0.08) 70%)', border: 'rgba(168,85,247,0.35)' },
 };
 
 const stats = [
-  { label: 'VITALITY', value: `${mockAgent.hp}/${mockAgent.maxHp}`, icon: Heart, color: 'text-venom', glowClass: 'text-glow-gold', gradientFrom: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.4)' },
-  { label: 'MIGHT', value: mockAgent.might, icon: Flame, color: 'text-fire', glowClass: 'text-glow-fire', gradientFrom: 'rgba(249,115,22,0.08)', borderColor: 'rgba(249,115,22,0.4)' },
-  { label: 'FORTITUDE', value: mockAgent.fortitude, icon: Shield, color: 'text-ice', glowClass: '', gradientFrom: 'rgba(56,189,248,0.06)', borderColor: 'rgba(56,189,248,0.3)' },
-  { label: 'AGILITY', value: mockAgent.agility, icon: Zap, color: 'text-gold', glowClass: 'text-glow-gold', gradientFrom: 'rgba(250,204,21,0.06)', borderColor: 'rgba(250,204,21,0.3)' },
-  { label: 'ARCANA', value: mockAgent.arcana, icon: Brain, color: 'text-arcane', glowClass: 'text-glow-arcane', gradientFrom: 'rgba(168,85,247,0.08)', borderColor: 'rgba(168,85,247,0.3)' },
+  { label: 'VITALITY', value: `${mockAgent.hp}/${mockAgent.maxHp}`, icon: Heart, color: 'text-venom', glowClass: 'text-glow-gold', gradientFrom: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.35)' },
+  { label: 'MIGHT', value: mockAgent.might, icon: Flame, color: 'text-fire', glowClass: 'text-glow-fire', gradientFrom: 'rgba(249,115,22,0.06)', borderColor: 'rgba(249,115,22,0.35)' },
+  { label: 'FORTITUDE', value: mockAgent.fortitude, icon: Shield, color: 'text-ice', glowClass: '', gradientFrom: 'rgba(56,189,248,0.05)', borderColor: 'rgba(56,189,248,0.28)' },
+  { label: 'AGILITY', value: mockAgent.agility, icon: Zap, color: 'text-gold', glowClass: 'text-glow-gold', gradientFrom: 'rgba(250,204,21,0.05)', borderColor: 'rgba(250,204,21,0.28)' },
+  { label: 'ARCANA', value: mockAgent.arcana, icon: Brain, color: 'text-arcane', glowClass: 'text-glow-arcane', gradientFrom: 'rgba(168,85,247,0.06)', borderColor: 'rgba(168,85,247,0.28)' },
 ];
 
 export default function DashboardPage() {
@@ -101,8 +101,8 @@ export default function DashboardPage() {
               style={{
                 width: 72, height: 72,
                 background: typeInfo.bg,
-                border: `2px solid ${typeInfo.border}`,
-                boxShadow: `inset 0 0 24px ${typeInfo.bg}, 0 0 36px ${typeInfo.bg}`,
+                border: `1.5px solid ${typeInfo.border}`,
+                boxShadow: `inset 0 0 20px rgba(0,0,0,0.2), 0 0 24px rgba(0,0,0,0.3)`,
                 fontSize: 32,
               }}
             >
@@ -167,7 +167,7 @@ export default function DashboardPage() {
               <motion.div
                 className="w-12 h-12 rounded-xl flex items-center justify-center relative z-10"
                 whileHover={{ rotate: [0, -5, 5, 0], transition: { duration: 0.4 } }}
-                style={{ background: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)' }}
+                style={{ background: 'rgba(249,115,22,0.12)' }}
               >
                 <Swords size={24} className="text-fire" />
               </motion.div>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
               <motion.div
                 className="w-12 h-12 rounded-xl flex items-center justify-center relative z-10"
                 whileHover={{ rotate: [0, -5, 5, 0], transition: { duration: 0.4 } }}
-                style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)' }}
+                style={{ background: 'rgba(245,158,11,0.12)' }}
               >
                 <Shield size={24} className="text-gold" />
               </motion.div>
