@@ -3,6 +3,7 @@
 > **Purpose**: This is the system-level instruction document for AI agents working on the Agent Arena project. Every coding session MUST begin by reading this document in full. It overrides any previous instructions, planning docs, or session summaries.
 >
 > **ALSO READ: `docs/PHASE2_DEVELOPMENT.md`** for current development priorities, task breakdowns, and the full roadmap from Phase D through Phase G.
+> **ALSO READ: `docs/VISUAL_DESIGN_BIBLE.md`** for all visual design rules, color systems, typography, and component styling. Every UI component must follow this guide.
 
 ---
 
