@@ -184,8 +184,8 @@ export class Agent {
     
     if (dashX === 0 && dashY === 0 && this.state.target) {
       // Dash toward current target if not moving
-      dashX = this.state.target.x - this.state.x;
-      dashY = this.state.target.y - this.state.y;
+      dashX = this.state.target.state.x - this.state.x;
+      dashY = this.state.target.state.y - this.state.y;
       const mag = Math.sqrt(dashX * dashX + dashY * dashY);
       if (mag > 0) {
         dashX /= mag;
@@ -254,8 +254,8 @@ export class Agent {
     let targetY = this.state.y - 100; // Default: up
     
     if (this.state.target) {
-      targetX = this.state.target.x;
-      targetY = this.state.target.y;
+      targetX = this.state.target.state.x;
+      targetY = this.state.target.state.y;
     }
     
     // Trigger callback
@@ -374,8 +374,8 @@ export class Agent {
     let nearestDist = Infinity;
     
     for (const enemy of this.enemies) {
-      const dx = enemy.x - this.state.x;
-      const dy = enemy.y - this.state.y;
+      const dx = enemy.state.x - this.state.x;
+      const dy = enemy.state.y - this.state.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       
       if (dist < nearestDist) {
@@ -391,8 +391,8 @@ export class Agent {
    * Calculate distance to target
    */
   private distanceTo(enemy: Enemy): number {
-    const dx = enemy.x - this.state.x;
-    const dy = enemy.y - this.state.y;
+    const dx = enemy.state.x - this.state.x;
+    const dy = enemy.state.y - this.state.y;
     return Math.sqrt(dx * dx + dy * dy);
   }
   
@@ -465,7 +465,7 @@ export class Agent {
           this.state.aiState = AgentAIState.IDLE;
         } else {
           // Move toward target
-          this.moveToward(this.state.target.x, this.state.target.y);
+          this.moveToward(this.state.target.state.x, this.state.target.state.y);
           
           // Check if in attack range
           const dist = this.distanceTo(this.state.target);
@@ -499,7 +499,7 @@ export class Agent {
         // Move away from nearest enemy
         const nearestEnemy = this.findNearestEnemy();
         if (nearestEnemy) {
-          this.moveAwayFrom(nearestEnemy.x, nearestEnemy.y);
+          this.moveAwayFrom(nearestEnemy.state.x, nearestEnemy.state.y);
         }
         
         // Update retreat timer
