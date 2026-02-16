@@ -25,6 +25,7 @@ export default function ArenaPage() {
     playerXP: 0,
     playerXPToNext: 100,
     kills: 0,
+    gold: 0,
     floor: 1,
     roomsCompleted: 0,
     enemiesRemaining: 0,

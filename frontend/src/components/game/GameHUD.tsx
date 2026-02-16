@@ -16,6 +16,7 @@ export interface GameState {
   playerXP: number;
   playerXPToNext: number;
   kills: number;
+  gold: number;
   floor: number;
   roomsCompleted: number;
   enemiesRemaining: number;
@@ -34,7 +35,7 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, floor, roomsCompleted, enemiesRemaining, abilities, isPaused } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused } = gameState;
   const hpPercent = (playerHp / playerMaxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const xpPercent = (playerXP / playerXPToNext) * 100;
@@ -115,6 +116,10 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">Kills</div>
                 <div className="text-xl font-bold text-red-400">{kills}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-slate-400 uppercase tracking-wider">Gold</div>
+                <div className="text-xl font-bold text-yellow-400">{gold}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">Enemies</div>

@@ -9,6 +9,7 @@ import { ParticleSystem } from './Particles';
 import { getSoundManager } from './Sound';
 import { XPOrb } from './XPOrb';
 import { Loot, randomLootType } from './Loot';
+import { GoldCoin } from './GoldCoin';
 import { Room, generateRooms, getRoomCount } from './Room';
 import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
@@ -31,6 +32,7 @@ export interface GameStats {
   playerXP: number;
   playerXPToNext: number;
   kills: number;
+  gold: number;
   floor: number;
   roomsCompleted: number;
   enemiesRemaining: number;
@@ -173,6 +175,7 @@ export default function ArenaCanvas({
     playerXP: 0,
     playerXPToNext: 100,
     kills: 0,
+    gold: 0,
     floor: 1,
     roomsCompleted: 0,
     enemiesRemaining: 0,
@@ -230,6 +233,7 @@ export default function ArenaCanvas({
     let enemies: Enemy[] = [];
     let xpOrbs: XPOrb[] = [];
     let lootItems: Loot[] = [];
+    let goldCoins: GoldCoin[] = [];
     
     // Helper to update game stats
     const updateStats = () => {
@@ -240,6 +244,7 @@ export default function ArenaCanvas({
         playerXP: agent.state.xp,
         playerXPToNext: agent.state.xpToNext,
         kills: gameStatsRef.current.kills,
+        gold: gameStatsRef.current.gold,
         floor: currentFloor,
         roomsCompleted: currentRoomIndex,
         enemiesRemaining: enemies.length,
@@ -411,6 +416,11 @@ export default function ArenaCanvas({
             xpOrbs.push(xpOrb);
             app.stage.addChild(xpOrb.container);
             
+            // Spawn gold coin (always)
+            const goldCoin = new GoldCoin(enemy.state.x, enemy.state.y, 5);
+            goldCoins.push(goldCoin);
+            app.stage.addChild(goldCoin.container);
+            
             // 20% chance to drop loot
             if (Math.random() < 0.2) {
               const loot = new Loot(enemy.state.x, enemy.state.y, randomLootType());
@@ -468,6 +478,10 @@ export default function ArenaCanvas({
             const xpOrb = new XPOrb(enemy.state.x, enemy.state.y, 10);
             xpOrbs.push(xpOrb);
             app.stage.addChild(xpOrb.container);
+            
+            const goldCoin = new GoldCoin(enemy.state.x, enemy.state.y, 5);
+            goldCoins.push(goldCoin);
+            app.stage.addChild(goldCoin.container);
             
             if (enemy.container) app.stage.removeChild(enemy.container);
             enemy.destroy();
@@ -545,6 +559,10 @@ export default function ArenaCanvas({
               const xpOrb = new XPOrb(enemy.state.x, enemy.state.y, 10);
               xpOrbs.push(xpOrb);
               app.stage.addChild(xpOrb.container);
+              
+              const goldCoin = new GoldCoin(enemy.state.x, enemy.state.y, 5);
+              goldCoins.push(goldCoin);
+              app.stage.addChild(goldCoin.container);
               
               if (enemy.container) app.stage.removeChild(enemy.container);
               enemy.destroy();
@@ -654,6 +672,23 @@ export default function ArenaCanvas({
           app.stage.removeChild(loot.container);
           loot.destroy();
           lootItems.splice(i, 1);
+        }
+      }
+      
+      // Update gold coins
+      for (let i = goldCoins.length - 1; i >= 0; i--) {
+        const coin = goldCoins[i];
+        coin.update(delta.deltaTime);
+        
+        if (coin.checkCollection(agent.state.x, agent.state.y)) {
+          // Coin collected
+          gameStatsRef.current.gold += coin.value;
+          console.log(`💰 +${coin.value} gold (total: ${gameStatsRef.current.gold})`);
+          updateStats();
+          
+          app.stage.removeChild(coin.container);
+          coin.destroy();
+          goldCoins.splice(i, 1);
         }
       }
       
