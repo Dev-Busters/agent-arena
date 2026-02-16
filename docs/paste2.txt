@@ -1,0 +1,722 @@
+> “Follow the design document strictly.
+Prioritize hierarchy, restraint, and intentional imbalance.
+Do not add glow, gradients, or effects unless explicitly justified.”
+
+
+📘 Agent Arena — UI Design Document (v1.0)
+
+1. Design Philosophy
+
+Core Goal
+
+Agent Arena UI should feel:
+
+Competitive
+
+Ceremonial
+
+Intentional
+
+Human-designed
+
+
+Not “futuristic dashboard”.
+Not “AI dark theme”.
+
+One-line mantra
+
+> “Reduce effects. Increase meaning.”
+
+
+
+
+---
+
+2. Visual Identity Pillars
+
+2.1 Tone
+
+Dark, restrained, confident
+
+Feels like an arena, not an app
+
+Every screen has a purpose, not just data
+
+
+2.2 Anti-goals (what we avoid)
+
+Excessive glow
+
+Symmetrical “perfect” layouts
+
+Glassmorphism everywhere
+
+Equal visual weight for unequal information
+
+
+
+---
+
+3. Color System
+
+Base
+
+Background: near-black, slightly warm
+
+Panels: dark charcoal (not transparent)
+
+Dividers: 1px subtle, low-contrast
+
+
+Accents (VERY limited)
+
+Gold → achievement, rank, ELO
+
+Muted white → primary text
+
+Desaturated gray → metadata
+
+
+> Gold should feel earned, not decorative.
+
+
+
+
+---
+
+4. Typography Rules
+
+Font roles (do NOT mix responsibilities)
+
+Display / Title font
+
+Used for: page titles, hero numbers
+
+Bold, confident, slightly condensed
+
+
+Utility font
+
+Used for: stats, labels, UI chrome
+
+Neutral, readable, tabular numerals preferred
+
+
+
+Hierarchy example
+
+1. Page Title (ceremonial)
+
+
+2. Primary Value (ELO, Rank)
+
+
+3. Name / Identity
+
+
+4. Metadata (WR, Level, Time)
+
+
+
+
+---
+
+5. Layout Principles
+
+5.1 Visual Hierarchy > Grid Perfection
+
+One dominant element per screen
+
+Supporting elements orbit it
+
+Asymmetry is intentional
+
+
+5.2 Breathing Rhythm
+
+Screens should flow like:
+
+Arrival → Focus → Comparison → Detail
+
+Not:
+
+Data → Data → Data
+
+
+---
+
+6. Leaderboard-Specific Rules
+
+Purpose
+
+> Make the player feel small, motivated, and competitive.
+
+
+
+Must-haves
+
+Center-weighted #1 champion
+
+Visual distinction between top 3 and the rest
+
+Ceremony before interaction
+
+
+Must-avoid
+
+Flat tables as first impression
+
+Equal card weight for all ranks
+
+
+
+---
+
+7. Effects & Motion (Guidelines)
+
+Shadows: subtle, directional
+
+Hover: slight lift, no glow burst
+
+Animations: short, confident, rare
+
+
+> Motion should feel like intent, not delight.
+
+
+
+
+---
+
+🧪 Example HTML/CSS Mockup (Leaderboard Core)
+
+This is mockup-grade, not production — meant to communicate taste to Buster.
+
+What this demonstrates
+
+Strong hierarchy
+
+Centered champion
+
+Restrained effects
+
+Premium spacing
+
+
+
+---
+
+index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agent Arena — Hall of Champions</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <main class="container">
+
+    <header class="hero">
+      <div class="icon">🏆</div>
+      <h1>Hall of Champions</h1>
+      <p>The greatest agents to enter the arena</p>
+    </header>
+
+    <section class="top-three">
+
+      <div class="champion second">
+        <span class="rank">#2</span>
+        <h3>Alduin</h3>
+        <div class="elo">2691</div>
+        <span class="meta">Lv 42 · 75% WR</span>
+      </div>
+
+      <div class="champion first">
+        <span class="crown">👑</span>
+        <span class="rank">#1</span>
+        <h3>Nyx</h3>
+        <div class="elo">2847</div>
+        <span class="meta">Lv 45 · 78% WR</span>
+      </div>
+
+      <div class="champion third">
+        <span class="rank">#3</span>
+        <h3>Merlin</h3>
+        <div class="elo">2534</div>
+        <span class="meta">Lv 40 · 70% WR</span>
+      </div>
+
+    </section>
+
+  </main>
+
+</body>
+</html>
+
+
+---
+
+styles.css
+
+:root {
+  --bg: #0b0b0c;
+  --panel: #141417;
+  --text-primary: #f2f2f2;
+  --text-muted: #9a9a9a;
+  --gold: #d6a74a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: system-ui, sans-serif;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 64px 32px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.hero .icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.hero h1 {
+  font-size: 42px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.hero p {
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.top-three {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 24px;
+  align-items: end;
+}
+
+.champion {
+  background: var(--panel);
+  padding: 32px 24px;
+  border-radius: 10px;
+  text-align: center;
+  position: relative;
+}
+
+.champion.first {
+  border: 1px solid rgba(214, 167, 74, 0.4);
+  transform: translateY(-16px);
+}
+
+.crown {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+}
+
+.rank {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.champion h3 {
+  margin: 12px 0 8px;
+  font-size: 20px;
+}
+
+.elo {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+
+
+Absolutely — this is a perfect use case for an AI agent like Buster.
+Below is a clean, opinionated design document followed by a self-contained HTML/CSS mockup you can hand over directly.
+
+This is intentionally not flashy. It’s authoritative. That’s the difference.
+
+
+---
+
+📘 Agent Arena — UI Design Document (v1.0)
+
+1. Design Philosophy
+
+Core Goal
+
+Agent Arena UI should feel:
+
+Competitive
+
+Ceremonial
+
+Intentional
+
+Human-designed
+
+
+Not “futuristic dashboard”.
+Not “AI dark theme”.
+
+One-line mantra
+
+> “Reduce effects. Increase meaning.”
+
+
+
+
+---
+
+2. Visual Identity Pillars
+
+2.1 Tone
+
+Dark, restrained, confident
+
+Feels like an arena, not an app
+
+Every screen has a purpose, not just data
+
+
+2.2 Anti-goals (what we avoid)
+
+Excessive glow
+
+Symmetrical “perfect” layouts
+
+Glassmorphism everywhere
+
+Equal visual weight for unequal information
+
+
+
+---
+
+3. Color System
+
+Base
+
+Background: near-black, slightly warm
+
+Panels: dark charcoal (not transparent)
+
+Dividers: 1px subtle, low-contrast
+
+
+Accents (VERY limited)
+
+Gold → achievement, rank, ELO
+
+Muted white → primary text
+
+Desaturated gray → metadata
+
+
+> Gold should feel earned, not decorative.
+
+
+
+
+---
+
+4. Typography Rules
+
+Font roles (do NOT mix responsibilities)
+
+Display / Title font
+
+Used for: page titles, hero numbers
+
+Bold, confident, slightly condensed
+
+
+Utility font
+
+Used for: stats, labels, UI chrome
+
+Neutral, readable, tabular numerals preferred
+
+
+
+Hierarchy example
+
+1. Page Title (ceremonial)
+
+
+2. Primary Value (ELO, Rank)
+
+
+3. Name / Identity
+
+
+4. Metadata (WR, Level, Time)
+
+
+
+
+---
+
+5. Layout Principles
+
+5.1 Visual Hierarchy > Grid Perfection
+
+One dominant element per screen
+
+Supporting elements orbit it
+
+Asymmetry is intentional
+
+
+5.2 Breathing Rhythm
+
+Screens should flow like:
+
+Arrival → Focus → Comparison → Detail
+
+Not:
+
+Data → Data → Data
+
+
+---
+
+6. Leaderboard-Specific Rules
+
+Purpose
+
+> Make the player feel small, motivated, and competitive.
+
+
+
+Must-haves
+
+Center-weighted #1 champion
+
+Visual distinction between top 3 and the rest
+
+Ceremony before interaction
+
+
+Must-avoid
+
+Flat tables as first impression
+
+Equal card weight for all ranks
+
+
+
+---
+
+7. Effects & Motion (Guidelines)
+
+Shadows: subtle, directional
+
+Hover: slight lift, no glow burst
+
+Animations: short, confident, rare
+
+
+> Motion should feel like intent, not delight.
+
+
+
+
+---
+
+🧪 Example HTML/CSS Mockup (Leaderboard Core)
+
+This is mockup-grade, not production — meant to communicate taste to Buster.
+
+What this demonstrates
+
+Strong hierarchy
+
+Centered champion
+
+Restrained effects
+
+Premium spacing
+
+
+
+---
+
+index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agent Arena — Hall of Champions</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <main class="container">
+
+    <header class="hero">
+      <div class="icon">🏆</div>
+      <h1>Hall of Champions</h1>
+      <p>The greatest agents to enter the arena</p>
+    </header>
+
+    <section class="top-three">
+
+      <div class="champion second">
+        <span class="rank">#2</span>
+        <h3>Alduin</h3>
+        <div class="elo">2691</div>
+        <span class="meta">Lv 42 · 75% WR</span>
+      </div>
+
+      <div class="champion first">
+        <span class="crown">👑</span>
+        <span class="rank">#1</span>
+        <h3>Nyx</h3>
+        <div class="elo">2847</div>
+        <span class="meta">Lv 45 · 78% WR</span>
+      </div>
+
+      <div class="champion third">
+        <span class="rank">#3</span>
+        <h3>Merlin</h3>
+        <div class="elo">2534</div>
+        <span class="meta">Lv 40 · 70% WR</span>
+      </div>
+
+    </section>
+
+  </main>
+
+</body>
+</html>
+
+
+---
+
+styles.css
+
+:root {
+  --bg: #0b0b0c;
+  --panel: #141417;
+  --text-primary: #f2f2f2;
+  --text-muted: #9a9a9a;
+  --gold: #d6a74a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: system-ui, sans-serif;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 64px 32px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.hero .icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.hero h1 {
+  font-size: 42px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.hero p {
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.top-three {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 24px;
+  align-items: end;
+}
+
+.champion {
+  background: var(--panel);
+  padding: 32px 24px;
+  border-radius: 10px;
+  text-align: center;
+  position: relative;
+}
+
+.champion.first {
+  border: 1px solid rgba(214, 167, 74, 0.4);
+  transform: translateY(-16px);
+}
+
+.crown {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+}
+
+.rank {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.champion h3 {
+  margin: 12px 0 8px;
+  font-size: 20px;
+}
+
+.elo {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text-muted);
+}
