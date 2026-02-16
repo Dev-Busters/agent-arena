@@ -60,6 +60,101 @@ Visual polish, boss encounters, deeper balancing, marketing assets.
 
 **Goal**: Build the fundamental Crucible experience — clear rooms, advance through floors, die when HP reaches 0.
 
+### D0: Agent Autonomy — The Core Identity
+
+**What to build:**
+- Convert player control from direct WASD to autonomous AI movement
+- The agent moves on its own: navigates toward enemies, attacks automatically, dodges attacks
+- Player CANNOT use WASD to move the agent directly
+- Player CAN trigger active abilities (Q/E/R/F) — this is their only direct input during combat
+- Start with a simple behavior: agent moves toward nearest enemy, attacks when in range, retreats briefly after taking damage
+- The AI behavior should be driven by a simple state machine for now (idle → approach → attack → retreat)
+- The LLM integration comes later (Phase F) but the autonomous foundation must exist from the start
+
+**Implementation:**
+```typescript
+// Agent AI state machine
+enum AgentState {
+  IDLE,
+  APPROACH,
+  ATTACK,
+  RETREAT
+}
+
+class Agent {
+  aiState: AgentState = AgentState.IDLE;
+  target: Enemy | null = null;
+  
+  updateAI(delta: number) {
+    // Find nearest enemy
+    if (!this.target || this.target.dead) {
+      this.target = findNearestEnemy(this.position);
+    }
+    
+    switch (this.aiState) {
+      case AgentState.IDLE:
+        if (this.target) this.aiState = AgentState.APPROACH;
+        break;
+        
+      case AgentState.APPROACH:
+        // Move toward target
+        this.moveToward(this.target.position);
+        if (distanceTo(this.target) < this.attackRange) {
+          this.aiState = AgentState.ATTACK;
+        }
+        break;
+        
+      case AgentState.ATTACK:
+        // Attack target
+        if (this.canAttack()) this.performAttack();
+        // Retreat if hurt
+        if (this.hp < this.lastHp - 20) {
+          this.aiState = AgentState.RETREAT;
+          this.retreatTimer = 1000; // ms
+        }
+        break;
+        
+      case AgentState.RETREAT:
+        // Move away from enemies
+        this.moveAwayFrom(this.target.position);
+        this.retreatTimer -= delta;
+        if (this.retreatTimer <= 0) {
+          this.aiState = AgentState.APPROACH;
+        }
+        break;
+    }
+  }
+}
+
+// WASD keypresses are IGNORED in combat
+// Only Q/E/R/F trigger abilities
+```
+
+**Why this must be first:**
+If the agent controls itself from day one, every subsequent system (room clearing, modifiers, Disciplines, Tenets) is built around that dynamic. If you build 5 phases of direct player control and THEN try to make it autonomous, you'll need to rewrite everything.
+
+**Expected result:**
+- Enter the Crucible → agent starts moving on its own
+- Agent approaches nearest enemy, attacks them automatically
+- Agent retreats briefly after taking significant damage
+- Player presses Q/E/R/F to trigger abilities — this is the only player input during combat
+- The game feels like watching and commanding a fighter, not playing as one
+- Camera can still follow the agent, but player has no direct movement control
+
+**Files to modify:**
+- `Player.ts` → rename to `Agent.ts` (conceptual shift)
+- `Agent.ts` (add AI state machine, remove WASD movement)
+- `ArenaCanvas.tsx` (disable WASD movement input, only listen for Q/E/R/F)
+- `Enemy.ts` (may need shared AI utilities)
+
+**Constraints:**
+- One commit
+- Under 400 lines total changes
+- Test: enter arena, agent moves autonomously toward enemies and attacks
+- No self-certification - describe what the agent does
+
+---
+
 ### D1: Room-Based Structure
 
 **What to build:**
@@ -93,10 +188,11 @@ interface Room {
 ```
 
 **Expected result:**
-- Kill all enemies → "ROOM CLEAR" appears
+- Agent kills all enemies → "ROOM CLEAR" appears
 - 2 seconds later → new enemies spawn in the same space
 - After 3 rooms → "FLOOR 1 COMPLETE" message
 - Floor counter in HUD shows current floor
+- Agent continues to move autonomously between rooms
 
 **Files to modify:**
 - `ArenaCanvas.tsx` (room management logic)
@@ -154,7 +250,7 @@ function generateFloor(floorNum: number): Floor {
 ### D3: Death and Run End
 
 **What to build:**
-- When player HP reaches 0, the run ends
+- When agent HP reaches 0, the run ends
 - Show "FALLEN" screen (React overlay, full screen)
 - Display run stats: floors reached, rooms completed, enemies killed, time
 - "Return to War Room" button
@@ -241,10 +337,11 @@ const ARCHETYPES: Record<EnemyArchetype, EnemyConfig> = {
 
 **Expected result:**
 - Rooms spawn mix of 3 enemy types
-- Red enemies chase you aggressively
-- Purple enemies keep distance and shoot projectiles
-- Green enemies teleport around you
+- Red enemies chase the agent aggressively
+- Purple enemies keep distance and shoot projectiles at the agent
+- Green enemies teleport around the agent
 - Visual distinction is clear
+- Agent's autonomous AI adapts to different enemy types
 
 **Files to modify:**
 - `Enemy.ts` (archetype system, kiting AI, teleport AI)
@@ -257,22 +354,23 @@ const ARCHETYPES: Record<EnemyArchetype, EnemyConfig> = {
 
 ---
 
-### D5: Player Active Abilities (4 hotkeys)
+### D5: Commander Abilities (4 hotkeys)
 
 **What to build:**
 - 4 active abilities mapped to Q/E/R/F (or 1/2/3/4)
 - Each ability has a cooldown timer
-- Abilities are **manual triggers** — player presses key, ability fires immediately
+- Abilities are **manual triggers** — commander (player) presses key, agent executes ability immediately
+- The agent attacks enemies on its own (basic attacks are autonomous from D0)
 - Start with 4 basic abilities (these will be replaced by Discipline abilities in Phase F):
-  - **Q: Dash** — Quick movement burst in facing direction (3s CD)
-  - **E: Area Blast** — Damage all enemies in 100px radius (6s CD)
-  - **R: Projectile** — Fire a skillshot projectile (5s CD)
-  - **F: Heal** — Restore 30% max HP (12s CD)
+  - **Q: Dash** — Agent dashes in its current movement direction (3s CD)
+  - **E: Area Blast** — Damage all enemies in 100px radius around agent (6s CD)
+  - **R: Projectile** — Agent fires a skillshot projectile toward its current target (5s CD)
+  - **F: Heal** — Restore 30% max HP to agent (12s CD)
 
 **Implementation:**
 ```typescript
-// Player class
-class Player {
+// Agent class (not Player - reinforcing the mental model)
+class Agent {
   abilities = {
     dash: { cooldown: 3000, lastUsed: 0, key: 'q' },
     blast: { cooldown: 6000, lastUsed: 0, key: 'e' },
@@ -288,17 +386,26 @@ class Player {
     ability.lastUsed = now;
     this.executeAbility(abilityName);
   }
+  
+  // Basic attacks happen autonomously (from D0 state machine)
+  performAttack() {
+    // Called automatically by AI state machine
+    // NOT triggered by SPACE key
+  }
 }
 
-// In game loop, listen for Q/E/R/F keypresses
+// In game loop, ONLY listen for Q/E/R/F keypresses
+// WASD and SPACE are ignored
 ```
 
 **Expected result:**
-- Press Q → player dashes forward quickly
-- Press E → yellow explosion appears, damages nearby enemies
-- Press R → orange projectile fires toward mouse cursor
-- Press F → green heal effect, HP bar refills
+- Press Q → agent dashes forward in its current movement direction
+- Press E → yellow explosion appears around agent, damages nearby enemies
+- Press R → orange projectile fires from agent toward its current target
+- Press F → green heal effect, agent's HP bar refills
 - Abilities show cooldown overlays on HUD buttons (gray fill that shrinks)
+- Agent continues attacking enemies automatically between ability uses
+- The commander (player) feels like they're issuing tactical commands, not directly controlling movement
 
 **Files to modify:**
 - `Player.ts` (ability system)
@@ -314,13 +421,14 @@ class Player {
 ---
 
 **✅ Phase D Complete When:**
-- [ ] You can play a Crucible run for 5+ minutes
+- [ ] Agent moves and fights autonomously (no WASD control)
+- [ ] You can watch and command the agent through a Crucible run for 5+ minutes
 - [ ] Rooms clear → advance → new room spawns
 - [ ] Floors increment with difficulty scaling
 - [ ] 3 enemy types with distinct behaviors
-- [ ] 4 active abilities work with cooldowns
+- [ ] 4 commander abilities work with cooldowns (Q/E/R/F only input)
 - [ ] Death ends the run and shows stats
-- [ ] The core loop feels fun and responsive
+- [ ] The core loop feels like commanding a fighter, not playing as one
 
 ---
 
@@ -334,11 +442,13 @@ class Player {
 - After each room clear, show a choice of 3 modifiers
 - Modifiers are temporary buffs that last for the run
 - Start with 12 simple modifiers (expand later):
-  - **Amplifiers**: "Abilities deal +20% damage", "Cooldowns reduced 15%", "Movement speed +15%"
+  - **Amplifiers**: "Abilities deal +20% damage", "Cooldowns reduced 15%", "Agent moves 15% faster"
   - **Triggers**: "On kill: heal 5% max HP", "On ability use: 10% chance to reset cooldown", "On dodge: leave damaging afterimage"
   - **Transmuters**: "Abilities leave burning ground", "Projectiles pierce 1 enemy", "Dash has 2 charges"
+  - **Agent Augments**: "Agent dodges 25% more frequently", "Agent prioritizes wounded enemies", "Agent attacks 20% faster"
 - Chosen modifier is added to a list, effects stack
 - Modifier selection UI: 3 cards side-by-side, click to choose, brief card flip animation
+- Agent Augments make sense now because the agent IS autonomous (since D0)
 
 **Implementation:**
 ```typescript
@@ -475,27 +585,27 @@ const shopItems = [
 
 **What to build:**
 - Every 5th floor (5, 10, 15, 20...) is a Trial floor
-- Trial analyzes player's behavior from previous floors:
-  - Track: average distance from enemies, ability usage frequency, damage taken per room
-  - Generate counter-composition: if player kites, spawn fast chasers; if player facetanks, spawn ranged enemies; if player spams abilities, spawn high-HP enemies
+- Trial analyzes the agent's behavior from previous floors:
+  - Track: average distance from enemies, ability usage frequency (commander inputs), damage taken per room
+  - Generate counter-composition: if agent kites, spawn fast chasers; if agent facetanks, spawn ranged enemies; if commander spams abilities, spawn high-HP enemies
 - Trial floor is harder than normal but gives better rewards (Epic modifier choice)
 - "TRIAL FLOOR V" announcement before it starts
 
 **Implementation:**
 ```typescript
-// Track player behavior
+// Track agent behavior
 interface BehaviorProfile {
-  avgDistanceFromEnemies: number;
-  abilityUsageRate: number;
-  damagePerRoom: number;
+  avgDistanceFromEnemies: number;  // Agent's positioning pattern
+  abilityUsageRate: number;        // Commander's ability frequency
+  damagePerRoom: number;           // Agent's survivability
 }
 
 function generateTrialFloor(profile: BehaviorProfile): Room {
   if (profile.avgDistanceFromEnemies > 150) {
-    // Player kites → spawn dashers and chargers
+    // Agent kites → spawn dashers and chargers
     return createRoom({ dashers: 6, chargers: 3 });
   } else if (profile.abilityUsageRate > 0.5) {
-    // Player spams abilities → spawn high-HP rangers
+    // Commander spams abilities → spawn high-HP rangers
     return createRoom({ rangers: 8, hpMultiplier: 2 });
   }
   // etc.
@@ -588,10 +698,119 @@ class Boss extends Enemy {
 
 **Goal**: Implement the permanent build depth — Combat Schools, Disciplines, and Tenets.
 
+### F0: AI Decision Framework
+
+**What to build:**
+- Define the combat state that gets sent to the AI model each decision tick
+- Decision tick rate: every 300-500ms (not every frame — too expensive)
+- Between ticks, the behavior state machine from D0 handles frame-by-frame movement
+- Each tick, the AI model receives:
+  - Agent position, HP, cooldown states
+  - Enemy positions, types, HP, current actions
+  - Room layout (walls, obstacles, hazards)
+  - Active modifiers and their effects
+  - Equipped Tenets (as behavior instructions)
+- The AI model outputs:
+  - Movement preference (direction bias, aggression level)
+  - Target priority (which enemy to focus)
+  - Dodge urgency (0-1 scale, affects retreat frequency)
+- Start with a **mock AI** that makes random-but-reasonable decisions (weighted by distance, HP, etc.)
+- The mock AI is the baseline. Later, real LLM models replace it — but the interface is defined NOW.
+
+**Implementation:**
+```typescript
+// Combat state sent to AI model
+interface CombatState {
+  agent: {
+    position: Vector2;
+    hp: number;
+    maxHp: number;
+    cooldowns: Record<string, number>;
+  };
+  enemies: Array<{
+    id: string;
+    position: Vector2;
+    type: EnemyArchetype;
+    hp: number;
+    maxHp: number;
+    currentAction: string;
+  }>;
+  room: {
+    walls: Rect[];
+    hazards: Hazard[];
+  };
+  modifiers: Modifier[];
+  tenets: Tenet[];
+}
+
+// AI model output
+interface AIDecision {
+  movementBias: Vector2;      // Preferred direction (-1 to 1 for x/y)
+  aggressionLevel: number;    // 0 = retreat, 1 = charge
+  targetPriority: string;     // Enemy ID to focus
+  dodgeUrgency: number;       // 0-1, affects retreat threshold
+}
+
+// Mock AI (will be replaced with LLM later)
+function mockAIDecision(state: CombatState): AIDecision {
+  // Simple heuristic-based decisions
+  const nearestEnemy = findNearest(state.enemies, state.agent.position);
+  const hpPercent = state.agent.hp / state.agent.maxHp;
+  
+  return {
+    movementBias: vectorToward(nearestEnemy.position),
+    aggressionLevel: hpPercent > 0.5 ? 0.8 : 0.3,
+    targetPriority: nearestEnemy.id,
+    dodgeUrgency: hpPercent < 0.3 ? 0.9 : 0.2
+  };
+}
+
+// Decision tick loop
+let decisionTimer = 0;
+const DECISION_INTERVAL = 400; // ms
+
+function update(delta: number) {
+  decisionTimer += delta;
+  
+  if (decisionTimer >= DECISION_INTERVAL) {
+    const state = gatherCombatState();
+    const decision = mockAIDecision(state); // Later: realLLMDecision(state)
+    applyAIDecision(decision);
+    decisionTimer = 0;
+  }
+  
+  // State machine from D0 handles frame-by-frame execution
+  agent.updateAI(delta);
+}
+```
+
+**Why this must come before F1:**
+The Tenet system (F3) modifies AI behavior. If the AI decision framework doesn't exist, Tenets like "Strike the Wounded" and "Ghost Protocol" have nothing to modify. The framework must exist before Tenets are built.
+
+**Expected result:**
+- Agent behavior is now driven by the decision framework (not just the simple state machine from D0)
+- Mock AI makes reasonable decisions: targets wounded enemies, retreats when low HP, varies approach
+- Debug overlay (toggle with backtick key) shows: current AI decision, target, movement preference, aggression level
+- The interface is clean enough that swapping in a real LLM later requires changing ONE function (mockAIDecision → realLLMDecision)
+- Decision tick rate is configurable (300-500ms)
+
+**Files to modify:**
+- New: `AIDecisionFramework.ts` (decision interface, mock AI, tick loop)
+- `Agent.ts` (integrate decision framework with state machine from D0)
+- New: `DebugOverlay.tsx` (show AI decisions, toggle with backtick)
+
+**Constraints:**
+- One commit
+- Under 400 lines
+- Test: watch agent for 1 minute, verify decisions update every 400ms, debug overlay shows decision data
+- No self-certification - describe what the AI decides to do
+
+---
+
 ### F1: Combat School Selection (Agent Creation)
 
 **What to build:**
-- Before entering the Crucible, player chooses a Combat School:
+- Before entering the Crucible, commander (player) chooses a Combat School for their agent:
   - **Vanguard** (melee tank)
   - **Invoker** (ranged caster)
   - **Phantom** (agile striker)
@@ -1005,23 +1224,30 @@ function enchantEquipment(item: Equipment, crystalMod: Modifier) {
 
 ---
 
-### H3: Authentication (NextAuth + GitHub OAuth)
+### H3: Authentication (Existing OAuth + Session Management)
 
 **What to build:**
-- NextAuth.js setup with GitHub provider
+- Use the existing Discord and Google OAuth already implemented in the codebase
+- Session management and protected routes
+- Connect auth to the new Supabase schema (link OAuth users to Supabase users table)
 - Login/Logout in sidebar
-- Protected routes (require login to access)
-- Session management
+- Protected routes (require login to access /crucible, /armory, /dashboard)
 
-**Files to modify:**
-- New: `/api/auth/[...nextauth].ts`
-- `Layout.tsx` (SessionProvider wrapper)
+**Files that already exist:**
+- `frontend/src/app/auth/discord/callback/page.tsx`
+- `frontend/src/app/auth/google/callback/page.tsx`
+- `frontend/src/app/auth/login/page.tsx`
+
+**What to modify:**
+- `Layout.tsx` (session context, protected route logic)
 - Sidebar (login/logout buttons)
+- Auth callback pages (connect to Supabase user creation)
+- New: `/api/auth/session.ts` (session management API)
 
 **Constraints:**
 - One commit
-- Under 200 lines
-- Test: OAuth flow, session persists
+- Under 250 lines
+- Test: Discord OAuth flow works, Google OAuth flow works, sessions persist, protected routes redirect to login
 
 ---
 
@@ -1083,7 +1309,7 @@ function enchantEquipment(item: Equipment, crystalMod: Modifier) {
 
 **✅ Phase H Complete When:**
 - [ ] All pages navigable with sidebar
-- [ ] Auth works (GitHub OAuth)
+- [ ] Auth works (Discord and Google OAuth)
 - [ ] Database persists all data
 - [ ] API routes work
 - [ ] Leaderboard shows real data
@@ -1100,38 +1326,203 @@ function enchantEquipment(item: Equipment, crystalMod: Modifier) {
 
 **What to build:**
 - Same combat engine as Crucible, but opponent is another player's agent (AI-controlled)
-- Both players issue commands simultaneously
+- **Both agents are AI-controlled** (neither player uses WASD)
+- Both players (commanders) issue ability commands simultaneously (Q/E/R/F)
+- Camera shows full arena (both agents visible at all times)
 - Best-of-3 rounds
-- No in-run modifiers (permanent build only)
-- Winner determined by HP remaining
+- Round timer: 60 seconds max per round, agent with most HP remaining wins if timer expires
+- No in-run modifiers (permanent build only — Schools, Disciplines, Tenets, Equipment)
+- Winner determined by HP remaining after all rounds
+
+**Implementation:**
+```typescript
+interface ArenaMatch {
+  player1: { agentId: string, commander: string };
+  player2: { agentId: string, commander: string };
+  rounds: Round[];
+  currentRound: number;
+  matchState: 'waiting' | 'active' | 'complete';
+}
+
+interface Round {
+  timeLimit: number; // 60 seconds
+  winner: string | null;
+  player1HP: number;
+  player2HP: number;
+}
+
+// Both agents fight autonomously
+// Both players can trigger abilities via socket events
+```
 
 **Constraints:**
 - One commit
 - Under 500 lines
-- Test: fight against a mock opponent AI
+- Test: fight against a mock opponent AI, verify both agents move autonomously, verify timer works
 
 ---
 
-### I2: Matchmaking and ELO
+### I2: Replay System
+
+**What to build:**
+- After a match, save the replay (sequence of AI decisions + ability commands from both players)
+- Replay data stored in database (match_replays table)
+- Players can watch replays from the Arena results screen
+- Replay viewer: play/pause, speed controls (0.5x, 1x, 2x), scrub timeline
+- This is critical for learning opponent strategies and for spectator features mentioned in the Bible
+
+**Implementation:**
+```typescript
+interface ReplayData {
+  matchId: string;
+  duration: number;
+  ticks: ReplayTick[];
+}
+
+interface ReplayTick {
+  timestamp: number;
+  agent1: { position: Vector2, hp: number, action: string };
+  agent2: { position: Vector2, hp: number, action: string };
+  events: ReplayEvent[]; // abilities used, deaths, round transitions
+}
+
+// Replay viewer shows both agents moving through the match
+// Commander ability inputs highlighted when used
+```
+
+**Expected result:**
+- After match → "Watch Replay" button
+- Click replay → match plays back with both agents
+- Can pause, rewind, speed up
+- Ability uses shown with visual indicators
+- Useful for learning and improvement
+
+**Files to modify:**
+- New: `ReplaySystem.ts` (record and playback logic)
+- New: `ReplayViewer.tsx` (UI for watching replays)
+- `ArenaCanvas.tsx` (replay playback mode)
+- API: `POST /api/arena/replays` (save), `GET /api/arena/replays/:matchId` (fetch)
+
+**Constraints:**
+- One commit
+- Under 450 lines
+- Test: save replay, watch it back, verify playback controls work
+
+---
+
+### I3: Matchmaking and ELO
 
 **What to build:**
 - Matchmaking queue (find opponent based on ELO rating)
-- ELO calculation (winner gains, loser drops)
-- Match history tracking
-- Separate leaderboard for Arena ELO
+- ELO calculation (winner gains, loser drops, using standard ELO formula)
+- Match history tracking (last 20 matches per player)
+- Separate leaderboard for Arena ELO (not Crucible depth)
+- Matchmaking prioritizes similar ELO (±100 initially, expands after 30s wait)
+
+**Implementation:**
+```typescript
+// ELO calculation
+function calculateELOChange(winnerELO: number, loserELO: number, kFactor = 32): { winnerNew: number, loserNew: number } {
+  const expectedWinner = 1 / (1 + Math.pow(10, (loserELO - winnerELO) / 400));
+  const expectedLoser = 1 - expectedWinner;
+  
+  return {
+    winnerNew: winnerELO + kFactor * (1 - expectedWinner),
+    loserNew: loserELO + kFactor * (0 - expectedLoser)
+  };
+}
+
+// Matchmaking queue
+interface QueueEntry {
+  playerId: string;
+  agentId: string;
+  elo: number;
+  queuedAt: number;
+}
+
+// Find match within ±100 ELO, expand range over time
+```
+
+**Expected result:**
+- Click "Queue for Arena" → wait for opponent
+- Matched with similar ELO player
+- After match → ELO updates shown ("+15 ELO", "-12 ELO")
+- Match history shows past opponents and results
+
+**Files to modify:**
+- New: `Matchmaking.ts` (queue system, ELO calculation)
+- New: `ArenaQueue.tsx` (queue UI, waiting screen)
+- API: `POST /api/arena/queue`, `GET /api/arena/match-history`
 
 **Constraints:**
 - One commit
 - Under 400 lines
-- Test: queue, match, gain/lose ELO
+- Test: queue, match, gain/lose ELO, verify match history
+
+---
+
+### I4: Arena Leaderboard and Seasons
+
+**What to build:**
+- Arena-specific leaderboard page (separate from Crucible depth leaderboard)
+- Shows top 100 by ELO, sorted descending
+- Each entry: rank, agent name, Combat School icon, ELO rating, win/loss record
+- Seasonal system: Arena runs on 1-month seasons
+- Seasonal ELO soft reset at season end (compress toward median: newELO = 1200 + (oldELO - 1200) * 0.5)
+- Season rewards at rank thresholds (top 10, top 50, top 100 get cosmetics or exclusive equipment)
+- Visual: gold/silver/bronze badges for top 3, season number displayed
+
+**Implementation:**
+```typescript
+interface Season {
+  id: number;
+  startDate: Date;
+  endDate: Date;
+  leaderboard: LeaderboardEntry[];
+  rewards: SeasonReward[];
+}
+
+interface SeasonReward {
+  rankThreshold: number; // e.g., 10 = top 10
+  rewardType: 'cosmetic' | 'equipment' | 'title';
+  rewardId: string;
+}
+
+// At season end, calculate rewards, reset ELO, start new season
+function endSeason(seasonId: number) {
+  const leaderboard = getSeasonLeaderboard(seasonId);
+  distributeRewards(leaderboard);
+  softResetAllELO();
+  startNewSeason();
+}
+```
+
+**Expected result:**
+- Arena leaderboard page shows top 100 by ELO
+- Top 3 have gold/silver/bronze styling
+- Season number shown (e.g., "Season 1")
+- Season end date countdown displayed
+- After season ends → rewards distributed, ELO reset
+
+**Files to modify:**
+- New: `ArenaLeaderboard.tsx` (Arena-specific leaderboard UI)
+- New: `SeasonSystem.ts` (season management, soft reset logic)
+- API: `GET /api/arena/leaderboard`, `GET /api/arena/season/current`
+
+**Constraints:**
+- One commit
+- Under 350 lines
+- Test: view leaderboard, verify styling, check season info displayed
 
 ---
 
 **✅ Phase I Complete When:**
-- [ ] Arena 1v1 works
-- [ ] Matchmaking finds opponents
-- [ ] ELO system works
-- [ ] Arena leaderboard separate from Crucible
+- [ ] Arena 1v1 works (both agents AI-controlled, commanders issue abilities)
+- [ ] Replay system works (save and watch replays)
+- [ ] Matchmaking finds opponents based on ELO
+- [ ] ELO system works (gains/losses calculated correctly)
+- [ ] Arena leaderboard separate from Crucible (different data)
+- [ ] Seasonal system works (soft reset, rewards at season end)
 
 ---
 
