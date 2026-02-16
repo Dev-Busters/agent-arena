@@ -248,6 +248,123 @@ body {
 }
 
 /* ============================================
+   Premium Typography Effects
+   ============================================ */
+@layer components {
+  /* Gradient gold text — for hero titles */
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 40%, #f59e0b 60%, #d97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gradient fire text — for aggressive headings */
+  .text-gradient-fire {
+    background: linear-gradient(135deg, #f97316 0%, #ef4444 50%, #f97316 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Gold text glow — for important numbers */
+  .text-glow-gold {
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.4), 0 0 30px rgba(245, 158, 11, 0.15);
+  }
+
+  /* Fire text glow */
+  .text-glow-fire {
+    text-shadow: 0 0 10px rgba(249, 115, 22, 0.4), 0 0 30px rgba(249, 115, 22, 0.15);
+  }
+
+  /* Arcane text glow */
+  .text-glow-arcane {
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.15);
+  }
+
+  /* Subtle text shadow for readability on dark bg */
+  .text-shadow-sm {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Ornamental section header with side lines */
+  .ornament-header {
+    @apply flex items-center gap-4;
+  }
+  .ornament-header::before,
+  .ornament-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  }
+
+  /* Pulsing glow border for active/important elements */
+  .glow-pulse-gold {
+    animation: glowPulseGold 2s ease-in-out infinite;
+  }
+
+  .glow-pulse-fire {
+    animation: glowPulseFire 2s ease-in-out infinite;
+  }
+}
+
+/* ============================================
+   Keyframe Animations
+   ============================================ */
+
+/* Gold glow pulse */
+@keyframes glowPulseGold {
+  0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.2), 0 0 50px rgba(245, 158, 11, 0.05); }
+}
+
+/* Fire glow pulse */
+@keyframes glowPulseFire {
+  0%, 100% { box-shadow: 0 0 15px rgba(249, 115, 22, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(249, 115, 22, 0.2), 0 0 50px rgba(249, 115, 22, 0.05); }
+}
+
+/* Gold shimmer sweep */
+@keyframes goldShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Ambient floating for decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Subtle scale breathe for icons */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Slide in from below with fade */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Count up number animation helper */
+@keyframes countFade {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Reduced motion: respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.15ms !important;
+  }
+}
+
+/* ============================================
    Staggered card entrance animations
    ============================================ */
 .stagger-children > *:nth-child(1) { animation-delay: 0.05s; }

@@ -35,7 +35,7 @@ function AgentIcon({ type, size = 56 }: { type: string; size?: number }) {
   const c = typeConfig[type];
   return (
     <div
-      className="rounded-full flex items-center justify-center"
+      className="rounded-full flex items-center justify-center transition-transform duration-300 hover:scale-110"
       style={{
         width: size, height: size,
         background: c.bg,
@@ -54,23 +54,47 @@ function PodiumCard({ entry, position }: { entry: typeof mockLeaderboard[0]; pos
   const badge = position === 'first' ? '👑' : position === 'second' ? '🥈' : '🥉';
   const iconSize = isFirst ? 80 : 56;
   const eloSize = isFirst ? 'text-[2.75rem]' : 'text-[2rem]';
+  const delay = position === 'first' ? 0.2 : position === 'second' ? 0.35 : 0.5;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: position === 'first' ? 0.1 : position === 'second' ? 0.2 : 0.3 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className={`
-        ${isFirst ? 'game-card-gold' : 'game-card'} 
+        ${isFirst ? 'game-card-gold glow-pulse-gold' : 'game-card'} 
         rounded-2xl text-center flex flex-col items-center
         ${isFirst ? 'py-6 px-5 -mt-6 z-10 relative' : 'py-5 px-4 opacity-85'}
       `}
     >
-      <span className={isFirst ? 'text-3xl mb-2' : 'text-2xl mb-1'}>{badge}</span>
+      {/* Animated badge */}
+      <motion.span
+        className={isFirst ? 'text-3xl mb-2' : 'text-2xl mb-1'}
+        animate={isFirst ? { y: [0, -4, 0] } : {}}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        {badge}
+      </motion.span>
+      
       <AgentIcon type={entry.type} size={iconSize} />
-      <h3 className={`font-display font-bold text-[#e8e6e3] mt-2 ${isFirst ? 'text-xl' : 'text-base'}`}>{entry.name}</h3>
+      
+      {/* Agent name with display font */}
+      <h3 className={`font-display font-bold text-shadow-sm mt-2 ${isFirst ? 'text-xl text-gradient-gold' : 'text-base text-[#e8e6e3]'}`}>
+        {entry.name}
+      </h3>
       <p className="text-[#6b7280] text-xs">{entry.owner}</p>
-      <div className={`font-mono font-bold text-gold-bright mt-2 ${eloSize}`}>{entry.elo.toLocaleString()}</div>
+      
+      {/* ELO with glow effect */}
+      <motion.div
+        className={`font-mono font-bold mt-2 ${eloSize} ${isFirst ? 'text-glow-gold shimmer-gold' : 'text-gold-bright'}`}
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: delay + 0.3, duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      >
+        {entry.elo.toLocaleString()}
+      </motion.div>
+      
       <div className="flex items-center gap-3 text-xs font-mono mt-1 text-[#6b7280]">
         <span>Lv.{entry.level}</span>
         <span className="text-venom">{entry.wins}W</span>
@@ -89,24 +113,57 @@ export default function LeaderboardPage() {
     <div className="min-h-screen p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         
-        {/* Header */}
+        {/* Header with dramatic entrance */}
         <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-1"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="text-center space-y-2"
         >
-          <span className="text-5xl">🏆</span>
-          <h1 className="font-display text-[2.75rem] font-bold text-[#e8e6e3] tracking-wide leading-tight">
+          {/* Trophy with floating animation */}
+          <motion.span
+            className="text-5xl inline-block"
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            🏆
+          </motion.span>
+          
+          {/* Title with gradient gold text */}
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="font-display text-[2.75rem] font-bold tracking-wide leading-tight text-gradient-gold text-glow-gold"
+          >
             Hall of Champions
-          </h1>
-          <p className="text-[#92600a] italic font-display text-sm tracking-wide">
+          </motion.h1>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-[#92600a] italic font-display text-sm tracking-widest uppercase"
+          >
             The greatest warriors to descend into the depths
-          </p>
-          <div className="divider-gold max-w-xs mx-auto mt-3" />
+          </motion.p>
+          
+          {/* Ornamental divider */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
+            className="divider-gold max-w-xs mx-auto mt-3"
+          />
         </motion.div>
         
-        {/* Sort Tabs */}
-        <div className="flex justify-center gap-1.5">
+        {/* Sort Tabs with animated underline */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="flex justify-center gap-1.5"
+        >
           {sortTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -115,31 +172,48 @@ export default function LeaderboardPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
+                  relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                  transition-all duration-200
                   ${isActive 
-                    ? 'bg-gold/10 text-gold border border-gold/20' 
-                    : 'text-[#6b7280] hover:text-[#e8e6e3] hover:bg-white/[0.03] border border-transparent'
+                    ? 'text-gold' 
+                    : 'text-[#6b7280] hover:text-[#e8e6e3] hover:bg-white/[0.03]'
                   }
                 `}
               >
                 <Icon size={14} />
                 {tab.label}
+                {/* Animated gold underline */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute -bottom-0.5 left-2 right-2 h-[2px] rounded-full"
+                    style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  />
+                )}
               </button>
             );
           })}
-        </div>
+        </motion.div>
         
         {/* Filters + Search */}
-        <div className="flex justify-center items-center gap-3">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35 }}
+          className="flex justify-center items-center gap-3"
+        >
           <div className="flex gap-1.5">
             {Object.entries(typeConfig).map(([type, config]) => (
-              <button
+              <motion.button
                 key={type}
-                className="w-9 h-9 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-gold-dim/40 flex items-center justify-center text-base transition-all hover:bg-white/[0.04]"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-9 h-9 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-gold-dim/40 flex items-center justify-center text-base transition-colors hover:bg-white/[0.04]"
                 title={type.charAt(0).toUpperCase() + type.slice(1)}
               >
                 {config.icon}
-              </button>
+              </motion.button>
             ))}
           </div>
           <div className="relative">
@@ -147,32 +221,36 @@ export default function LeaderboardPage() {
             <input
               type="text"
               placeholder="Search champions..."
-              className="pl-8 pr-3 py-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg text-xs text-[#e8e6e3] placeholder-[#6b7280] focus:border-gold-dim/40 focus:outline-none transition-colors w-48"
+              className="pl-8 pr-3 py-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg text-xs text-[#e8e6e3] placeholder-[#6b7280] focus:border-gold-dim/40 focus:outline-none focus:ring-1 focus:ring-gold/10 transition-all w-48"
             />
           </div>
-        </div>
+        </motion.div>
         
-        {/* TOP 3 PODIUM — center card larger */}
+        {/* TOP 3 PODIUM */}
         <div className="grid gap-4 items-end max-w-4xl mx-auto" style={{ gridTemplateColumns: '1fr 1.3fr 1fr' }}>
           <PodiumCard entry={top3[1]} position="second" />
           <PodiumCard entry={top3[0]} position="first" />
           <PodiumCard entry={top3[2]} position="third" />
         </div>
         
-        {/* Divider */}
-        <div className="divider-gold" />
+        {/* Ornamental divider */}
+        <div className="ornament-header">
+          <span className="text-[0.65rem] text-[#6b7280] uppercase tracking-[0.15em] font-semibold whitespace-nowrap">
+            Full Rankings
+          </span>
+        </div>
         
         {/* Rankings Table */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.6 }}
         >
           <table className="w-full border-separate" style={{ borderSpacing: '0 3px' }}>
             <thead>
               <tr>
                 {['Rank', 'Champion', 'Commander', 'ELO', 'Level', 'Record', 'Win Rate'].map((h, i) => (
-                  <th key={h} className={`${i >= 3 ? 'text-right' : 'text-left'} px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.12em] text-[#6b7280] font-semibold`}>
+                  <th key={h} className={`${i >= 3 ? 'text-right' : 'text-left'} px-3 py-1.5 text-[0.6rem] uppercase tracking-[0.15em] text-[#6b7280] font-semibold`}>
                     {h}
                   </th>
                 ))}
@@ -184,13 +262,19 @@ export default function LeaderboardPage() {
                 return (
                   <motion.tr
                     key={entry.rank}
-                    initial={{ opacity: 0, x: -10 }}
+                    initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 + idx * 0.04 }}
-                    className="group cursor-pointer transition-all duration-200"
-                    style={{ background: 'rgba(255,255,255,0.02)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                    transition={{ delay: 0.7 + idx * 0.06, ease: 'easeOut' }}
+                    className="group cursor-pointer"
+                    style={{ background: 'rgba(255,255,255,0.015)', borderRadius: 8 }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      e.currentTarget.style.transform = 'translateX(3px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.015)';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
                   >
                     <td className="px-3 py-2.5 rounded-l-lg">
                       <span className="text-[#6b7280] font-mono font-bold text-sm">#{entry.rank}</span>
@@ -198,7 +282,7 @@ export default function LeaderboardPage() {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
                         <AgentIcon type={entry.type} size={28} />
-                        <span className="font-display font-semibold text-sm text-[#e8e6e3] group-hover:text-gold transition-colors">
+                        <span className="font-display font-semibold text-sm text-[#e8e6e3] group-hover:text-gold transition-colors duration-200">
                           {entry.name}
                         </span>
                       </div>
@@ -225,7 +309,7 @@ export default function LeaderboardPage() {
           </table>
         </motion.div>
         
-        <p className="text-center text-[#6b7280] text-xs italic">
+        <p className="text-center text-[#6b7280] text-xs italic font-display tracking-wide">
           Rankings forged in the heat of battle • Updated each dawn
         </p>
       </div>
