@@ -8,6 +8,7 @@ import { ParticleSystem } from './Particles';
 import { getSoundManager } from './Sound';
 import { XPOrb } from './XPOrb';
 import { Loot, randomLootType } from './Loot';
+import { Room, generateRooms, getRoomCount } from './Room';
 
 export interface GameStats {
   playerHp: number;
@@ -16,7 +17,8 @@ export interface GameStats {
   playerXP: number;
   playerXPToNext: number;
   kills: number;
-  wave: number;
+  floor: number;
+  roomsCompleted: number;
   enemiesRemaining: number;
 }
 
@@ -43,15 +45,8 @@ const WALL_THICKNESS = 16;
 const WALL_COLOR = 0x2a2a3a;
 const WALL_HIGHLIGHT = 0x3a3a4a;
 
-// Wave configuration
-const WAVES = [
-  { wave: 1, count: 3, delay: 0 },      // Starting wave
-  { wave: 2, count: 5, delay: 3000 },   // 3s delay after wave 1
-  { wave: 3, count: 7, delay: 3000 },
-  { wave: 4, count: 9, delay: 3000 },
-  { wave: 5, count: 12, delay: 3000 },  // Gets harder
-];
-const WAVE_DELAY_MS = 3000;
+// Room configuration
+const ROOM_CLEAR_DELAY_MS = 2000; // 2 seconds to show "ROOM CLEAR" before spawning next room
 
 /**
  * Creates the arena floor with tiled pattern
@@ -152,8 +147,9 @@ export default function ArenaCanvas({
     playerXP: 0,
     playerXPToNext: 100,
     kills: 0,
-    wave: 1,
-    enemiesRemaining: 3
+    floor: 1,
+    roomsCompleted: 0,
+    enemiesRemaining: 0
   });
   
   // Keep pause ref in sync
@@ -194,56 +190,60 @@ export default function ArenaCanvas({
     const particles = new ParticleSystem();
     app.stage.addChild(particles.container);
     
-    // Wave management
-    let currentWaveIndex = 0;
-    let waveTransitioning = false;
+    // Crucible room management
+    let currentFloor = 1;
+    let currentRoomIndex = 0;
+    let rooms: Room[] = generateRooms(currentFloor, getRoomCount(currentFloor));
+    let roomTransitioning = false;
     let enemies: Enemy[] = [];
     let xpOrbs: XPOrb[] = [];
     let lootItems: Loot[] = [];
     
-    // Helper to update game stats (defined before spawnWave uses it)
+    // Helper to update game stats
     const updateStats = () => {
       gameStatsRef.current = {
-        playerHp: agent.state.hp, // Agent's current HP
+        playerHp: agent.state.hp,
         playerMaxHp: agent.state.maxHp,
         playerLevel: agent.state.level,
         playerXP: agent.state.xp,
         playerXPToNext: agent.state.xpToNext,
         kills: gameStatsRef.current.kills,
-        wave: gameStatsRef.current.wave,
+        floor: currentFloor,
+        roomsCompleted: currentRoomIndex,
         enemiesRemaining: enemies.length
       };
       onGameStateChange?.(gameStatsRef.current);
     };
     
-    // Function to spawn a wave
-    const spawnWave = (waveIndex: number) => {
-      if (waveIndex >= WAVES.length) {
-        console.log('🎉 All waves complete!');
-        return;
-      }
+    // Function to spawn a room
+    const spawnRoom = (room: Room) => {
+      console.log(`🚪 Spawning Floor ${room.floor} Room ${room.roomNumber}`);
       
-      const waveConfig = WAVES[waveIndex];
-      console.log(`🌊 Spawning Wave ${waveConfig.wave} (${waveConfig.count} enemies)`);
+      // Count total enemies from all spawn types
+      let totalEnemies = 0;
+      const newEnemies: Enemy[] = [];
       
-      const newEnemies = spawnEnemies(
-        waveConfig.count,
-        agent.state.x,
-        agent.state.y,
-        width,
-        height,
-        WALL_THICKNESS
-      );
+      room.enemySpawns.forEach(spawn => {
+        const spawnedGroup = spawnEnemies(
+          spawn.count,
+          agent.state.x,
+          agent.state.y,
+          width,
+          height,
+          WALL_THICKNESS
+        );
+        newEnemies.push(...spawnedGroup);
+        totalEnemies += spawn.count;
+      });
       
       newEnemies.forEach(enemy => app.stage.addChild(enemy.container));
       enemies = newEnemies;
       
-      gameStatsRef.current.wave = waveConfig.wave;
       updateStats();
     };
     
-    // Spawn first wave
-    spawnWave(0);
+    // Spawn first room
+    spawnRoom(rooms[currentRoomIndex]);
     
     // Sound manager
     const sound = getSoundManager();
@@ -369,19 +369,33 @@ export default function ArenaCanvas({
         }
       }
       
-      // Check for wave completion
-      if (enemies.length === 0 && !waveTransitioning && currentWaveIndex < WAVES.length) {
-        waveTransitioning = true;
-        console.log(`✅ Wave ${WAVES[currentWaveIndex].wave} complete!`);
+      // Check for room completion
+      if (enemies.length === 0 && !roomTransitioning) {
+        // Mark current room as cleared
+        rooms[currentRoomIndex].cleared = true;
+        roomTransitioning = true;
         
-        // Delay before next wave
+        console.log(`✅ Floor ${currentFloor} Room ${currentRoomIndex + 1} CLEAR!`);
+        
+        // TODO: Show "ROOM CLEAR" overlay (will add in next commit)
+        
+        // Delay before next room
         setTimeout(() => {
-          currentWaveIndex++;
-          if (currentWaveIndex < WAVES.length) {
-            spawnWave(currentWaveIndex);
+          currentRoomIndex++;
+          
+          // Check if floor is complete
+          if (currentRoomIndex >= rooms.length) {
+            console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
+            // TODO: Show "FLOOR X COMPLETE" overlay (will add in D2)
+            currentFloor++;
+            currentRoomIndex = 0;
+            rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
           }
-          waveTransitioning = false;
-        }, WAVE_DELAY_MS);
+          
+          // Spawn next room
+          spawnRoom(rooms[currentRoomIndex]);
+          roomTransitioning = false;
+        }, ROOM_CLEAR_DELAY_MS);
       }
     });
     

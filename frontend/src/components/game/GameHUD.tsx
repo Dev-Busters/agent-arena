@@ -9,7 +9,8 @@ export interface GameState {
   playerXP: number;
   playerXPToNext: number;
   kills: number;
-  wave: number;
+  floor: number;
+  roomsCompleted: number;
   enemiesRemaining: number;
   isPaused: boolean;
 }
@@ -25,7 +26,7 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, wave, enemiesRemaining, isPaused } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, floor, roomsCompleted, enemiesRemaining, isPaused } = gameState;
   const hpPercent = (playerHp / playerMaxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const xpPercent = (playerXP / playerXPToNext) * 100;
@@ -70,11 +71,11 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
           </div>
         </div>
 
-        {/* Center: Wave info */}
+        {/* Center: Floor info */}
         <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg px-6 py-3 border border-purple-500/30">
           <div className="text-center">
-            <div className="text-xs text-purple-400 uppercase tracking-wider">Wave</div>
-            <div className="text-2xl font-bold text-white">{wave}</div>
+            <div className="text-xs text-purple-400 uppercase tracking-wider">Floor {floor}</div>
+            <div className="text-sm font-bold text-white">Room {roomsCompleted + 1}</div>
           </div>
         </div>
 

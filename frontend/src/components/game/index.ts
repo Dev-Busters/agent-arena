@@ -10,3 +10,5 @@ export { SoundManager, getSoundManager } from './Sound';
 export { XPOrb } from './XPOrb';
 export { Loot, randomLootType } from './Loot';
 export type { LootType } from './Loot';
+export { generateRooms, getRoomCount } from './Room';
+export type { Room, EnemySpawn } from './Room';
