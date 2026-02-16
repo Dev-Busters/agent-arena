@@ -16,21 +16,30 @@ export default function Sidebar() {
   const pathname = usePathname();
   
   return (
-    <aside className="fixed left-0 top-0 h-screen w-20 bg-arena-dark border-r border-border-warm flex flex-col items-center py-6 gap-6 z-50">
+    <aside 
+      className="fixed left-0 top-0 h-screen w-[60px] flex flex-col items-center py-4 gap-1 z-50"
+      style={{ 
+        background: 'rgba(10, 10, 18, 0.95)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.04)',
+      }}
+    >
       {/* Logo */}
       <Link 
         href="/"
-        className="group relative flex items-center justify-center w-14 h-14 mb-2"
+        className="flex items-center justify-center w-10 h-10 rounded-xl mb-3"
+        style={{
+          background: 'rgba(245, 158, 11, 0.15)',
+          boxShadow: '0 0 20px rgba(245, 158, 11, 0.1)',
+        }}
       >
-        <Flame size={28} className="text-gold group-hover:text-gold-bright transition-colors" />
-        <div className="absolute inset-0 rounded-lg bg-gold/5 group-hover:bg-gold/10 transition-colors" />
+        <Flame size={20} className="text-gold" />
       </Link>
       
       {/* Divider */}
-      <div className="w-10 h-px bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+      <div className="w-7 h-px mb-2" style={{ background: 'rgba(255,255,255,0.06)' }} />
       
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-3">
+      <nav className="flex-1 flex flex-col gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -39,25 +48,48 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`
-                group relative flex items-center justify-center w-12 h-12 rounded-lg
-                transition-all duration-200
-                ${isActive 
-                  ? 'text-gold bg-gold/10' 
-                  : 'text-[#6b7280] hover:text-[#e8e6e3] hover:bg-arena-elevated'
-                }
-              `}
+              className="group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200"
+              style={{
+                color: isActive ? '#f59e0b' : '#6b7280',
+                background: isActive ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+              }}
               title={item.label}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  e.currentTarget.style.color = '#9ca3af';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  e.currentTarget.style.color = '#6b7280';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
             >
-              {/* Gold left-edge indicator for active item */}
+              {/* Gold left-edge indicator */}
               {isActive && (
-                <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-gold" />
+                <span 
+                  className="absolute rounded-r"
+                  style={{
+                    left: -8, top: '25%', bottom: '25%', width: 3,
+                    background: '#f59e0b',
+                    borderRadius: '0 3px 3px 0',
+                  }}
+                />
               )}
               
-              <Icon size={20} />
+              <Icon size={18} />
               
               {/* Tooltip */}
-              <span className="absolute left-full ml-4 px-3 py-1.5 bg-arena-card border border-border-warm text-[#e8e6e3] text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 font-body">
+              <span 
+                className="absolute left-full ml-3 px-2.5 py-1 text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50"
+                style={{
+                  background: 'rgba(30,30,50,0.95)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#e8e6e3',
+                }}
+              >
                 {item.label}
               </span>
             </Link>
@@ -65,8 +97,14 @@ export default function Sidebar() {
         })}
       </nav>
       
-      {/* User avatar at bottom */}
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gold-dim to-fire flex items-center justify-center text-arena-deep font-bold text-sm">
+      {/* User */}
+      <div 
+        className="w-9 h-9 rounded-full flex items-center justify-center text-sm"
+        style={{
+          background: 'rgba(245, 158, 11, 0.1)',
+          border: '1px solid rgba(245, 158, 11, 0.2)',
+        }}
+      >
         ⚔️
       </div>
     </aside>

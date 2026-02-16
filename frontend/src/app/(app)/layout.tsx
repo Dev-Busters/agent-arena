@@ -8,7 +8,7 @@ export default function AppLayout({
   return (
     <div className="flex min-h-screen bg-arena-deep">
       <Sidebar />
-      <main className="flex-1 ml-20">
+      <main className="flex-1 ml-[60px]">
         {children}
       </main>
     </div>
