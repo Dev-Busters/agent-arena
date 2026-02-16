@@ -316,6 +316,7 @@ export default function ArenaCanvas({
           
           // Check if dead
           if (enemy.state.hp <= 0) {
+            enemy.dead = true; // Mark as dead so agent can find new target
             console.log(`💀 ${enemy.state.type} defeated!`);
             gameStatsRef.current.kills++;
             sound.playDeath();
@@ -375,6 +376,7 @@ export default function ArenaCanvas({
           
           // Check if dead
           if (enemy.state.hp <= 0) {
+            enemy.dead = true; // Mark as dead so agent can find new target
             gameStatsRef.current.kills++;
             sound.playDeath();
             const deathColor = enemy.state.type === 'charger' ? 0xff4444 :
@@ -449,6 +451,7 @@ export default function ArenaCanvas({
             });
             
             if (enemy.state.hp <= 0) {
+              enemy.dead = true; // Mark as dead so agent can find new target
               gameStatsRef.current.kills++;
               sound.playDeath();
               const deathColor = enemy.state.type === 'charger' ? 0xff4444 :
