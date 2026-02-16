@@ -2,6 +2,7 @@ export { default as ArenaCanvas } from './ArenaCanvas';
 export type { GameStats, DamageEvent } from './ArenaCanvas';
 export { default as GameHUD } from './GameHUD';
 export type { GameState } from './GameHUD';
+export { Agent } from './Agent';
 export { Player } from './Player';
 export { Enemy, spawnEnemies } from './Enemy';
 export { ParticleSystem } from './Particles';

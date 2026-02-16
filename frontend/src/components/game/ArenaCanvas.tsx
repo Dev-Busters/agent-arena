@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Application, Graphics, Container } from 'pixi.js';
-import { Player } from './Player';
+import { Agent } from './Agent';
 import { Enemy, spawnEnemies } from './Enemy';
 import { ParticleSystem } from './Particles';
 import { getSoundManager } from './Sound';
@@ -186,9 +186,9 @@ export default function ArenaCanvas({
     const walls = createArenaWalls(width, height);
     app.stage.addChild(walls);
     
-    // Create player at center of arena
-    const player = new Player(width / 2, height / 2, width, height, WALL_THICKNESS);
-    app.stage.addChild(player.container);
+    // Create agent at center of arena
+    const agent = new Agent(width / 2, height / 2, width, height, WALL_THICKNESS);
+    app.stage.addChild(agent.container);
     
     // Create particle system
     const particles = new ParticleSystem();
@@ -204,11 +204,11 @@ export default function ArenaCanvas({
     // Helper to update game stats (defined before spawnWave uses it)
     const updateStats = () => {
       gameStatsRef.current = {
-        playerHp: player.state.maxHp, // Using maxHp for now (no damage yet)
-        playerMaxHp: player.state.maxHp,
-        playerLevel: player.state.level,
-        playerXP: player.state.xp,
-        playerXPToNext: player.state.xpToNext,
+        playerHp: agent.state.hp, // Agent's current HP
+        playerMaxHp: agent.state.maxHp,
+        playerLevel: agent.state.level,
+        playerXP: agent.state.xp,
+        playerXPToNext: agent.state.xpToNext,
         kills: gameStatsRef.current.kills,
         wave: gameStatsRef.current.wave,
         enemiesRemaining: enemies.length
@@ -228,8 +228,8 @@ export default function ArenaCanvas({
       
       const newEnemies = spawnEnemies(
         waveConfig.count,
-        player.state.x,
-        player.state.y,
+        agent.state.x,
+        agent.state.y,
         width,
         height,
         WALL_THICKNESS
@@ -248,8 +248,8 @@ export default function ArenaCanvas({
     // Sound manager
     const sound = getSoundManager();
     
-    // Handle player attacks
-    player.onAttack = (px, py, range, damage) => {
+    // Handle agent attacks
+    agent.onAttack = (px, py, range, damage) => {
       sound.playAttack();
       
       enemies.forEach(enemy => {
@@ -318,31 +318,33 @@ export default function ArenaCanvas({
     updateStats();
     
     // Game loop
-    app.ticker.add(() => {
+    app.ticker.add((delta) => {
       // Always update particles (even when paused for visual continuity)
       particles.update();
       
       // Skip game updates when paused
       if (isPausedRef.current) return;
       
-      player.update();
+      // Update agent with enemies list (for AI targeting)
+      agent.setEnemies(enemies);
+      agent.update(delta.deltaTime);
       
-      // Update enemies to chase player
+      // Update enemies to chase agent
       enemies.forEach(enemy => {
-        enemy.update(player.state.x, player.state.y);
+        enemy.update(agent.state.x, agent.state.y);
       });
       
       // Update XP orbs
       for (let i = xpOrbs.length - 1; i >= 0; i--) {
         const orb = xpOrbs[i];
-        orb.setTarget(player.state.x, player.state.y);
+        orb.setTarget(agent.state.x, agent.state.y);
         
         if (orb.update()) {
           // Orb collected
-          const leveledUp = player.gainXP(orb.getValue());
+          const leveledUp = agent.gainXP(orb.getValue());
           
           if (leveledUp) {
-            console.log(`⭐ Level ${player.state.level}! HP:${player.state.maxHp} ATK:${player.state.attack} DEF:${player.state.defense}`);
+            console.log(`⭐ Agent Level ${agent.state.level}! HP:${agent.state.maxHp} ATK:${agent.state.attack} DEF:${agent.state.defense}`);
             // TODO: Add screen flash effect
           }
           
@@ -356,7 +358,7 @@ export default function ArenaCanvas({
       for (let i = lootItems.length - 1; i >= 0; i--) {
         const loot = lootItems[i];
         
-        if (loot.update(player.state.x, player.state.y)) {
+        if (loot.update(agent.state.x, agent.state.y)) {
           // Loot collected
           console.log(`📦 Collected: ${loot.getName()} (${loot.getEffect()})`);
           // TODO: Apply loot effects
@@ -384,13 +386,13 @@ export default function ArenaCanvas({
     });
     
     setIsReady(true);
-    console.log('🎮 ArenaCanvas initialized with player and', enemies.length, 'enemies');
+    console.log('🎮 ArenaCanvas initialized with agent and', enemies.length, 'enemies');
 
     // Cleanup on unmount
     return () => {
       if (appRef.current) {
         console.log('🎮 ArenaCanvas destroyed');
-        player.destroy();
+        agent.destroy();
         enemies.forEach(enemy => enemy.destroy());
         particles.destroy();
         appRef.current.destroy(true, { children: true, texture: true });
