@@ -1,150 +1,219 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { Flame, Shield, Zap, Brain, Heart, Swords, ChevronRight } from 'lucide-react';
 
-// Mock data - used as fallback if API fails
 const mockAgent = {
   name: 'Shadow Striker',
   level: 5,
   class: 'Rogue',
+  type: 'rogue',
   hp: 150,
   maxHp: 150,
-  attack: 18,
-  defense: 11,
-  speed: 15,
+  might: 18,
+  fortitude: 11,
+  agility: 15,
+  arcana: 8,
   wins: 12,
   losses: 3,
+  elo: 1847,
 };
 
 const mockBattles = [
-  { id: 1, opponent: 'Fire Mage', result: 'win', xp: 45, date: '2 hours ago' },
-  { id: 2, opponent: 'Stone Golem', result: 'win', xp: 50, date: '5 hours ago' },
-  { id: 3, opponent: 'Dark Knight', result: 'loss', xp: 15, date: '1 day ago' },
-  { id: 4, opponent: 'Frost Archer', result: 'win', xp: 40, date: '1 day ago' },
-  { id: 5, opponent: 'Lightning Sage', result: 'win', xp: 55, date: '2 days ago' },
+  { id: 1, opponent: 'Fire Mage', result: 'win', xp: 45, gold: 120, date: '2 hours ago' },
+  { id: 2, opponent: 'Stone Golem', result: 'win', xp: 50, gold: 95, date: '5 hours ago' },
+  { id: 3, opponent: 'Dark Knight', result: 'loss', xp: 15, gold: 30, date: '1 day ago' },
+  { id: 4, opponent: 'Frost Archer', result: 'win', xp: 40, gold: 110, date: '1 day ago' },
+  { id: 5, opponent: 'Lightning Sage', result: 'win', xp: 55, gold: 140, date: '2 days ago' },
+];
+
+const typeConfig: Record<string, { icon: string; color: string }> = {
+  warrior: { icon: '⚔️', color: 'text-fire' },
+  rogue: { icon: '🗡️', color: 'text-venom' },
+  mage: { icon: '✦', color: 'text-ice' },
+  tank: { icon: '🛡️', color: 'text-arcane' },
+};
+
+const stats = [
+  { label: 'VITALITY', value: `${mockAgent.hp}/${mockAgent.maxHp}`, icon: Heart, color: 'text-venom', bgColor: 'bg-venom/10', borderColor: 'border-venom/20' },
+  { label: 'MIGHT', value: mockAgent.might, icon: Flame, color: 'text-fire', bgColor: 'bg-fire/10', borderColor: 'border-fire/20' },
+  { label: 'FORTITUDE', value: mockAgent.fortitude, icon: Shield, color: 'text-ice', bgColor: 'bg-ice/10', borderColor: 'border-ice/20' },
+  { label: 'AGILITY', value: mockAgent.agility, icon: Zap, color: 'text-gold', bgColor: 'bg-gold/10', borderColor: 'border-gold/20' },
+  { label: 'ARCANA', value: mockAgent.arcana, icon: Brain, color: 'text-arcane', bgColor: 'bg-arcane/10', borderColor: 'border-arcane/20' },
 ];
 
 export default function DashboardPage() {
   const winRate = ((mockAgent.wins / (mockAgent.wins + mockAgent.losses)) * 100).toFixed(0);
+  const config = typeConfig[mockAgent.type];
   
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold text-white mb-2">Dashboard</h1>
-          <p className="text-slate-400">Manage your agent and view your progress</p>
-        </div>
         
-        {/* Agent Card */}
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"
         >
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white mb-1">{mockAgent.name}</h2>
-              <p className="text-purple-400">Level {mockAgent.level} {mockAgent.class}</p>
-            </div>
-            <div className="text-6xl">🗡️</div>
-          </div>
-          
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase mb-1">HP</div>
-              <div className="text-lg font-bold text-green-400">{mockAgent.hp}/{mockAgent.maxHp}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase mb-1">Attack</div>
-              <div className="text-lg font-bold text-red-400">{mockAgent.attack}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase mb-1">Defense</div>
-              <div className="text-lg font-bold text-blue-400">{mockAgent.defense}</div>
-            </div>
-            <div className="bg-slate-800/50 rounded-lg p-3">
-              <div className="text-xs text-slate-500 uppercase mb-1">Speed</div>
-              <div className="text-lg font-bold text-yellow-400">{mockAgent.speed}</div>
-            </div>
-          </div>
-          
-          {/* Win/Loss */}
-          <div className="flex items-center gap-6 text-sm">
-            <div>
-              <span className="text-slate-500">Wins:</span>
-              <span className="text-green-400 font-bold ml-2">{mockAgent.wins}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">Losses:</span>
-              <span className="text-red-400 font-bold ml-2">{mockAgent.losses}</span>
-            </div>
-            <div>
-              <span className="text-slate-500">Win Rate:</span>
-              <span className="text-purple-400 font-bold ml-2">{winRate}%</span>
-            </div>
-          </div>
+          <h1 className="font-display text-5xl font-bold text-[#e8e6e3] tracking-wide">
+            War Room
+          </h1>
+          <p className="text-[#9ca3af] italic mt-2">Your champion awaits orders</p>
+          <div className="divider-gold max-w-xs mt-4" />
         </motion.div>
         
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href="/arena"
-            className="group bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl p-6 hover:shadow-xl hover:shadow-purple-500/50 transition-all"
-          >
-            <div className="text-3xl mb-2">⚔️</div>
-            <h3 className="text-xl font-bold text-white mb-1">Enter Arena</h3>
-            <p className="text-purple-100 text-sm">Fight waves of enemies and level up</p>
-          </Link>
-          
-          <Link
-            href="/inventory"
-            className="group bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl p-6 hover:shadow-xl hover:shadow-blue-500/50 transition-all"
-          >
-            <div className="text-3xl mb-2">📦</div>
-            <h3 className="text-xl font-bold text-white mb-1">Manage Equipment</h3>
-            <p className="text-blue-100 text-sm">Equip items and optimize your build</p>
-          </Link>
-        </div>
-        
-        {/* Recent Battles */}
+        {/* Agent Hero Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"
+          className="game-card p-8"
         >
-          <h3 className="text-xl font-bold text-white mb-4">Recent Battles</h3>
+          <div className="flex items-start justify-between mb-8">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <span className={`text-2xl ${config.color}`}>{config.icon}</span>
+                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-arena-elevated text-[#9ca3af] border border-border-warm">
+                  {mockAgent.class}
+                </span>
+              </div>
+              <h2 className="font-display text-3xl font-bold text-[#e8e6e3]">{mockAgent.name}</h2>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm text-gold-bright font-bold">Level {mockAgent.level}</span>
+                <span className="text-[#6b7280]">•</span>
+                <span className="font-mono text-sm text-gold">{mockAgent.elo} ELO</span>
+              </div>
+            </div>
+            
+            {/* Agent visual */}
+            <div className="w-24 h-24 rounded-full bg-arena-elevated border-2 border-gold-dim flex items-center justify-center shadow-lg shadow-gold/10">
+              <span className="text-5xl">{config.icon}</span>
+            </div>
+          </div>
+          
+          {/* Stats Grid */}
+          <div className="grid grid-cols-5 gap-3 mb-6">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={stat.label}
+                  className={`rounded-lg p-3 ${stat.bgColor} border ${stat.borderColor} transition-all hover:scale-105`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Icon size={12} className={stat.color} />
+                    <span className="text-[10px] uppercase tracking-widest text-[#6b7280] font-bold">{stat.label}</span>
+                  </div>
+                  <div className={`font-mono text-xl font-bold ${stat.color}`}>{stat.value}</div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Win/Loss Record */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="text-venom font-mono font-bold text-lg">{mockAgent.wins}</span>
+              <span className="badge-win">W</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-blood font-mono font-bold text-lg">{mockAgent.losses}</span>
+              <span className="badge-loss">L</span>
+            </div>
+            <div className="h-4 w-px bg-border-warm" />
+            <span className="font-mono text-gold font-bold">{winRate}% WR</span>
+          </div>
+        </motion.div>
+        
+        {/* Quick Action Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Link
+              href="/arena"
+              className="group game-card flex items-center gap-6 p-6 border-fire/20 hover:border-fire/40 hover:shadow-fire/10"
+            >
+              <div className="w-14 h-14 rounded-lg bg-fire/10 border border-fire/20 flex items-center justify-center group-hover:bg-fire/20 transition-colors">
+                <Swords size={28} className="text-fire" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-xl font-bold text-[#e8e6e3] group-hover:text-fire transition-colors">
+                  ENTER THE DEPTHS
+                </h3>
+                <p className="text-[#6b7280] text-sm mt-0.5">Descend into the arena. Fight. Survive.</p>
+              </div>
+              <ChevronRight size={20} className="text-[#6b7280] group-hover:text-fire transition-colors" />
+            </Link>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Link
+              href="/inventory"
+              className="group game-card flex items-center gap-6 p-6 border-gold-dim/30 hover:border-gold-dim hover:shadow-gold/10"
+            >
+              <div className="w-14 h-14 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center group-hover:bg-gold/20 transition-colors">
+                <Shield size={28} className="text-gold" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-xl font-bold text-[#e8e6e3] group-hover:text-gold transition-colors">
+                  VISIT THE ARMORY
+                </h3>
+                <p className="text-[#6b7280] text-sm mt-0.5">Forge your legend. Wield ancient relics.</p>
+              </div>
+              <ChevronRight size={20} className="text-[#6b7280] group-hover:text-gold transition-colors" />
+            </Link>
+          </motion.div>
+        </div>
+        
+        {/* Battle Chronicle */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="game-card p-6"
+        >
+          <h3 className="font-display text-xl font-semibold text-gold uppercase tracking-wider mb-4">
+            Battle Chronicle
+          </h3>
+          <div className="divider-gold mb-4" />
+          
           <div className="space-y-2">
-            {mockBattles.map((battle) => (
-              <div
+            {mockBattles.map((battle, idx) => (
+              <motion.div
                 key={battle.id}
-                className="flex items-center justify-between bg-slate-800/50 rounded-lg p-3 hover:bg-slate-800 transition-colors"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.35 + idx * 0.05 }}
+                className="flex items-center justify-between bg-arena-elevated/50 rounded-lg p-3 hover:bg-arena-elevated transition-colors group"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`w-2 h-2 rounded-full ${battle.result === 'win' ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <div className={`w-1.5 h-8 rounded-full ${battle.result === 'win' ? 'bg-venom' : 'bg-blood'}`} />
                   <div>
-                    <div className="text-white font-medium">vs {battle.opponent}</div>
-                    <div className="text-xs text-slate-500">{battle.date}</div>
+                    <div className="text-[#e8e6e3] font-medium group-hover:text-gold transition-colors">
+                      vs {battle.opponent}
+                    </div>
+                    <div className="text-xs text-[#6b7280]">{battle.date}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="text-blue-400 text-sm">+{battle.xp} XP</div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    battle.result === 'win' 
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {battle.result.toUpperCase()}
-                  </div>
+                  <span className="text-gold font-mono text-sm font-bold">+{battle.xp} XP</span>
+                  <span className={battle.result === 'win' ? 'badge-win' : 'badge-loss'}>
+                    {battle.result === 'win' ? 'VICTORY' : 'DEFEAT'}
+                  </span>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </motion.div>
+        
       </div>
     </div>
   );
