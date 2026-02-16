@@ -4,6 +4,7 @@
 >
 > **ALSO READ: `docs/PHASE2_DEVELOPMENT.md`** for current development priorities, task breakdowns, and the full roadmap from Phase D through Phase G.
 > **ALSO READ: `docs/VISUAL_DESIGN_BIBLE.md`** for all visual design rules, color systems, typography, and component styling. Every UI component must follow this guide.
+> **ALSO READ: `docs/GAME_DESIGN_BIBLE.md`** for the complete game design vision, mechanics, and systems. Every feature must align with this document.
 
 ---
 
