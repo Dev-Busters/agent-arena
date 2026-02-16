@@ -224,7 +224,7 @@ export default function HomePage() {
   if (!mounted) return null
 
   return (
-    <main className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden relative">
+    <main className="min-h-screen bg-arena-deep text-[#e8e6e3] overflow-hidden relative">
       {/* Ambient effects */}
       <DungeonParticles />
       <TorchGlow position="left" />
@@ -310,8 +310,8 @@ export default function HomePage() {
             transition={{ delay: 0.3 }}
             className="mt-8 text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tight"
           >
-            <span className="block text-stone-100">DESCEND</span>
-            <span className="block text-stone-100">INTO THE</span>
+            <span className="block text-[#e8e6e3] font-display">DESCEND</span>
+            <span className="block text-[#e8e6e3] font-display">INTO THE</span>
             <motion.span 
               className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500"
               animate={{
@@ -416,7 +416,7 @@ export default function HomePage() {
           className="text-center mb-16"
         >
           <h2 className="text-sm uppercase tracking-[0.3em] text-amber-500 font-semibold mb-4">The Experience</h2>
-          <p className="text-4xl md:text-5xl font-black">Not Your Average Dungeon</p>
+          <p className="text-4xl md:text-5xl font-black font-display">Not Your Average Dungeon</p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -451,7 +451,7 @@ export default function HomePage() {
           className="text-center mb-16"
         >
           <h2 className="text-sm uppercase tracking-[0.3em] text-amber-500 font-semibold mb-4">Choose Your Path</h2>
-          <p className="text-4xl md:text-5xl font-black">Four Champions. One Victor.</p>
+          <p className="text-4xl md:text-5xl font-black font-display">Four Champions. One Victor.</p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -521,7 +521,7 @@ export default function HomePage() {
             >
               ⚔
             </motion.div>
-            <h2 className="text-4xl font-black mb-4">The Arena Awaits</h2>
+            <h2 className="text-4xl font-black font-display mb-4">The Arena Awaits</h2>
             <p className="text-stone-400 mb-8 max-w-md mx-auto">
               Thousands have already descended. Will you join them, or be forgotten?
             </p>
