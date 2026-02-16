@@ -219,6 +219,12 @@ export default function ArenaCanvas({
     const spawnRoom = (room: Room) => {
       console.log(`🚪 Spawning Floor ${room.floor} Room ${room.roomNumber}`);
       
+      // Calculate scaling based on floor number
+      const hpMultiplier = 1 + (room.floor - 1) * 0.1;  // +10% HP per floor
+      const damageMultiplier = 1 + (room.floor - 1) * 0.05; // +5% damage per floor
+      
+      console.log(`⚖️  Floor ${room.floor} scaling: HP x${hpMultiplier.toFixed(2)}, Damage x${damageMultiplier.toFixed(2)}`);
+      
       // Count total enemies from all spawn types
       let totalEnemies = 0;
       const newEnemies: Enemy[] = [];
@@ -230,7 +236,9 @@ export default function ArenaCanvas({
           agent.state.y,
           width,
           height,
-          WALL_THICKNESS
+          WALL_THICKNESS,
+          hpMultiplier,
+          damageMultiplier
         );
         newEnemies.push(...spawnedGroup);
         totalEnemies += spawn.count;
@@ -386,10 +394,12 @@ export default function ArenaCanvas({
           // Check if floor is complete
           if (currentRoomIndex >= rooms.length) {
             console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
-            // TODO: Show "FLOOR X COMPLETE" overlay (will add in D2)
+            console.log(`⬇️  DESCENDING TO FLOOR ${currentFloor + 1}...`);
+            // TODO: Show "DESCENDING TO FLOOR X" overlay (visual in later phase)
             currentFloor++;
             currentRoomIndex = 0;
             rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
+            console.log(`📊 Floor ${currentFloor}: ${rooms.length} rooms to clear`);
           }
           
           // Spawn next room

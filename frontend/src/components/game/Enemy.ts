@@ -67,7 +67,9 @@ export class Enemy {
     type: EnemyType,
     arenaWidth: number, 
     arenaHeight: number, 
-    wallThickness: number = 16
+    wallThickness: number = 16,
+    hpMultiplier: number = 1.0,
+    damageMultiplier: number = 1.0
   ) {
     this.id = `enemy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.container = new Container();
@@ -75,11 +77,15 @@ export class Enemy {
     this.healthBar = new Graphics();
     this.config = ENEMY_TYPES[type];
     
+    // Apply scaling multipliers
+    const scaledHp = Math.floor(this.config.hp * hpMultiplier);
+    const scaledDamage = Math.floor(this.config.damage * damageMultiplier);
+    
     this.state = { 
       x, y, 
       vx: 0, vy: 0,
-      hp: this.config.hp,
-      maxHp: this.config.hp,
+      hp: scaledHp,
+      maxHp: scaledHp,
       type 
     };
     
@@ -215,7 +221,9 @@ export function spawnEnemies(
   playerY: number,
   arenaWidth: number,
   arenaHeight: number,
-  wallThickness: number = 16
+  wallThickness: number = 16,
+  hpMultiplier: number = 1.0,
+  damageMultiplier: number = 1.0
 ): Enemy[] {
   const enemies: Enemy[] = [];
   const minDistFromPlayer = 200;
@@ -256,7 +264,7 @@ export function spawnEnemies(
       }
     }
     
-    enemies.push(new Enemy(x, y, selectedType, arenaWidth, arenaHeight, wallThickness));
+    enemies.push(new Enemy(x, y, selectedType, arenaWidth, arenaHeight, wallThickness, hpMultiplier, damageMultiplier));
   }
   
   return enemies;
