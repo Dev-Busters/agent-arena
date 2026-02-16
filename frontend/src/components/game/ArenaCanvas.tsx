@@ -201,6 +201,21 @@ export default function ArenaCanvas({
     let xpOrbs: XPOrb[] = [];
     let lootItems: Loot[] = [];
     
+    // Helper to update game stats (defined before spawnWave uses it)
+    const updateStats = () => {
+      gameStatsRef.current = {
+        playerHp: player.state.maxHp, // Using maxHp for now (no damage yet)
+        playerMaxHp: player.state.maxHp,
+        playerLevel: player.state.level,
+        playerXP: player.state.xp,
+        playerXPToNext: player.state.xpToNext,
+        kills: gameStatsRef.current.kills,
+        wave: gameStatsRef.current.wave,
+        enemiesRemaining: enemies.length
+      };
+      onGameStateChange?.(gameStatsRef.current);
+    };
+    
     // Function to spawn a wave
     const spawnWave = (waveIndex: number) => {
       if (waveIndex >= WAVES.length) {
@@ -229,21 +244,6 @@ export default function ArenaCanvas({
     
     // Spawn first wave
     spawnWave(0);
-    
-    // Helper to update game stats
-    const updateStats = () => {
-      gameStatsRef.current = {
-        playerHp: player.state.maxHp, // Using maxHp for now (no damage yet)
-        playerMaxHp: player.state.maxHp,
-        playerLevel: player.state.level,
-        playerXP: player.state.xp,
-        playerXPToNext: player.state.xpToNext,
-        kills: gameStatsRef.current.kills,
-        wave: gameStatsRef.current.wave,
-        enemiesRemaining: enemies.length
-      };
-      onGameStateChange?.(gameStatsRef.current);
-    };
     
     // Sound manager
     const sound = getSoundManager();
@@ -277,12 +277,6 @@ export default function ArenaCanvas({
           particles.hit(enemy.state.x, enemy.state.y);
           sound.playHit();
           
-          // Flash enemy (scale effect as visual feedback)
-          enemy.container.scale.set(1.3);
-          setTimeout(() => {
-            enemy.container.scale.set(1.0);
-          }, 100);
-          
           // Check if dead
           if (enemy.state.hp <= 0) {
             console.log(`💀 ${enemy.state.type} defeated!`);
@@ -307,7 +301,9 @@ export default function ArenaCanvas({
               console.log(`💎 Loot dropped: ${loot.getName()}`);
             }
             
-            app.stage.removeChild(enemy.container);
+            if (enemy.container) {
+              app.stage.removeChild(enemy.container);
+            }
             enemy.destroy();
           }
         }

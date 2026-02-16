@@ -2,31 +2,35 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Swords, Package, Trophy, User } from 'lucide-react';
+import { Home, Swords, Package, Trophy, User, Flame } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/arena', label: 'Arena', icon: Swords },
-  { href: '/inventory', label: 'Inventory', icon: Package },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/dashboard', label: 'War Room', icon: Home },
+  { href: '/arena', label: 'The Depths', icon: Swords },
+  { href: '/inventory', label: 'Armory', icon: Package },
+  { href: '/leaderboard', label: 'Champions', icon: Trophy },
+  { href: '/profile', label: 'Chronicle', icon: User },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   
   return (
-    <aside className="fixed left-0 top-0 h-screen w-20 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 gap-6">
+    <aside className="fixed left-0 top-0 h-screen w-20 bg-arena-dark border-r border-border-warm flex flex-col items-center py-6 gap-6 z-50">
       {/* Logo */}
       <Link 
         href="/"
-        className="text-3xl mb-4 hover:scale-110 transition-transform"
+        className="group relative flex items-center justify-center w-14 h-14 mb-2"
       >
-        ⚔️
+        <Flame size={28} className="text-gold group-hover:text-gold-bright transition-colors" />
+        <div className="absolute inset-0 rounded-lg bg-gold/5 group-hover:bg-gold/10 transition-colors" />
       </Link>
       
+      {/* Divider */}
+      <div className="w-10 h-px bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+      
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-4">
+      <nav className="flex-1 flex flex-col gap-3">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -39,16 +43,21 @@ export default function Sidebar() {
                 group relative flex items-center justify-center w-12 h-12 rounded-lg
                 transition-all duration-200
                 ${isActive 
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50' 
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                  ? 'text-gold bg-gold/10' 
+                  : 'text-[#6b7280] hover:text-[#e8e6e3] hover:bg-arena-elevated'
                 }
               `}
               title={item.label}
             >
+              {/* Gold left-edge indicator for active item */}
+              {isActive && (
+                <span className="absolute left-0 top-1/4 bottom-1/4 w-[3px] rounded-r-sm bg-gold" />
+              )}
+              
               <Icon size={20} />
               
               {/* Tooltip */}
-              <span className="absolute left-full ml-4 px-3 py-1.5 bg-slate-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              <span className="absolute left-full ml-4 px-3 py-1.5 bg-arena-card border border-border-warm text-[#e8e6e3] text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 font-body">
                 {item.label}
               </span>
             </Link>
@@ -57,8 +66,8 @@ export default function Sidebar() {
       </nav>
       
       {/* User avatar at bottom */}
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold">
-        U
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gold-dim to-fire flex items-center justify-center text-arena-deep font-bold text-sm">
+        ⚔️
       </div>
     </aside>
   );

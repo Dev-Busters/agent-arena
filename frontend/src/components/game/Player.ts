@@ -40,14 +40,12 @@ export class Player {
   public onAttack?: (x: number, y: number, range: number, damage: number) => void;
   
   private graphics: Graphics;
-  private attackGraphics: Graphics;
   private keys: Set<string> = new Set();
   private bounds: { minX: number; minY: number; maxX: number; maxY: number };
   
   constructor(x: number, y: number, arenaWidth: number, arenaHeight: number, wallThickness: number = 16) {
     this.container = new Container();
     this.graphics = new Graphics();
-    this.attackGraphics = new Graphics();
     
     this.state = { 
       x, y, 
@@ -74,7 +72,6 @@ export class Player {
     
     this.drawPlayer();
     this.container.addChild(this.graphics);
-    this.container.addChild(this.attackGraphics);
     this.updatePosition();
     
     // Set up input
@@ -106,7 +103,6 @@ export class Player {
     // Reset attack state after animation
     setTimeout(() => {
       this.state.isAttacking = false;
-      this.attackGraphics.clear();
     }, 150);
     
     return true;
@@ -148,7 +144,9 @@ export class Player {
     // Reset after dash duration
     setTimeout(() => {
       this.state.isDashing = false;
-      this.graphics.tint = 0xffffff;
+      if (this.graphics) {
+        this.graphics.tint = 0xffffff;
+      }
     }, DASH_DURATION);
     
     console.log('💨 Dash!');
@@ -156,15 +154,15 @@ export class Player {
   }
   
   private showAttackEffect(): void {
-    this.attackGraphics.clear();
-    this.attackGraphics.lineStyle(3, 0xffff00, 0.8);
-    this.attackGraphics.drawCircle(0, 0, ATTACK_RANGE);
-    
-    // Quick flash
-    this.graphics.tint = 0xffffff;
-    setTimeout(() => {
-      this.graphics.tint = 0xffffff;
-    }, 100);
+    // Yellow flash to indicate attack
+    if (this.graphics) {
+      this.graphics.tint = 0xffff00; // Yellow flash
+      setTimeout(() => {
+        if (this.graphics) {
+          this.graphics.tint = 0xffffff; // Back to normal
+        }
+      }, 100);
+    }
   }
   
   private drawPlayer(): void {
