@@ -16,3 +16,5 @@ export type { RunStats } from './RunEndScreen';
 export { default as ModifierSelection } from './ModifierSelection';
 export type { Modifier, ModifierCategory, ModifierRarity, ActiveModifier } from './Modifier';
 export { MODIFIER_POOL, getRandomModifiers, applyModifier } from './Modifier';
+export { default as PathChoice } from './PathChoice';
+export type { PathType, PathOption } from './PathChoice';

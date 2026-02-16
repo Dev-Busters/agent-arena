@@ -14,6 +14,8 @@ import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
 import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
+import PathChoice from './PathChoice';
+import type { PathType } from './PathChoice';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -159,6 +161,8 @@ export default function ArenaCanvas({
   const [nextFloorNumber, setNextFloorNumber] = useState(1);
   const [showModifierSelection, setShowModifierSelection] = useState(false);
   const [modifierChoices, setModifierChoices] = useState<Modifier[]>([]);
+  const [showPathChoice, setShowPathChoice] = useState(false);
+  const [availablePaths, setAvailablePaths] = useState<PathType[]>(['combat', 'elite', 'treasure']);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
@@ -302,35 +306,60 @@ export default function ArenaCanvas({
       setShowModifierSelection(false);
       setModifierChoices([]);
       
-      // Resume game
-      app.ticker.start();
-      
       // Advance to next room
       currentRoomIndex++;
       
       // Check if floor is complete
       if (currentRoomIndex >= rooms.length) {
         console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
-        console.log(`⬇️  DESCENDING TO FLOOR ${currentFloor + 1}...`);
         
-        // Show floor transition overlay
-        setNextFloorNumber(currentFloor + 1);
-        setShowFloorTransition(true);
-        setTimeout(() => setShowFloorTransition(false), 2000);
-        
-        currentFloor++;
-        currentRoomIndex = 0;
-        rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
-        console.log(`📊 Floor ${currentFloor}: ${rooms.length} rooms to clear`);
+        // Show path choice instead of immediately descending
+        setAvailablePaths(['combat', 'elite', 'treasure']);
+        setShowPathChoice(true);
+        console.log('🗺️  Showing path choice for next floor');
+        // Keep ticker stopped, waiting for path selection
+      } else {
+        // More rooms on this floor - resume and spawn next room
+        app.ticker.start();
+        spawnRoom(rooms[currentRoomIndex]);
+        roomTransitioning = false;
       }
-      
-      // Spawn next room
-      spawnRoom(rooms[currentRoomIndex]);
-      roomTransitioning = false;
     };
     
     // Store handler in window for access from React component
     (window as any).handleModifierSelect = handleModifierSelect;
+    
+    // Handler for path selection
+    const handlePathSelect = (pathType: PathType) => {
+      console.log(`🗺️  Selected path: ${pathType}`);
+      
+      // Hide path choice
+      setShowPathChoice(false);
+      
+      // Show floor transition
+      setNextFloorNumber(currentFloor + 1);
+      setShowFloorTransition(true);
+      setTimeout(() => setShowFloorTransition(false), 2000);
+      
+      // Advance floor
+      currentFloor++;
+      currentRoomIndex = 0;
+      
+      // Generate next floor based on selected path
+      // For now, all paths use same room generation (will customize in E3-E5)
+      rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
+      console.log(`📊 Floor ${currentFloor} (${pathType}): ${rooms.length} rooms to clear`);
+      
+      // Spawn first room of new floor
+      spawnRoom(rooms[currentRoomIndex]);
+      
+      // Resume game
+      app.ticker.start();
+      roomTransitioning = false;
+    };
+    
+    // Store handler in window for access from React component
+    (window as any).handlePathSelect = handlePathSelect;
     
     // Sound manager
     const sound = getSoundManager();
@@ -756,6 +785,19 @@ export default function ArenaCanvas({
           onSelect={(modifier) => {
             if ((window as any).handleModifierSelect) {
               (window as any).handleModifierSelect(modifier);
+            }
+          }}
+        />
+      )}
+      
+      {/* Path Choice overlay */}
+      {showPathChoice && (
+        <PathChoice
+          availablePaths={availablePaths}
+          currentFloor={nextFloorNumber}
+          onSelect={(path) => {
+            if ((window as any).handlePathSelect) {
+              (window as any).handlePathSelect(path);
             }
           }}
         />
