@@ -9,6 +9,8 @@ import { getSoundManager } from './Sound';
 import { XPOrb } from './XPOrb';
 import { Loot, randomLootType } from './Loot';
 import { Room, generateRooms, getRoomCount } from './Room';
+import RunEndScreen from './RunEndScreen';
+import type { RunStats } from './RunEndScreen';
 
 export interface GameStats {
   playerHp: number;
@@ -139,7 +141,10 @@ export default function ArenaCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [runEnded, setRunEnded] = useState(false);
+  const [finalRunStats, setFinalRunStats] = useState<RunStats | null>(null);
   const isPausedRef = useRef(isPaused);
+  const runStartTimeRef = useRef<number>(Date.now());
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
@@ -340,7 +345,42 @@ export default function ArenaCanvas({
       // Update enemies to chase agent
       enemies.forEach(enemy => {
         enemy.update(agent.state.x, agent.state.y);
+        
+        // Check collision with agent (simple distance check)
+        const dx = enemy.state.x - agent.state.x;
+        const dy = enemy.state.y - agent.state.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        // If enemy touches agent, deal damage (once per second per enemy)
+        const collisionRange = 40; // pixels
+        if (dist < collisionRange) {
+          // Simple damage over time (1 damage per frame = ~60 damage per second)
+          // Reduce to make it survivable: 0.5 damage per frame = ~30 damage per second
+          agent.takeDamage(0.5);
+          updateStats();
+        }
       });
+      
+      // Check if agent is dead
+      if (agent.state.hp <= 0 && !roomTransitioning) {
+        roomTransitioning = true; // Prevent multiple triggers
+        const runTime = Math.floor((Date.now() - runStartTimeRef.current) / 1000);
+        
+        console.log('💀 Agent FALLEN! Run ended.');
+        console.log(`📊 Final Stats: Floor ${currentFloor}, Rooms ${currentRoomIndex}, Kills ${gameStatsRef.current.kills}, Time ${runTime}s`);
+        
+        // Set final stats for RunEndScreen
+        setFinalRunStats({
+          floorsReached: currentFloor,
+          roomsCompleted: currentRoomIndex,
+          enemiesKilled: gameStatsRef.current.kills,
+          timeSeconds: runTime,
+        });
+        setRunEnded(true);
+        
+        app.ticker.stop(); // Stop game loop
+        return;
+      }
       
       // Update XP orbs
       for (let i = xpOrbs.length - 1; i >= 0; i--) {
@@ -441,6 +481,11 @@ export default function ArenaCanvas({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleReturnToWarRoom = () => {
+    // Navigate to dashboard (or reload for now)
+    window.location.href = '/dashboard';
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -451,6 +496,14 @@ export default function ArenaCanvas({
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
           <div className="text-purple-400 animate-pulse">Loading Arena...</div>
         </div>
+      )}
+      
+      {/* Show RunEndScreen when agent dies */}
+      {runEnded && finalRunStats && (
+        <RunEndScreen
+          stats={finalRunStats}
+          onReturnToWarRoom={handleReturnToWarRoom}
+        />
       )}
     </div>
   );

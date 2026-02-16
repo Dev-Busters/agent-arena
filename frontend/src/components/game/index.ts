@@ -12,3 +12,5 @@ export { Loot, randomLootType } from './Loot';
 export type { LootType } from './Loot';
 export { generateRooms, getRoomCount } from './Room';
 export type { Room, EnemySpawn } from './Room';
+export { default as RunEndScreen } from './RunEndScreen';
+export type { RunStats } from './RunEndScreen';
