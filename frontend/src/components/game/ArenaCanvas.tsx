@@ -18,7 +18,7 @@ import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateD
 import FloorMapComponent from './FloorMap';
 import { SchoolConfig, DEFAULT_SCHOOL } from './schools';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
-import { useAgentLoadout } from '@/stores/agentLoadout';
+import { useAgentLoadout, calculateRunXP } from '@/stores/agentLoadout';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
 import BossAnnouncement from './BossAnnouncement';
@@ -831,12 +831,45 @@ export default function ArenaCanvas({
         console.log('💀 Agent FALLEN! Run ended.');
         console.log(`📊 Final Stats: Floor ${currentFloor}, Rooms ${currentRoomIndex}, Kills ${gameStatsRef.current.kills}, Time ${runTime}s`);
         
-        // Set final stats for RunEndScreen
+        // Compute rewards and persist to agentLoadout store
+        const loadoutStore = useAgentLoadout.getState();
+        const currentSchool = loadoutStore.school ?? DEFAULT_SCHOOL;
+        const xpEarned = calculateRunXP(currentFloor, gameStatsRef.current.kills, false, currentFloor > loadoutStore.deepestFloor);
+        const goldEarned = gameStatsRef.current.gold;
+        const { newUnlocks } = loadoutStore.addRunRewards({
+          goldEarned,
+          accountXPEarned: xpEarned,
+          materialsEarned: [],
+          floorsCleared: currentFloor,
+          killsThisRun: gameStatsRef.current.kills,
+          schoolId: currentSchool.id,
+          modifierCategories: [],
+        });
+
+        const newState = useAgentLoadout.getState();
+
+        // Nearest next unlock for progress display
+        let nearestUnlockLabel: string | undefined;
+        let nearestUnlockProgress: string | undefined;
+        if (!newState.unlocks.schools.includes('invoker') && newState.deepestFloor < 5) {
+          nearestUnlockLabel = 'Invoker School';
+          nearestUnlockProgress = `Floor ${newState.deepestFloor} / 5`;
+        } else if (!newState.unlocks.tenets.includes('glass-cannon') && newState.totalKills < 50) {
+          nearestUnlockLabel = 'Glass Cannon Tenet';
+          nearestUnlockProgress = `${newState.totalKills} / 50 kills`;
+        }
+
         setFinalRunStats({
           floorsReached: currentFloor,
           roomsCompleted: currentRoomIndex,
           enemiesKilled: gameStatsRef.current.kills,
           timeSeconds: runTime,
+          goldEarned,
+          accountXPEarned: xpEarned,
+          newAccountLevel: newState.accountLevel,
+          newUnlocks,
+          nearestUnlockLabel,
+          nearestUnlockProgress,
         });
         setRunEnded(true);
         
