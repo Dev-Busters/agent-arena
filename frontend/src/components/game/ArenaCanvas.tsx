@@ -16,13 +16,9 @@ import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
 import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
 import FloorMapComponent from './FloorMap';
-import SchoolSelection from './SchoolSelection';
 import { SchoolConfig, DEFAULT_SCHOOL } from './schools';
-import DisciplineSelection from './DisciplineSelection';
-import { Discipline } from './disciplines';
-import TenetSelection from './TenetSelection';
-import { Tenet } from './tenets';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
+import { useAgentLoadout } from '@/stores/agentLoadout';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
 import BossAnnouncement from './BossAnnouncement';
@@ -178,16 +174,11 @@ export default function ArenaCanvas({
   const [showFloorMap, setShowFloorMap] = useState(false);
   const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
   const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
-  const [showSchoolSelection, setShowSchoolSelection] = useState(true);
-  const [showDisciplineSelection, setShowDisciplineSelection] = useState(false);
-  const [showTenetSelection, setShowTenetSelection] = useState(false);
-  const [selectedSchool, setSelectedSchool] = useState<SchoolConfig>(DEFAULT_SCHOOL);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
   const floorMapRef = useRef<FloorMap | null>(null);
   const currentNodeIdRef = useRef<string | null>(null);
-  const selectedSchoolRef = useRef<SchoolConfig>(DEFAULT_SCHOOL);
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
@@ -484,23 +475,21 @@ export default function ArenaCanvas({
     // Expose handlers to React component via window
     (window as any).handleModifierSelect = handleModifierSelect;
     (window as any).handleNodeSelect = handleNodeSelect;
-    (window as any).applySchool = (config: SchoolConfig, disciplines: Discipline[] = [], tenets: Tenet[] = []) => {
-      agent.setSchool(config);
-      disciplines.forEach(d => agent.applyDiscipline(d));
-      tenets.forEach(t => agent.applyTenet(t));
-      setSelectedSchool(config);
-      selectedSchoolRef.current = config;
-      console.log(`🎖️ Applied school: ${config.name} + ${disciplines.length} discipline(s)`);
-      updateStats();
-      setShowFloorMap(true);
-    };
 
-    // Pre-generate floor 1 map but don't show it yet
-    // School selection is shown first; applySchool() will reveal the floor map
-    app.ticker.stop();
+    // Apply persistent loadout from store (school, disciplines, tenets)
+    const loadout = useAgentLoadout.getState();
+    const schoolToApply = loadout.school ?? DEFAULT_SCHOOL;
+    agent.setSchool(schoolToApply);
+    loadout.disciplines.forEach(d => agent.applyDiscipline(d));
+    loadout.tenets.forEach(t => agent.applyTenet(t));
+    console.log(`🎖️ Loaded: ${schoolToApply.name} + ${loadout.disciplines.length} discipline(s) + ${loadout.tenets.length} tenet(s)`);
+    updateStats();
+
+    // Generate floor 1 map and show it immediately — no selection screens
     const initialMap = generateFloorMap(currentFloor);
     floorMapRef.current = initialMap;
     setFloorMapData({ ...initialMap });
+    setShowFloorMap(true);
     
     // Sound manager
     const sound = getSoundManager();
@@ -1052,43 +1041,6 @@ export default function ArenaCanvas({
         />
       )}
       
-      {/* School Selection — shown before discipline picker */}
-      {showSchoolSelection && (
-        <SchoolSelection
-          onSelect={(school) => {
-            setSelectedSchool(school);
-            selectedSchoolRef.current = school;
-            setShowSchoolSelection(false);
-            setShowDisciplineSelection(true);
-          }}
-        />
-      )}
-
-      {/* Discipline Selection — shown after school, before floor map */}
-      {showDisciplineSelection && (
-        <DisciplineSelection
-          school={selectedSchool}
-          onConfirm={(disciplines) => {
-            setShowDisciplineSelection(false);
-            setShowTenetSelection(true);
-            // Store disciplines to apply together with tenets
-            (window as any)._pendingDisciplines = disciplines;
-          }}
-        />
-      )}
-
-      {showTenetSelection && (
-        <TenetSelection
-          onConfirm={(tenets) => {
-            setShowTenetSelection(false);
-            const disciplines: Discipline[] = (window as any)._pendingDisciplines ?? [];
-            if ((window as any).applySchool) {
-              (window as any).applySchool(selectedSchoolRef.current, disciplines, tenets);
-            }
-          }}
-        />
-      )}
-
       {/* Boss Announcement */}
       {showBossAnnouncement && (
         <BossAnnouncement
