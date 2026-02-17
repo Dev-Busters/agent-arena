@@ -389,6 +389,7 @@ export default function ArenaCanvas({
         // Non-combat: heal 40% HP, immediately return to map
         const heal = Math.floor(agent.state.maxHp * 0.4);
         agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + heal);
+        gameStatsRef.current.roomsCompleted++;
         updateStats();
         console.log(`🛡️ Rested! +${heal} HP`);
         const updated = updateMapAfterClear(floorMapRef.current!, node.id);
@@ -401,6 +402,7 @@ export default function ArenaCanvas({
       if (node.type === 'shop') {
         // Stub: give 15 bonus gold and return to map
         gameStatsRef.current.gold += 15;
+        gameStatsRef.current.roomsCompleted++;
         updateStats();
         console.log('🏪 Visited shop! +15 gold');
         const updated = updateMapAfterClear(floorMapRef.current!, node.id);
@@ -460,6 +462,9 @@ export default function ArenaCanvas({
       }
 
       const currentNode = map.nodes.find(n => n.id === nodeId);
+
+      // Every completed node counts as a room cleared
+      gameStatsRef.current.roomsCompleted++;
 
       if (currentNode?.type === 'exit') {
         advanceFloor();
@@ -861,7 +866,7 @@ export default function ArenaCanvas({
 
         setFinalRunStats({
           floorsReached: currentFloor,
-          roomsCompleted: currentRoomIndex,
+          roomsCompleted: gameStatsRef.current.roomsCompleted,
           enemiesKilled: gameStatsRef.current.kills,
           timeSeconds: runTime,
           goldEarned,
