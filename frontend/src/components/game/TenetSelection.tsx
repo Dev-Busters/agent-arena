@@ -10,6 +10,27 @@ interface TenetSelectionProps {
 
 const MAX_SLOTS = 4;
 
+const STAT_LABELS: Record<string, (v: number) => string> = {
+  hpBonus:            v => `+${v} Max HP`,
+  hpMult:             v => `${Math.round(v * 100)}% Max HP`,
+  damageMult:         v => `${v >= 1 ? '+' : ''}${Math.round((v - 1) * 100)}% Damage`,
+  speedMult:          v => `${v >= 1 ? '+' : ''}${Math.round((v - 1) * 100)}% Speed`,
+  critBonus:          v => `+${v}% Crit`,
+  blastRadiusMult:    v => `+${Math.round((v - 1) * 100)}% Blast`,
+  attackCooldownMult: v => v < 1 ? `+${Math.round((1 - v) * 100)}% Atk Speed` : `-${Math.round((v - 1) * 100)}% Atk Speed`,
+  damageTakenMult:    v => v < 1 ? `-${Math.round((1 - v) * 100)}% Dmg Taken` : `+${Math.round((v - 1) * 100)}% Dmg Taken`,
+};
+
+function EffectLine({ effectKey, value }: { effectKey: string; value: number }) {
+  const label = STAT_LABELS[effectKey]?.(value) ?? `${effectKey}: ${value}`;
+  const isNeg = label.startsWith('-') || (effectKey === 'hpMult' && value < 1) || (effectKey === 'damageTakenMult' && value > 1);
+  return (
+    <div className="text-[10px]" style={{ color: isNeg ? '#d44040' : '#3dba6f' }}>
+      {isNeg ? '▼' : '▲'} {label}
+    </div>
+  );
+}
+
 export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
   const [selected, setSelected] = useState<Tenet[]>([]);
 
@@ -24,43 +45,42 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-      // fixed + z-[100] covers the HUD which is a sibling of ArenaCanvas in page.tsx
-      className="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center pointer-events-auto overflow-y-auto"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center pointer-events-auto overflow-y-auto"
+      style={{ background: '#0a0a0f' }}
     >
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse at center, rgba(20,60,40,0.15) 0%, transparent 70%)' }}
-      />
+        style={{ background: 'radial-gradient(ellipse at 50% 30%, rgba(20,60,40,0.08) 0%, transparent 60%)' }} />
 
       {/* Title */}
       <motion.div
         initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
         className="text-center mb-5 z-10 flex-shrink-0 pt-6"
       >
-        <p className="text-xs uppercase tracking-[0.4em] mb-1 text-yellow-500">⚖️ Doctrine</p>
-        <h1 className="text-4xl font-black text-white">Equip Your Tenets</h1>
-        <p className="text-slate-500 text-sm mt-2">Tenets shape your agent's instincts. Choose up to 4.</p>
+        <p className="text-[10px] uppercase tracking-[0.45em] mb-1" style={{ color: '#8a6d2b' }}>⚖️ Doctrine</p>
+        <h1 className="font-display text-4xl font-bold tracking-wider" style={{ color: '#e8e6e3' }}>Equip Your Tenets</h1>
+        <p className="text-sm mt-2" style={{ color: '#8a8478' }}>Tenets shape your agent's instincts. Choose up to 4.</p>
       </motion.div>
 
       {/* Slot indicators */}
       <div className="flex gap-3 mb-5 z-10 flex-shrink-0">
         {[0, 1, 2, 3].map(i => (
-          <div key={i}
-            className={`w-32 h-10 rounded-lg border flex items-center justify-center text-xs transition-all duration-200
-              ${selected[i]
-                ? 'border-yellow-500/60 bg-yellow-950/40 text-white'
-                : 'border-slate-700 border-dashed text-slate-600'
-              }`}
+          <div key={i} className="w-32 h-10 rounded-lg flex items-center justify-center text-xs transition-all duration-200"
+            style={{
+              border: selected[i] ? '1px solid #8a6d2b' : '1px dashed #2a2a3d',
+              background: selected[i] ? 'rgba(138,109,43,0.1)' : 'rgba(10,10,20,0.5)',
+              color: selected[i] ? '#d4a843' : '#5c574e',
+            }}
           >
             {selected[i]
               ? <span>{selected[i].icon} {selected[i].name}</span>
-              : <span className="uppercase tracking-wider">Slot {i + 1}</span>
+              : <span className="uppercase tracking-wider" style={{ fontSize: 10 }}>Slot {i + 1}</span>
             }
           </div>
         ))}
       </div>
 
-      {/* Tenet grid — 4 columns × 2 rows, scrollable if needed */}
-      <div className="grid grid-cols-4 gap-3 z-10 mb-5 px-8 flex-shrink-0 overflow-y-auto max-h-[380px]">
+      {/* Tenet grid — 4-col, scrollable */}
+      <div className="grid grid-cols-4 gap-3 z-10 mb-5 px-8 flex-shrink-0" style={{ maxHeight: 360, overflowY: 'auto' }}>
         {TENETS.map((tenet, i) => {
           const isSelected = !!selected.find(t => t.id === tenet.id);
           const isFull = selected.length >= MAX_SLOTS && !isSelected;
@@ -68,42 +88,47 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
           return (
             <motion.div
               key={tenet.id}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: isFull ? 0.4 : 1 }}
+              initial={{ y: 18, opacity: 0 }}
+              animate={{ y: 0, opacity: isFull ? 0.38 : 1 }}
               transition={{ delay: 0.2 + i * 0.04 }}
-              whileHover={!isFull ? { y: -4, scale: 1.02 } : {}}
+              whileHover={!isFull ? { y: -3, scale: 1.02 } : {}}
               onClick={() => !isFull && toggle(tenet)}
-              className={`rounded-xl border p-3 flex flex-col cursor-pointer transition-all duration-150
-                ${isSelected
-                  ? 'border-yellow-500 bg-yellow-950/30 shadow-md shadow-yellow-900/30'
-                  : isFull
-                    ? 'border-slate-800 bg-slate-900/40 cursor-not-allowed'
-                    : 'border-slate-700 bg-slate-900/60 hover:border-slate-500'
-                }`}
+              className="relative rounded-xl flex flex-col overflow-hidden"
+              style={{
+                padding: '12px',
+                background: 'linear-gradient(135deg, rgba(26,26,40,0.97) 0%, rgba(14,14,22,0.99) 100%)',
+                border: isSelected ? '1px solid #8a6d2b' : '1px solid #2a2a3d',
+                boxShadow: isSelected ? '0 4px 16px rgba(212,168,67,0.1)' : 'none',
+                cursor: isFull ? 'not-allowed' : 'pointer',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
             >
+              {/* Gold shimmer top */}
+              {isSelected && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #92600a, transparent)' }} />
+              )}
               <div className="flex items-start justify-between mb-1.5">
-                <span className="text-xl">{tenet.icon}</span>
-                {isSelected && <span className="text-yellow-400 text-xs font-bold">✓</span>}
+                <span style={{ fontSize: 20 }}>{tenet.icon}</span>
+                {isSelected && <span style={{ color: '#fbbf24', fontSize: 11, fontWeight: 'bold' }}>✓</span>}
               </div>
-              <h3 className="text-sm font-bold text-white mb-0.5">{tenet.name}</h3>
-              <p className="text-yellow-500/70 text-[10px] mb-1.5">{tenet.tagline}</p>
-              <p className="text-slate-500 text-[10px] leading-relaxed flex-1">{tenet.description}</p>
+              <h3 className="text-sm font-bold mb-0.5" style={{ color: '#e8e6e3' }}>{tenet.name}</h3>
+              <p className="mb-1.5" style={{ color: '#8a6d2b', fontSize: 10 }}>{tenet.tagline}</p>
+              <p className="leading-relaxed flex-1" style={{ color: '#8a8478', fontSize: 10 }}>{tenet.description}</p>
 
-              {/* Effects */}
               <div className="mt-2 space-y-0.5">
                 {Object.entries(tenet.effects)
                   .filter(([k]) => k !== 'targeting' && k !== 'berserker' && k !== 'executioner')
                   .map(([key, val]) => (
-                    <TenetEffectLine key={key} effectKey={key} value={val as number} />
+                    <EffectLine key={key} effectKey={key} value={val as number} />
                   ))}
                 {tenet.effects.targeting && (
-                  <div className="text-[10px] text-cyan-400">▶ Target: {tenet.effects.targeting.replace('-', ' ')}</div>
+                  <div style={{ fontSize: 10, color: '#4da8da' }}>▶ Target: {tenet.effects.targeting.replace('-', ' ')}</div>
                 )}
                 {tenet.effects.berserker && (
-                  <div className="text-[10px] text-orange-400">▶ Damage scales with missing HP</div>
+                  <div style={{ fontSize: 10, color: '#e8722a' }}>▶ Damage scales with missing HP</div>
                 )}
                 {tenet.effects.executioner && (
-                  <div className="text-[10px] text-red-400">▶ +50% dmg vs &lt;30% HP enemies</div>
+                  <div style={{ fontSize: 10, color: '#d44040' }}>▶ +50% dmg vs &lt;30% HP enemies</div>
                 )}
               </div>
             </motion.div>
@@ -112,50 +137,30 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       </div>
 
       {/* CTA */}
-      <div className="flex gap-4 z-10 pb-6 flex-shrink-0">
+      <div className="flex gap-4 z-10 pb-7 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
           onClick={() => onConfirm([])}
-          className="px-6 py-3 rounded-xl border border-slate-700 text-slate-400 text-sm hover:border-slate-500 transition-colors"
+          className="px-6 py-3 rounded-xl text-sm font-medium uppercase tracking-wider"
+          style={{ border: '1px solid #2a2a3d', color: '#8a8478', background: 'transparent' }}
         >
-          Skip tenets
+          Skip
         </motion.button>
         <motion.button
           whileHover={selected.length > 0 ? { scale: 1.04 } : {}}
           whileTap={selected.length > 0 ? { scale: 0.97 } : {}}
           onClick={() => selected.length > 0 && onConfirm(selected)}
-          className={`px-10 py-3 rounded-xl font-bold text-sm transition-all duration-200
-            ${selected.length > 0
-              ? 'bg-gradient-to-r from-yellow-600 to-amber-700 text-white shadow-lg'
-              : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-            }`}
+          className="px-10 py-3 rounded-xl font-bold text-sm uppercase tracking-wider"
+          style={selected.length > 0
+            ? { background: 'linear-gradient(135deg, rgba(212,168,67,0.2), rgba(212,168,67,0.06))', border: '1px solid #8a6d2b', color: '#fbbf24' }
+            : { background: 'rgba(30,30,40,0.6)', border: '1px solid #2a2a3d', color: '#5c574e', cursor: 'not-allowed' }
+          }
         >
           {selected.length === 0
-            ? 'Select a tenet'
-            : `Enter Crucible (${selected.length} tenet${selected.length > 1 ? 's' : ''}) →`}
+            ? 'Select a Tenet'
+            : `Enter Crucible — ${selected.length} Tenet${selected.length > 1 ? 's' : ''} →`}
         </motion.button>
       </div>
     </motion.div>
-  );
-}
-
-const STAT_LABELS: Record<string, (v: number) => string> = {
-  hpBonus:            v => `+${v} Max HP`,
-  hpMult:             v => `${Math.round(v * 100)}% Max HP`,
-  damageMult:         v => `${v >= 1 ? '+' : ''}${Math.round((v - 1) * 100)}% Damage`,
-  speedMult:          v => `${v >= 1 ? '+' : ''}${Math.round((v - 1) * 100)}% Speed`,
-  critBonus:          v => `+${v}% Crit`,
-  blastRadiusMult:    v => `+${Math.round((v - 1) * 100)}% Blast`,
-  attackCooldownMult: v => v < 1 ? `+${Math.round((1 - v) * 100)}% Atk Speed` : `-${Math.round((v - 1) * 100)}% Atk Speed`,
-  damageTakenMult:    v => v < 1 ? `-${Math.round((1 - v) * 100)}% Dmg Taken` : `+${Math.round((v - 1) * 100)}% Dmg Taken`,
-};
-
-function TenetEffectLine({ effectKey, value }: { effectKey: string; value: number }) {
-  const label = STAT_LABELS[effectKey]?.(value) ?? `${effectKey}: ${value}`;
-  const isNeg = label.startsWith('-') || (effectKey === 'hpMult' && value < 1) || (effectKey === 'damageTakenMult' && value > 1);
-  return (
-    <div className={`text-[10px] ${isNeg ? 'text-red-400' : 'text-green-400'}`}>
-      {isNeg ? '▼' : '▲'} {label}
-    </div>
   );
 }

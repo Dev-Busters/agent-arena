@@ -401,3 +401,31 @@ body::after {
 .stagger-children > *:nth-child(8) { animation-delay: 0.40s; }
 .stagger-children > *:nth-child(9) { animation-delay: 0.45s; }
 .stagger-children > *:nth-child(10) { animation-delay: 0.50s; }
+
+/* ============================================
+   Shimmer animation for rare/epic modifier cards
+   ============================================ */
+@keyframes shimmerDiagonal {
+  0%   { background-position: -200% -200%; }
+  100% { background-position: 200% 200%; }
+}
+
+.shimmer-card-rare {
+  background: linear-gradient(135deg,
+    transparent 35%,
+    rgba(77, 168, 218, 0.06) 50%,
+    transparent 65%
+  );
+  background-size: 200% 200%;
+  animation: shimmerDiagonal 4s ease-in-out infinite;
+}
+
+.shimmer-card-epic {
+  background: linear-gradient(135deg,
+    transparent 35%,
+    rgba(155, 93, 229, 0.07) 50%,
+    transparent 65%
+  );
+  background-size: 200% 200%;
+  animation: shimmerDiagonal 3.5s ease-in-out infinite;
+}
