@@ -122,6 +122,17 @@ export default function Sidebar() {
         })}
       </nav>
 
+      {/* Subtle gold divider */}
+      <div
+        style={{
+          width: 28,
+          height: 1,
+          marginTop: 8,
+          marginBottom: 8,
+          background: 'linear-gradient(90deg, transparent, rgba(212, 168, 67, 0.25), transparent)',
+        }}
+      />
+
       {/* Bottom user icon */}
       <div
         className="flex items-center justify-center"
