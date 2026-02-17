@@ -755,8 +755,9 @@ export default function ArenaCanvas({
         
         const collisionRange = 40;
         if (dist < collisionRange) {
-          agent.takeDamage(0.5);
-          damageThisRun += 0.5;
+          // 0.2 dmg/frame = 12 DPS per enemy — survivable with 3 enemies on screen
+          agent.takeDamage(0.2);
+          damageThisRun += 0.2;
           updateStats();
         }
       });
