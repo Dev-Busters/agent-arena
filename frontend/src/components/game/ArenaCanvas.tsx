@@ -912,12 +912,11 @@ export default function ArenaCanvas({
         }
       }
       
-      // Update gold coins
+      // Update gold coins — pass agent position for magnetic attraction
       for (let i = goldCoins.length - 1; i >= 0; i--) {
         const coin = goldCoins[i];
-        coin.update(delta);
         
-        if (coin.checkCollection(agent.state.x, agent.state.y)) {
+        if (coin.update(delta, agent.state.x, agent.state.y)) {
           // Coin collected
           gameStatsRef.current.gold += coin.value;
           console.log(`💰 +${coin.value} gold (total: ${gameStatsRef.current.gold})`);

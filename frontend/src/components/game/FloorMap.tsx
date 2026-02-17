@@ -148,33 +148,36 @@ function MapNode({ node, x, y, onSelect }: {
 
   const opacity = node.cleared ? 0.5 : !node.active ? 0.25 : 1;
 
+  // Wrap in a plain div for positioning so Framer Motion's whileHover scale
+  // doesn't clobber the translate(-50%,-50%) centering transform.
   return (
-    <motion.div
-      style={{ position: 'absolute', left: pctX, top: pctY, transform: 'translate(-50%, -50%)', opacity }}
-      whileHover={isClickable ? { scale: 1.15 } : {}}
-      onClick={isClickable ? () => onSelect(node) : undefined}
-      className={`w-20 h-20 rounded-full border-2 ${borderColor} bg-slate-900
-        flex flex-col items-center justify-center
-        ${isClickable ? 'cursor-pointer' : 'cursor-default'} relative`}
-    >
-      <span className="text-2xl leading-none">{NODE_ICONS[node.type]}</span>
-      <span className="text-[10px] text-slate-300 mt-1">{NODE_LABELS[node.type]}</span>
+    <div style={{ position: 'absolute', left: pctX, top: pctY, transform: 'translate(-50%, -50%)', opacity }}>
+      <motion.div
+        whileHover={isClickable ? { scale: 1.15 } : {}}
+        onClick={isClickable ? () => onSelect(node) : undefined}
+        className={`w-20 h-20 rounded-full border-2 ${borderColor} bg-slate-900
+          flex flex-col items-center justify-center
+          ${isClickable ? 'cursor-pointer' : 'cursor-default'} relative`}
+      >
+        <span className="text-2xl leading-none">{NODE_ICONS[node.type]}</span>
+        <span className="text-[10px] text-slate-300 mt-1">{NODE_LABELS[node.type]}</span>
 
-      {/* Cleared checkmark */}
-      {node.cleared && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
-          <span className="text-green-400 text-xl">✓</span>
-        </div>
-      )}
+        {/* Cleared checkmark */}
+        {node.cleared && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+            <span className="text-green-400 text-xl">✓</span>
+          </div>
+        )}
 
-      {/* Pulse ring for active nodes */}
-      {isClickable && (
-        <motion.div
-          className={`absolute inset-0 rounded-full border-2 ${borderColor}`}
-          animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
-      )}
-    </motion.div>
+        {/* Pulse ring for active nodes */}
+        {isClickable && (
+          <motion.div
+            className={`absolute inset-0 rounded-full border-2 ${borderColor}`}
+            animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        )}
+      </motion.div>
+    </div>
   );
 }

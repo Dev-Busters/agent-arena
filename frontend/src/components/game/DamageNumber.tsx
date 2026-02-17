@@ -55,7 +55,7 @@ export default function DamageNumber({
         textShadow: '0 0 8px rgba(0,0,0,0.8)'
       }}
     >
-      {isHeal ? '+' : '-'}{damage}{isCrit && '!'}
+      {isHeal ? '+' : '-'}{Math.round(damage)}{isCrit && '!'}
     </motion.div>
   );
 }
