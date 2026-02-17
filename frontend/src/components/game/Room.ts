@@ -76,10 +76,49 @@ function generateEnemySpawns(floor: number, roomNumber: number): EnemySpawn[] {
 }
 
 /**
- * Get room count for a floor
+ * Get room count for a floor (legacy - kept for compatibility)
  */
 export function getRoomCount(floor: number): number {
   if (floor <= 5) return 3;
   if (floor <= 10) return 4;
   return 5;
+}
+
+/**
+ * Generate a room for a specific floor map node type
+ */
+export function generateRoomForNodeType(
+  nodeType: 'combat' | 'elite' | 'exit',
+  floor: number,
+  nodeId: string
+): Room {
+  const baseCount = 3 + Math.floor(floor / 2);
+
+  let spawns: EnemySpawn[];
+  let countMultiplier = 1.0;
+
+  if (nodeType === 'elite') {
+    countMultiplier = 1.5;
+  } else if (nodeType === 'exit') {
+    countMultiplier = 1.3;
+  }
+
+  const count = Math.max(2, Math.floor(baseCount * countMultiplier));
+
+  if (floor === 1) {
+    spawns = [{ type: 'charger', count }];
+  } else if (floor === 2) {
+    spawns = [
+      { type: 'charger', count: Math.ceil(count * 0.6) },
+      { type: 'ranger', count: Math.floor(count * 0.4) },
+    ];
+  } else {
+    spawns = [
+      { type: 'charger', count: Math.ceil(count * 0.4) },
+      { type: 'ranger', count: Math.ceil(count * 0.35) },
+      { type: 'dasher', count: Math.max(1, Math.floor(count * 0.25)) },
+    ];
+  }
+
+  return { id: nodeId, floor, roomNumber: 0, enemySpawns: spawns, cleared: false };
 }

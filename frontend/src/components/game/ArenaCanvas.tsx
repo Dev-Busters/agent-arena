@@ -15,8 +15,9 @@ import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
 import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
-import PathChoice from './PathChoice';
-import type { PathType } from './PathChoice';
+import FloorMapComponent from './FloorMap';
+import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
+import { generateRoomForNodeType } from './Room';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -163,11 +164,13 @@ export default function ArenaCanvas({
   const [nextFloorNumber, setNextFloorNumber] = useState(1);
   const [showModifierSelection, setShowModifierSelection] = useState(false);
   const [modifierChoices, setModifierChoices] = useState<Modifier[]>([]);
-  const [showPathChoice, setShowPathChoice] = useState(false);
-  const [availablePaths, setAvailablePaths] = useState<PathType[]>(['combat', 'elite', 'treasure']);
+  const [showFloorMap, setShowFloorMap] = useState(false);
+  const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
+  const floorMapRef = useRef<FloorMap | null>(null);
+  const currentNodeIdRef = useRef<string | null>(null);
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
@@ -228,8 +231,9 @@ export default function ArenaCanvas({
     // Crucible room management
     let currentFloor = 1;
     let currentRoomIndex = 0;
-    let rooms: Room[] = generateRooms(currentFloor, getRoomCount(currentFloor));
+    let rooms: Room[] = [];
     let roomTransitioning = false;
+    let gameStarted = false; // prevents room-clear trigger before first combat
     let enemies: Enemy[] = [];
     let xpOrbs: XPOrb[] = [];
     let lootItems: Loot[] = [];
@@ -293,78 +297,114 @@ export default function ArenaCanvas({
       updateStats();
     };
     
-    // Spawn first room
-    spawnRoom(rooms[currentRoomIndex]);
-    
-    // Handler for modifier selection
-    const handleModifierSelect = (modifier: Modifier) => {
-      console.log(`✨ Selected modifier: ${modifier.name}`);
-      
-      // Apply modifier
-      applyModifier(modifier, activeModifiersRef.current);
-      
-      // Apply damage multiplier to agent attacks
-      const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
-      console.log(`🔥 Current damage multiplier: ${damageMultiplier.toFixed(2)}x`);
-      
-      // Hide modifier selection
-      setShowModifierSelection(false);
-      setModifierChoices([]);
-      
-      // Advance to next room
-      currentRoomIndex++;
-      
-      // Check if floor is complete
-      if (currentRoomIndex >= rooms.length) {
-        console.log(`🎉 Floor ${currentFloor} COMPLETE!`);
-        
-        // Show path choice instead of immediately descending
-        setAvailablePaths(['combat', 'elite', 'treasure']);
-        setShowPathChoice(true);
-        console.log('🗺️  Showing path choice for next floor');
-        // Keep ticker stopped, waiting for path selection
-      } else {
-        // More rooms on this floor - resume and spawn next room
-        app.ticker.start();
-        spawnRoom(rooms[currentRoomIndex]);
-        roomTransitioning = false;
-      }
-    };
-    
-    // Store handler in window for access from React component
-    (window as any).handleModifierSelect = handleModifierSelect;
-    
-    // Handler for path selection
-    const handlePathSelect = (pathType: PathType) => {
-      console.log(`🗺️  Selected path: ${pathType}`);
-      
-      // Hide path choice
-      setShowPathChoice(false);
-      
-      // Show floor transition
-      setNextFloorNumber(currentFloor + 1);
-      setShowFloorTransition(true);
-      setTimeout(() => setShowFloorTransition(false), 2000);
-      
-      // Advance floor
+    // Advance to next floor — generate new map
+    const advanceFloor = () => {
       currentFloor++;
       currentRoomIndex = 0;
-      
-      // Generate next floor based on selected path
-      // For now, all paths use same room generation (will customize in E3-E5)
-      rooms = generateRooms(currentFloor, getRoomCount(currentFloor));
-      console.log(`📊 Floor ${currentFloor} (${pathType}): ${rooms.length} rooms to clear`);
-      
-      // Spawn first room of new floor
-      spawnRoom(rooms[currentRoomIndex]);
-      
-      // Resume game
+      setNextFloorNumber(currentFloor);
+      setShowFloorTransition(true);
+      setTimeout(() => setShowFloorTransition(false), 2000);
+
+      const newMap = generateFloorMap(currentFloor);
+      floorMapRef.current = newMap;
+      setFloorMapData({ ...newMap });
+      setTimeout(() => setShowFloorMap(true), 2200);
+    };
+
+    // Handler: player clicks a node on the floor map
+    const handleNodeSelect = (node: FloorMapNode) => {
+      setShowFloorMap(false);
+      currentNodeIdRef.current = node.id;
+
+      if (node.type === 'rest') {
+        // Non-combat: heal 40% HP, immediately return to map
+        const heal = Math.floor(agent.state.maxHp * 0.4);
+        agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + heal);
+        updateStats();
+        console.log(`🛡️ Rested! +${heal} HP`);
+        const updated = updateMapAfterClear(floorMapRef.current!, node.id);
+        floorMapRef.current = updated;
+        setFloorMapData({ ...updated });
+        setShowFloorMap(true);
+        return;
+      }
+
+      if (node.type === 'shop') {
+        // Stub: give 15 bonus gold and return to map
+        gameStatsRef.current.gold += 15;
+        updateStats();
+        console.log('🏪 Visited shop! +15 gold');
+        const updated = updateMapAfterClear(floorMapRef.current!, node.id);
+        floorMapRef.current = updated;
+        setFloorMapData({ ...updated });
+        setShowFloorMap(true);
+        return;
+      }
+
+      if (node.type === 'treasure') {
+        // Non-combat: epic modifier pick, then back to map
+        const choices = getRandomModifiers(3, 'epic');
+        setModifierChoices(choices);
+        app.ticker.stop();
+        setShowModifierSelection(true);
+        return;
+      }
+
+      // combat / elite / exit: spawn enemies and fight
+      const room = generateRoomForNodeType(node.type as 'combat' | 'elite' | 'exit', currentFloor, node.id);
+      rooms = [room];
+      currentRoomIndex = 0;
+      gameStarted = true;
+
+      // Clear any leftover enemies
+      enemies.forEach(e => { app.stage.removeChild(e.container); e.destroy(); });
+      enemies = [];
+
+      spawnRoom(rooms[0]);
       app.ticker.start();
       roomTransitioning = false;
     };
-    
-    // Store handler in window for access from React component
-    (window as any).handlePathSelect = handlePathSelect;
+
+    // Handler: player picks a modifier
+    const handleModifierSelect = (modifier: Modifier) => {
+      console.log(`✨ Selected modifier: ${modifier.name}`);
+      applyModifier(modifier, activeModifiersRef.current);
+      console.log(`🔥 Damage multiplier: ${calculateDamageMultiplier(activeModifiersRef.current).toFixed(2)}x`);
+
+      setShowModifierSelection(false);
+      setModifierChoices([]);
+
+      const nodeId = currentNodeIdRef.current;
+      const map = floorMapRef.current;
+
+      if (!map || !nodeId) {
+        app.ticker.start();
+        return;
+      }
+
+      const currentNode = map.nodes.find(n => n.id === nodeId);
+
+      if (currentNode?.type === 'exit') {
+        advanceFloor();
+      } else {
+        // Mark node cleared, return to map
+        const updated = updateMapAfterClear(map, nodeId);
+        floorMapRef.current = updated;
+        setFloorMapData({ ...updated });
+        setShowFloorMap(true);
+      }
+    };
+
+    // Expose handlers to React component via window
+    (window as any).handleModifierSelect = handleModifierSelect;
+    (window as any).handleNodeSelect = handleNodeSelect;
+
+    // Start the game by showing the floor 1 map
+    app.ticker.stop();
+    const initialMap = generateFloorMap(currentFloor);
+    floorMapRef.current = initialMap;
+    setFloorMapData({ ...initialMap });
+    setTimeout(() => setShowFloorMap(true), 100);
     
     // Sound manager
     const sound = getSoundManager();
@@ -693,7 +733,7 @@ export default function ArenaCanvas({
       }
       
       // Check for room completion
-      if (enemies.length === 0 && !roomTransitioning) {
+      if (gameStarted && enemies.length === 0 && !roomTransitioning) {
         // Mark current room as cleared
         rooms[currentRoomIndex].cleared = true;
         roomTransitioning = true;
@@ -825,14 +865,13 @@ export default function ArenaCanvas({
         />
       )}
       
-      {/* Path Choice overlay */}
-      {showPathChoice && (
-        <PathChoice
-          availablePaths={availablePaths}
-          currentFloor={nextFloorNumber}
-          onSelect={(path) => {
-            if ((window as any).handlePathSelect) {
-              (window as any).handlePathSelect(path);
+      {/* Floor Map overlay */}
+      {showFloorMap && floorMapData && (
+        <FloorMapComponent
+          floorMap={floorMapData}
+          onNodeSelect={(node) => {
+            if ((window as any).handleNodeSelect) {
+              (window as any).handleNodeSelect(node);
             }
           }}
         />
