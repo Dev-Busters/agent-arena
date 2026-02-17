@@ -22,6 +22,7 @@ import { useAgentLoadout, calculateRunXP } from '@/stores/agentLoadout';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
 import BossAnnouncement from './BossAnnouncement';
+import { getGameBridge } from './managers/GameBridge';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -378,7 +379,7 @@ export default function ArenaCanvas({
       app.ticker.start();
     };
 
-    (window as any).startBossFight = startBossFight;
+    // Handlers registered via GameBridge above (after handleModifierSelect)
 
     // Handler: player clicks a node on the floor map
     const handleNodeSelect = (node: FloorMapNode) => {
@@ -477,9 +478,11 @@ export default function ArenaCanvas({
       }
     };
 
-    // Expose handlers to React component via window
-    (window as any).handleModifierSelect = handleModifierSelect;
-    (window as any).handleNodeSelect = handleNodeSelect;
+    // Register handlers on GameBridge for React components to emit events
+    const bridge = getGameBridge();
+    bridge.on('modifier:select', handleModifierSelect);
+    bridge.on('node:select', handleNodeSelect);
+    bridge.on('boss:start', startBossFight);
 
     // Apply persistent loadout from store (school, disciplines, tenets)
     const loadout = useAgentLoadout.getState();
@@ -1059,9 +1062,7 @@ export default function ArenaCanvas({
         <ModifierSelection
           modifiers={modifierChoices}
           onSelect={(modifier) => {
-            if ((window as any).handleModifierSelect) {
-              (window as any).handleModifierSelect(modifier);
-            }
+            getGameBridge().emit('modifier:select', modifier);
           }}
         />
       )}
@@ -1071,9 +1072,7 @@ export default function ArenaCanvas({
         <FloorMapComponent
           floorMap={floorMapData}
           onNodeSelect={(node) => {
-            if ((window as any).handleNodeSelect) {
-              (window as any).handleNodeSelect(node);
-            }
+            getGameBridge().emit('node:select', node);
           }}
         />
       )}
@@ -1083,9 +1082,7 @@ export default function ArenaCanvas({
         <BossAnnouncement
           bossName="THE WARDEN"
           onDismiss={() => {
-            if ((window as any).startBossFight) {
-              (window as any).startBossFight();
-            }
+            getGameBridge().emit('boss:start');
           }}
         />
       )}
