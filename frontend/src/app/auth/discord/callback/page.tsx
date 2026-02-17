@@ -39,13 +39,8 @@ function DiscordCallbackContent() {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
 
-      if (response.data.isNew) {
-        setStatus('Welcome to Agent Arena! Redirecting...')
-        setTimeout(() => router.push('/agent/create'), 1000)
-      } else {
-        setStatus('Welcome back! Redirecting...')
-        setTimeout(() => router.push('/dashboard'), 1000)
-      }
+      setStatus('Welcome to Agent Arena! Redirecting...')
+      setTimeout(() => router.push('/dashboard'), 1000)
     } catch (err: any) {
       console.error('Discord callback error:', err)
       setError(err.response?.data?.error || 'Authentication failed')

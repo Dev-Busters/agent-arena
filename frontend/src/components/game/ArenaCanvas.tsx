@@ -178,6 +178,7 @@ export default function ArenaCanvas({
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
+  const modifierCategoriesRef = useRef<Set<string>>(new Set());
   const floorMapRef = useRef<FloorMap | null>(null);
   const currentNodeIdRef = useRef<string | null>(null);
   const gameStatsRef = useRef<GameStats>({
@@ -443,6 +444,7 @@ export default function ArenaCanvas({
     const handleModifierSelect = (modifier: Modifier) => {
       console.log(`✨ Selected modifier: ${modifier.name}`);
       applyModifier(modifier, activeModifiersRef.current);
+      modifierCategoriesRef.current.add(modifier.category);
       console.log(`🔥 Damage multiplier: ${calculateDamageMultiplier(activeModifiersRef.current).toFixed(2)}x`);
 
       setShowModifierSelection(false);
@@ -851,7 +853,7 @@ export default function ArenaCanvas({
           floorsCleared: currentFloor,
           killsThisRun: gameStatsRef.current.kills,
           schoolId: currentSchool.id,
-          modifierCategories: [],
+          modifierCategories: Array.from(modifierCategoriesRef.current),
         });
 
         const newState = useAgentLoadout.getState();
