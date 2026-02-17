@@ -105,7 +105,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
                 transition={{ duration: 0.3 }}
               />
             </div>
-            <span className="text-white font-mono text-sm">{playerHp}/{playerMaxHp}</span>
+            <span className="text-white font-mono text-sm">{Math.ceil(playerHp)}/{playerMaxHp}</span>
           </div>
           
           {/* XP bar */}

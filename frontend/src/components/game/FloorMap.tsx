@@ -9,11 +9,12 @@ interface FloorMapProps {
 }
 
 // Fixed pixel positions in the 1280px-wide map area
+// Map area height is ~480px (720px canvas - 140px title - 100px ability HUD)
 const COL_X: Record<number, number> = { 0: 260, 1: 640, 2: 1020 };
 const ROW_Y: Record<number, number[]> = {
-  1: [290],
-  2: [190, 390],
-  3: [120, 290, 460],
+  1: [240],
+  2: [160, 320],
+  3: [100, 240, 380],
 };
 
 const NODE_ICONS: Record<NodeType, string> = {
