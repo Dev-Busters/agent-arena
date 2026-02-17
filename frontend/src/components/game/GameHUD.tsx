@@ -22,6 +22,8 @@ export interface GameState {
   enemiesRemaining: number;
   abilities: AbilityCooldownState;
   isPaused: boolean;
+  bossHp?: number;
+  bossMaxHp?: number;
 }
 
 interface GameHUDProps {
@@ -35,7 +37,9 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp } = gameState;
+  const isBossFight = bossHp !== undefined && bossMaxHp !== undefined && bossMaxHp > 0;
+  const bossPct = isBossFight ? Math.max(0, (bossHp! / bossMaxHp!) * 100) : 0;
   const hpPercent = (playerHp / playerMaxHp) * 100;
   const hpColor = hpPercent > 50 ? 'bg-green-500' : hpPercent > 25 ? 'bg-yellow-500' : 'bg-red-500';
   const xpPercent = (playerXP / playerXPToNext) * 100;
@@ -63,6 +67,24 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
 
   return (
     <div className="absolute inset-0 pointer-events-none">
+      {/* Boss HP bar — appears at top center during boss fights */}
+      {isBossFight && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-30 w-[480px] mt-4 px-4 py-3
+          bg-slate-900/90 backdrop-blur-sm border border-red-500/50 rounded-xl text-center">
+          <div className="text-xs text-red-400 uppercase tracking-widest font-bold mb-2">
+            ☠ The Warden
+          </div>
+          <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden border border-red-900/50">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-red-700 to-red-400"
+              animate={{ width: `${bossPct}%` }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
+          <div className="text-xs text-red-300 font-mono mt-1">{Math.max(0, bossHp!)} / {bossMaxHp}</div>
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-auto">
         {/* Left: Player HP + XP + Level */}

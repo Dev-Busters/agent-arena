@@ -18,6 +18,8 @@ import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateD
 import FloorMapComponent from './FloorMap';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
+import { Boss } from './Boss';
+import BossAnnouncement from './BossAnnouncement';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -38,6 +40,8 @@ export interface GameStats {
   roomsCompleted: number;
   enemiesRemaining: number;
   abilities: AbilityCooldownState;
+  bossHp?: number;
+  bossMaxHp?: number;
 }
 
 export interface DamageEvent {
@@ -166,6 +170,7 @@ export default function ArenaCanvas({
   const [modifierChoices, setModifierChoices] = useState<Modifier[]>([]);
   const [showFloorMap, setShowFloorMap] = useState(false);
   const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
+  const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
@@ -313,7 +318,10 @@ export default function ArenaCanvas({
       updateStats();
     };
     
-    // Advance to next floor — generate new map
+    // Boss instance (if active)
+    let activeBoss: Boss | null = null;
+
+    // Advance to next floor — generate new map or trigger boss
     const advanceFloor = () => {
       currentFloor++;
       currentRoomIndex = 0;
@@ -324,8 +332,49 @@ export default function ArenaCanvas({
       const newMap = generateFloorMap(currentFloor);
       floorMapRef.current = newMap;
       setFloorMapData({ ...newMap });
-      setTimeout(() => setShowFloorMap(true), 2200);
+
+      if (newMap.isBoss) {
+        // Boss floor — show announcement then spawn boss
+        setTimeout(() => setShowBossAnnouncement(true), 2200);
+      } else {
+        setTimeout(() => setShowFloorMap(true), 2200);
+      }
     };
+
+    // Start boss fight after announcement
+    const startBossFight = () => {
+      setShowBossAnnouncement(false);
+      gameStarted = true;
+
+      // Clear any existing enemies
+      enemies.forEach(e => { app.stage.removeChild(e.container); e.destroy(); });
+      enemies = [];
+
+      activeBoss = new Boss(width / 2, height / 2, width, height, WALL_THICKNESS);
+      app.stage.addChild(activeBoss.container);
+
+      activeBoss.onSlam = (bx, by, radius, damage) => {
+        // AoE slam — check if agent is in radius
+        const dx = agent.state.x - bx;
+        const dy = agent.state.y - by;
+        if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+          agent.takeDamage(damage);
+          updateStats();
+        }
+      };
+
+      activeBoss.onSummon = (_bx, _by, count) => {
+        // Spawn minions away from agent (not from boss position)
+        const summoned = spawnEnemies(count, agent.state.x, agent.state.y, width, height, WALL_THICKNESS, 1.0, 1.0);
+        summoned.forEach(e => app.stage.addChild(e.container));
+        enemies.push(...summoned);
+        console.log(`👹 Warden summoned ${count} minions!`);
+      };
+
+      app.ticker.start();
+    };
+
+    (window as any).startBossFight = startBossFight;
 
     // Handler: player clicks a node on the floor map
     const handleNodeSelect = (node: FloorMapNode) => {
@@ -397,6 +446,12 @@ export default function ArenaCanvas({
 
       if (!map || !nodeId) {
         app.ticker.start();
+        return;
+      }
+
+      // Boss kill sentinel
+      if (nodeId.startsWith('boss_')) {
+        advanceFloor();
         return;
       }
 
@@ -497,6 +552,17 @@ export default function ArenaCanvas({
       
       // Remove dead enemies from array
       enemies = enemies.filter(e => e.state.hp > 0);
+      
+      // Also hit boss if in range
+      if (activeBoss && !activeBoss.dead) {
+        const bdx = activeBoss.state.x - px;
+        const bdy = activeBoss.state.y - py;
+        if (Math.sqrt(bdx * bdx + bdy * bdy) <= range) {
+          const dm = calculateDamageMultiplier(activeModifiersRef.current);
+          activeBoss.takeDamage(damage * dm);
+        }
+      }
+      
       updateStats();
     };
     
@@ -548,11 +614,18 @@ export default function ArenaCanvas({
       });
       
       console.log(`💥 Area blast hit ${hitCount} enemies!`);
-      
-      // Yellow explosion particle
-      particles.burst(px, py, 0xffff00, 30);
-      
+      particles.burst(px, py, 0xffff00);
       enemies = enemies.filter(e => e.state.hp > 0);
+      
+      // Also hit boss if in blast range
+      if (activeBoss && !activeBoss.dead) {
+        const bdx = activeBoss.state.x - px;
+        const bdy = activeBoss.state.y - py;
+        if (Math.sqrt(bdx * bdx + bdy * bdy) <= range) {
+          const dm = calculateDamageMultiplier(activeModifiersRef.current);
+          activeBoss.takeDamage(damage * dm);
+        }
+      }
       updateStats();
     };
     
@@ -656,7 +729,7 @@ export default function ArenaCanvas({
       
       // Update agent with enemies list (for AI targeting)
       agent.setEnemies(enemies);
-      agent.update(delta.deltaTime);
+      agent.update(delta);
       
       // Behavior tracking — sample every 10 frames when enemies are present
       behaviorFrameCount++;
@@ -688,6 +761,47 @@ export default function ArenaCanvas({
         }
       });
       
+      // Update boss if active
+      if (activeBoss && !activeBoss.dead) {
+        activeBoss.update(delta, agent.state.x, agent.state.y);
+
+        // Boss collision with agent
+        const bdx = activeBoss.state.x - agent.state.x;
+        const bdy = activeBoss.state.y - agent.state.y;
+        if (Math.sqrt(bdx * bdx + bdy * bdy) < 80) {
+          agent.takeDamage(0.8);
+          damageThisRun += 0.8;
+          updateStats();
+        }
+
+        // Expose boss HP for HUD
+        gameStatsRef.current.bossHp = activeBoss.state.hp;
+        gameStatsRef.current.bossMaxHp = activeBoss.state.maxHp;
+        onGameStateChange?.(gameStatsRef.current);
+
+        // Handle agent attacks hitting the boss
+        // (boss damage handled via onAttack/onBlast/onProjectile callbacks below)
+      }
+
+      // Boss death check
+      if (activeBoss?.dead && !roomTransitioning) {
+        roomTransitioning = true;
+        gameStatsRef.current.bossHp = 0;
+        app.stage.removeChild(activeBoss.container);
+        activeBoss.destroy();
+        activeBoss = null;
+        console.log('🎉 The Warden has been defeated!');
+
+        // Boss modifier reward — epic tier
+        const bossModifiers = getRandomModifiers(3, 'epic');
+        setModifierChoices(bossModifiers);
+        app.ticker.stop();
+        setShowModifierSelection(true);
+        // After modifier pick, handleModifierSelect will check node type
+        // Set currentNodeIdRef to a sentinel so we know it was a boss kill
+        currentNodeIdRef.current = `boss_${currentFloor}`;
+      }
+
       // Check if agent is dead
       if (agent.state.hp <= 0 && !roomTransitioning) {
         roomTransitioning = true; // Prevent multiple triggers
@@ -747,7 +861,7 @@ export default function ArenaCanvas({
       // Update gold coins
       for (let i = goldCoins.length - 1; i >= 0; i--) {
         const coin = goldCoins[i];
-        coin.update(delta.deltaTime);
+        coin.update(delta);
         
         if (coin.checkCollection(agent.state.x, agent.state.y)) {
           // Coin collected
@@ -906,6 +1020,18 @@ export default function ArenaCanvas({
         />
       )}
       
+      {/* Boss Announcement */}
+      {showBossAnnouncement && (
+        <BossAnnouncement
+          bossName="THE WARDEN"
+          onDismiss={() => {
+            if ((window as any).startBossFight) {
+              (window as any).startBossFight();
+            }
+          }}
+        />
+      )}
+
       {/* Show RunEndScreen when agent dies */}
       {runEnded && finalRunStats && (
         <RunEndScreen
