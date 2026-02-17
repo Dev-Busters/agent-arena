@@ -17,7 +17,7 @@ import ModifierSelection from './ModifierSelection';
 import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
 import FloorMapComponent from './FloorMap';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
-import { generateRoomForNodeType } from './Room';
+import { generateRoomForNodeType, BehaviorProfile } from './Room';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -239,6 +239,20 @@ export default function ArenaCanvas({
     let lootItems: Loot[] = [];
     let goldCoins: GoldCoin[] = [];
     
+    // Behavior tracking for Trial floors (E4)
+    let behaviorFrameCount = 0;
+    let distanceSamples: number[] = [];
+    let abilitiesUsed = 0;
+    let damageThisRun = 0;
+    
+    const getBehaviorProfile = () => ({
+      avgDistance: distanceSamples.length > 0
+        ? distanceSamples.reduce((a, b) => a + b, 0) / distanceSamples.length
+        : 100,
+      abilityUsageRate: behaviorFrameCount > 0 ? abilitiesUsed / behaviorFrameCount : 0,
+      totalDamage: damageThisRun,
+    });
+    
     // Helper to update game stats
     const updateStats = () => {
       gameStatsRef.current = {
@@ -267,8 +281,10 @@ export default function ArenaCanvas({
       console.log(`🚪 Spawning Floor ${room.floor} Room ${room.roomNumber}`);
       
       // Calculate scaling based on floor number
-      const hpMultiplier = 1 + (room.floor - 1) * 0.1;  // +10% HP per floor
-      const damageMultiplier = 1 + (room.floor - 1) * 0.05; // +5% damage per floor
+      const isTrial = floorMapRef.current?.isTrial ?? false;
+      const trialBonus = isTrial ? 1.5 : 1.0;
+      const hpMultiplier = (1 + (room.floor - 1) * 0.1) * trialBonus;
+      const damageMultiplier = (1 + (room.floor - 1) * 0.05) * trialBonus;
       
       console.log(`⚖️  Floor ${room.floor} scaling: HP x${hpMultiplier.toFixed(2)}, Damage x${damageMultiplier.toFixed(2)}`);
       
@@ -351,7 +367,9 @@ export default function ArenaCanvas({
       }
 
       // combat / elite / exit: spawn enemies and fight
-      const room = generateRoomForNodeType(node.type as 'combat' | 'elite' | 'exit', currentFloor, node.id);
+      const isTrial = floorMapRef.current?.isTrial ?? false;
+      const behavior: BehaviorProfile = getBehaviorProfile();
+      const room = generateRoomForNodeType(node.type as 'combat' | 'elite' | 'exit', currentFloor, node.id, isTrial, behavior);
       rooms = [room];
       currentRoomIndex = 0;
       gameStarted = true;
@@ -640,6 +658,19 @@ export default function ArenaCanvas({
       agent.setEnemies(enemies);
       agent.update(delta.deltaTime);
       
+      // Behavior tracking — sample every 10 frames when enemies are present
+      behaviorFrameCount++;
+      if (enemies.length > 0 && behaviorFrameCount % 10 === 0) {
+        let nearestDist = Infinity;
+        enemies.forEach(e => {
+          const dx = e.state.x - agent.state.x;
+          const dy = e.state.y - agent.state.y;
+          nearestDist = Math.min(nearestDist, Math.sqrt(dx * dx + dy * dy));
+        });
+        if (nearestDist < Infinity) distanceSamples.push(nearestDist);
+        if (distanceSamples.length > 200) distanceSamples.shift(); // rolling window
+      }
+      
       // Update enemies to chase agent
       enemies.forEach(enemy => {
         enemy.update(agent.state.x, agent.state.y);
@@ -649,12 +680,10 @@ export default function ArenaCanvas({
         const dy = enemy.state.y - agent.state.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        // If enemy touches agent, deal damage (once per second per enemy)
-        const collisionRange = 40; // pixels
+        const collisionRange = 40;
         if (dist < collisionRange) {
-          // Simple damage over time (1 damage per frame = ~60 damage per second)
-          // Reduce to make it survivable: 0.5 damage per frame = ~30 damage per second
           agent.takeDamage(0.5);
+          damageThisRun += 0.5;
           updateStats();
         }
       });

@@ -84,28 +84,54 @@ export function getRoomCount(floor: number): number {
   return 5;
 }
 
+export interface BehaviorProfile {
+  avgDistance: number;      // Agent's avg distance from enemies
+  abilityUsageRate: number; // How often abilities are used
+  totalDamage: number;      // Total damage taken this run
+}
+
 /**
- * Generate a room for a specific floor map node type
+ * Generate a room for a specific floor map node type.
+ * On trial floors, behavior profile adapts enemy composition to counter playstyle.
  */
 export function generateRoomForNodeType(
   nodeType: 'combat' | 'elite' | 'exit',
   floor: number,
-  nodeId: string
+  nodeId: string,
+  isTrial: boolean = false,
+  behavior?: BehaviorProfile
 ): Room {
   const baseCount = 3 + Math.floor(floor / 2);
-
-  let spawns: EnemySpawn[];
-  let countMultiplier = 1.0;
-
-  if (nodeType === 'elite') {
-    countMultiplier = 1.5;
-  } else if (nodeType === 'exit') {
-    countMultiplier = 1.3;
-  }
+  let countMultiplier = nodeType === 'elite' ? 1.5 : nodeType === 'exit' ? 1.3 : 1.0;
+  if (isTrial) countMultiplier *= 1.4; // Trial rooms are 40% harder
 
   const count = Math.max(2, Math.floor(baseCount * countMultiplier));
 
-  if (floor === 1) {
+  let spawns: EnemySpawn[];
+
+  if (isTrial && behavior && floor >= 3) {
+    // Adaptive composition — counter the agent's behavior
+    if (behavior.avgDistance > 150) {
+      // Agent kites/hangs back → spawn fast dashers + chargers to close distance
+      spawns = [
+        { type: 'dasher', count: Math.ceil(count * 0.5) },
+        { type: 'charger', count: Math.floor(count * 0.5) },
+      ];
+    } else if (behavior.avgDistance < 60) {
+      // Agent facetanks → spawn rangers to punish close-quarters
+      spawns = [
+        { type: 'ranger', count: Math.ceil(count * 0.6) },
+        { type: 'dasher', count: Math.floor(count * 0.4) },
+      ];
+    } else {
+      // Balanced behavior → heavy mixed pressure
+      spawns = [
+        { type: 'charger', count: Math.ceil(count * 0.35) },
+        { type: 'ranger', count: Math.ceil(count * 0.35) },
+        { type: 'dasher', count: Math.max(1, Math.floor(count * 0.3)) },
+      ];
+    }
+  } else if (floor === 1) {
     spawns = [{ type: 'charger', count }];
   } else if (floor === 2) {
     spawns = [
