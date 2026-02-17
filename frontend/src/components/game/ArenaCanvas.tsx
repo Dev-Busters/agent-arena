@@ -20,6 +20,8 @@ import SchoolSelection from './SchoolSelection';
 import { SchoolConfig, DEFAULT_SCHOOL } from './schools';
 import DisciplineSelection from './DisciplineSelection';
 import { Discipline } from './disciplines';
+import TenetSelection from './TenetSelection';
+import { Tenet } from './tenets';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
@@ -178,6 +180,7 @@ export default function ArenaCanvas({
   const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
   const [showSchoolSelection, setShowSchoolSelection] = useState(true);
   const [showDisciplineSelection, setShowDisciplineSelection] = useState(false);
+  const [showTenetSelection, setShowTenetSelection] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolConfig>(DEFAULT_SCHOOL);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
@@ -481,9 +484,10 @@ export default function ArenaCanvas({
     // Expose handlers to React component via window
     (window as any).handleModifierSelect = handleModifierSelect;
     (window as any).handleNodeSelect = handleNodeSelect;
-    (window as any).applySchool = (config: SchoolConfig, disciplines: Discipline[] = []) => {
+    (window as any).applySchool = (config: SchoolConfig, disciplines: Discipline[] = [], tenets: Tenet[] = []) => {
       agent.setSchool(config);
       disciplines.forEach(d => agent.applyDiscipline(d));
+      tenets.forEach(t => agent.applyTenet(t));
       setSelectedSchool(config);
       selectedSchoolRef.current = config;
       console.log(`🎖️ Applied school: ${config.name} + ${disciplines.length} discipline(s)`);
@@ -515,7 +519,11 @@ export default function ArenaCanvas({
           const critChance = (10 + (agent.getSchoolConfig()?.stats.critBonus ?? 0)) / 100;
           const isCrit = Math.random() < critChance;
           const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
-          const finalDamage = (isCrit ? damage * 2 : damage) * damageMultiplier;
+          const targetHpPct = enemy.state.hp / enemy.state.maxHp;
+          const finalDamage = (isCrit ? damage * 2 : damage)
+            * damageMultiplier
+            * agent.getLiveDamageMultiplier()
+            * agent.getExecutionerBonus(targetHpPct);
           
           enemy.state.hp -= finalDamage;
           console.log(`⚔️ Hit ${enemy.state.type} for ${finalDamage}${isCrit ? ' (CRIT)' : ''}! HP: ${enemy.state.hp}/${enemy.state.maxHp}`);
@@ -1059,8 +1067,20 @@ export default function ArenaCanvas({
           school={selectedSchool}
           onConfirm={(disciplines) => {
             setShowDisciplineSelection(false);
+            setShowTenetSelection(true);
+            // Store disciplines to apply together with tenets
+            (window as any)._pendingDisciplines = disciplines;
+          }}
+        />
+      )}
+
+      {showTenetSelection && (
+        <TenetSelection
+          onConfirm={(tenets) => {
+            setShowTenetSelection(false);
+            const disciplines: Discipline[] = (window as any)._pendingDisciplines ?? [];
             if ((window as any).applySchool) {
-              (window as any).applySchool(selectedSchoolRef.current, disciplines);
+              (window as any).applySchool(selectedSchoolRef.current, disciplines, tenets);
             }
           }}
         />

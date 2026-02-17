@@ -2,6 +2,7 @@ import { Graphics, Container } from 'pixi.js';
 import { Enemy } from './Enemy';
 import { SchoolConfig } from './schools';
 import { Discipline } from './disciplines';
+import { Tenet, TargetingMode } from './tenets';
 
 // Agent configuration
 const AGENT_SIZE = 32;
@@ -97,8 +98,40 @@ export class Agent {
   private _preferredDistance = 80;
   private _critBonus = 0;
   private _damageTakenMult = 1.0;
+  private _targetingMode: TargetingMode = 'nearest';
+  private _berserker = false;
+  private _executioner = false;
 
   public getDamageTakenMult(): number { return this._damageTakenMult; }
+
+  /** Live damage multiplier (includes berserker scaling based on current HP) */
+  public getLiveDamageMultiplier(): number {
+    if (!this._berserker) return 1.0;
+    const missingPct = 1 - Math.max(0, this.state.hp / this.state.maxHp);
+    return 1 + missingPct * 1.5; // up to 2.5x at 0 HP
+  }
+
+  /** Executioner bonus: +50% vs enemies below 30% HP */
+  public getExecutionerBonus(targetHpPct: number): number {
+    return (this._executioner && targetHpPct < 0.3) ? 1.5 : 1.0;
+  }
+
+  /** Apply a tenet — universal passive */
+  public applyTenet(tenet: Tenet): void {
+    const e = tenet.effects;
+    if (e.hpBonus)            { this.state.maxHp += e.hpBonus; this.state.hp += e.hpBonus; }
+    if (e.hpMult)             { const newMax = Math.round(this.state.maxHp * e.hpMult); this.state.hp = newMax; this.state.maxHp = newMax; }
+    if (e.damageMult)         { this._attackDamage *= e.damageMult; this._blastDamage *= e.damageMult; }
+    if (e.speedMult)          { this._moveSpeed *= e.speedMult; }
+    if (e.critBonus)          { this._critBonus += e.critBonus; }
+    if (e.blastRadiusMult)    { this._blastRange *= e.blastRadiusMult; }
+    if (e.attackCooldownMult) { this._attackCooldown *= e.attackCooldownMult; }
+    if (e.damageTakenMult)    { this._damageTakenMult *= e.damageTakenMult; }
+    if (e.targeting)          { this._targetingMode = e.targeting; }
+    if (e.berserker)          { this._berserker = true; }
+    if (e.executioner)        { this._executioner = true; }
+    console.log(`⚖️ Tenet: ${tenet.name} | HP:${Math.round(this.state.maxHp)} Target:${this._targetingMode}`);
+  }
 
   /** Apply a discipline on top of current school stats */
   public applyDiscipline(disc: Discipline): void {
@@ -421,22 +454,33 @@ export class Agent {
    */
   private findNearestEnemy(): Enemy | null {
     if (this.enemies.length === 0) return null;
-    
     let nearest: Enemy | null = null;
     let nearestDist = Infinity;
-    
     for (const enemy of this.enemies) {
       const dx = enemy.state.x - this.state.x;
       const dy = enemy.state.y - this.state.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearest = enemy;
-      }
+      if (dist < nearestDist) { nearestDist = dist; nearest = enemy; }
     }
-    
     return nearest;
+  }
+
+  /** Find target based on current targeting mode */
+  private findTarget(): Enemy | null {
+    const alive = this.enemies.filter(e => !e.dead && e.state.hp > 0);
+    if (alive.length === 0) return null;
+    switch (this._targetingMode) {
+      case 'lowest-hp':
+        return alive.reduce((min, e) => e.state.hp < min.state.hp ? e : min, alive[0]);
+      case 'random':
+        // Re-randomize only occasionally (every ~60 frames) to avoid jitter
+        if (!this.state.target || this.state.target.dead || Math.random() < 0.016) {
+          return alive[Math.floor(Math.random() * alive.length)];
+        }
+        return this.state.target;
+      default:
+        return this.findNearestEnemy();
+    }
   }
   
   /**
@@ -497,7 +541,7 @@ export class Agent {
     
     // Find or update target
     if (!this.state.target || this.state.target.dead) {
-      this.state.target = this.findNearestEnemy();
+      this.state.target = this.findTarget();
     }
     
     // State machine
