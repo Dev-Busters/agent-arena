@@ -3,11 +3,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Discipline, DISCIPLINES } from './disciplines';
+import { getDisciplineUnlockCondition } from '@/stores/agentLoadout';
 import { SchoolConfig } from './schools';
 
 interface DisciplineSelectionProps {
   school: SchoolConfig;
   onConfirm: (disciplines: Discipline[]) => void;
+  /** IDs of unlocked disciplines. Undefined = all unlocked (new run flow). */
+  unlockedDisciplineIds?: string[];
+  /** How many runs completed with this school (for unlock progress display) */
+  runsWithSchool?: number;
+  /** Pre-selected disciplines (War Room editing) */
+  preSelected?: Discipline[];
+  /** Close without saving (War Room modal) */
+  onClose?: () => void;
 }
 
 const MAX_SLOTS = 2;
@@ -34,9 +43,10 @@ function EffectRow({ effectKey, value }: { effectKey: string; value: number }) {
   );
 }
 
-export default function DisciplineSelection({ school, onConfirm }: DisciplineSelectionProps) {
-  const [selected, setSelected] = useState<Discipline[]>([]);
+export default function DisciplineSelection({ school, onConfirm, unlockedDisciplineIds, runsWithSchool = 0, preSelected, onClose }: DisciplineSelectionProps) {
+  const [selected, setSelected] = useState<Discipline[]>(preSelected ?? []);
   const disciplines = DISCIPLINES[school.id] ?? [];
+  const allUnlocked = !unlockedDisciplineIds;
 
   const toggle = (disc: Discipline) => {
     setSelected(prev => {
@@ -87,24 +97,35 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
         {disciplines.map((disc, i) => {
           const isSelected = !!selected.find(d => d.id === disc.id);
           const isFull = selected.length >= MAX_SLOTS && !isSelected;
+          const locked = !allUnlocked && !unlockedDisciplineIds!.includes(disc.id);
+          const unlockCond = locked ? getDisciplineUnlockCondition(i as 0|1|2, school.id) : null;
           return (
             <motion.div
               key={disc.id}
               initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: isFull ? 0.4 : 1 }}
+              animate={{ y: 0, opacity: locked ? 0.45 : isFull ? 0.4 : 1 }}
               transition={{ delay: 0.2 + i * 0.08 }}
-              whileHover={!isFull ? { y: -5, scale: 1.02 } : {}}
-              onClick={() => !isFull && toggle(disc)}
+              whileHover={!isFull && !locked ? { y: -5, scale: 1.02 } : {}}
+              onClick={() => !isFull && !locked && toggle(disc)}
               className="relative w-72 rounded-2xl flex flex-col overflow-hidden"
               style={{
                 maxHeight: 420,
                 background: 'linear-gradient(135deg, rgba(26,26,40,0.97) 0%, rgba(14,14,22,0.99) 100%)',
                 border: `1px solid ${isSelected ? '#92600a' : '#2a2a3d'}`,
                 boxShadow: isSelected ? '0 8px 28px rgba(245,158,11,0.12)' : '0 4px 16px rgba(0,0,0,0.4)',
-                cursor: isFull ? 'not-allowed' : 'pointer',
+                cursor: locked || isFull ? 'not-allowed' : 'pointer',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
             >
+              {locked && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none rounded-2xl" style={{ background: 'rgba(6,6,11,0.72)', backdropFilter: 'blur(1px)' }}>
+                  <span style={{ fontSize: 22, marginBottom: 6 }}>🔒</span>
+                  <span className="text-xs text-center" style={{ color: '#8a8478', maxWidth: 180 }}>{unlockCond}</span>
+                  {runsWithSchool > 0 && i === 0 && runsWithSchool < 3 && (
+                    <span className="text-[10px] mt-1" style={{ color: '#8a6d2b' }}>{runsWithSchool}/3 {school.name} runs</span>
+                  )}
+                </div>
+              )}
               {/* Gold shimmer top edge */}
               <div style={{ height: 1, flexShrink: 0, background: 'linear-gradient(90deg, transparent, #92600a, transparent)' }} />
 
@@ -146,11 +167,11 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       <div className="flex gap-4 z-10 pb-7 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-          onClick={() => onConfirm([])}
+          onClick={() => onClose ? onClose() : onConfirm([])}
           className="px-6 py-3 rounded-xl text-sm font-medium uppercase tracking-wider transition-all"
           style={{ border: '1px solid #2a2a3d', color: '#8a8478', background: 'transparent' }}
         >
-          Skip
+          {onClose ? 'Cancel' : 'Skip'}
         </motion.button>
         <motion.button
           whileHover={selected.length > 0 ? { scale: 1.04 } : {}}

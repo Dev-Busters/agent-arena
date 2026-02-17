@@ -3,9 +3,14 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { SchoolId, SchoolConfig, SCHOOLS } from './schools';
+import { SCHOOL_UNLOCK_CONDITIONS } from '@/stores/agentLoadout';
 
 interface SchoolSelectionProps {
   onSelect: (school: SchoolConfig) => void;
+  /** IDs of unlocked schools. If undefined, all schools are unlocked (legacy/arena use). */
+  unlockedSchoolIds?: string[];
+  /** Called when overlay is closed without selection (War Room modal) */
+  onClose?: () => void;
 }
 
 // Renamed per Visual Design Bible: Vitality/Might/Agility/Crit
@@ -39,9 +44,10 @@ function GoldLine() {
   return <div style={{ height: 1, flexShrink: 0, background: 'linear-gradient(90deg, transparent, rgba(138,109,43,0.45), transparent)' }} />;
 }
 
-export default function SchoolSelection({ onSelect }: SchoolSelectionProps) {
+export default function SchoolSelection({ onSelect, unlockedSchoolIds, onClose }: SchoolSelectionProps) {
   const [hovered, setHovered] = useState<SchoolId | null>(null);
   const schools = Object.values(SCHOOLS);
+  const allUnlocked = !unlockedSchoolIds;
 
   return (
     <motion.div
@@ -66,40 +72,58 @@ export default function SchoolSelection({ onSelect }: SchoolSelectionProps) {
 
       {/* Cards */}
       <div className="flex gap-5 z-10 px-6 pb-8 flex-shrink-0">
-        {schools.map((school, i) => (
-          <SchoolCard
-            key={school.id} school={school} index={i}
-            isHovered={hovered === school.id}
-            onHover={setHovered} onSelect={onSelect}
-          />
-        ))}
+        {schools.map((school, i) => {
+          const locked = !allUnlocked && !unlockedSchoolIds!.includes(school.id);
+          return (
+            <SchoolCard key={school.id} school={school} index={i}
+              isHovered={hovered === school.id} locked={locked}
+              onHover={setHovered} onSelect={locked ? () => {} : onSelect}
+            />
+          );
+        })}
       </div>
+      {onClose && (
+        <button onClick={onClose} style={{ color: '#5c574e', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+          ✕ Cancel
+        </button>
+      )}
     </motion.div>
   );
 }
 
-function SchoolCard({ school, index, isHovered, onHover, onSelect }: {
-  school: SchoolConfig; index: number; isHovered: boolean;
+function SchoolCard({ school, index, isHovered, onHover, onSelect, locked = false }: {
+  school: SchoolConfig; index: number; isHovered: boolean; locked?: boolean;
   onHover: (id: SchoolId | null) => void; onSelect: (s: SchoolConfig) => void;
 }) {
   const glow = SCHOOL_GLOW[school.id] ?? 'rgba(100,100,150,0.1)';
 
   return (
     <motion.div
-      initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+      initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: locked ? 0.5 : 1 }}
       transition={{ delay: 0.3 + index * 0.1, duration: 0.45 }}
-      whileHover={{ y: -6, scale: 1.02 }}
-      onHoverStart={() => onHover(school.id)} onHoverEnd={() => onHover(null)}
+      whileHover={!locked ? { y: -6, scale: 1.02 } : {}}
+      onHoverStart={() => !locked && onHover(school.id)} onHoverEnd={() => onHover(null)}
       onClick={() => onSelect(school)}
-      className="relative w-72 rounded-2xl flex flex-col cursor-pointer overflow-hidden"
+      className="relative w-72 rounded-2xl flex flex-col overflow-hidden"
       style={{
         maxHeight: 530,
         background: 'linear-gradient(135deg, rgba(26,26,40,0.97) 0%, rgba(14,14,22,0.99) 100%)',
-        border: `1px solid ${isHovered ? '#92600a' : '#2a2a3d'}`,
-        boxShadow: isHovered ? '0 8px 32px rgba(245,158,11,0.12)' : '0 4px 20px rgba(0,0,0,0.5)',
+        border: `1px solid ${locked ? '#1a1a2a' : isHovered ? '#92600a' : '#2a2a3d'}`,
+        boxShadow: isHovered && !locked ? '0 8px 32px rgba(245,158,11,0.12)' : '0 4px 20px rgba(0,0,0,0.5)',
+        cursor: locked ? 'not-allowed' : 'pointer',
         transition: 'border-color 0.25s, box-shadow 0.25s',
       }}
     >
+      {/* Lock overlay */}
+      {locked && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none rounded-2xl"
+          style={{ background: 'rgba(6,6,11,0.65)', backdropFilter: 'blur(1px)' }}>
+          <span style={{ fontSize: 28, marginBottom: 8 }}>🔒</span>
+          <span className="text-xs text-center font-medium" style={{ color: '#8a8478', maxWidth: 160 }}>
+            {SCHOOL_UNLOCK_CONDITIONS[school.id]?.label ?? 'Locked'}
+          </span>
+        </div>
+      )}
       {/* Gold shimmer top edge */}
       <div style={{ height: 1, flexShrink: 0, background: 'linear-gradient(90deg, transparent, #92600a, transparent)' }} />
 

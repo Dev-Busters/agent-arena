@@ -3,9 +3,18 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tenet, TENETS } from './tenets';
+import { TENET_UNLOCK_CONDITIONS } from '@/stores/agentLoadout';
 
 interface TenetSelectionProps {
   onConfirm: (tenets: Tenet[]) => void;
+  /** IDs of unlocked tenets. Undefined = all unlocked. */
+  unlockedTenetIds?: string[];
+  /** Max selectable slots (progressive unlock). Default 4. */
+  maxSlots?: number;
+  /** Pre-selected tenets for War Room editing */
+  preSelected?: Tenet[];
+  /** Close without saving (War Room modal) */
+  onClose?: () => void;
 }
 
 const MAX_SLOTS = 4;
@@ -31,13 +40,15 @@ function EffectLine({ effectKey, value }: { effectKey: string; value: number }) 
   );
 }
 
-export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
-  const [selected, setSelected] = useState<Tenet[]>([]);
+export default function TenetSelection({ onConfirm, unlockedTenetIds, maxSlots = MAX_SLOTS, preSelected, onClose }: TenetSelectionProps) {
+  const [selected, setSelected] = useState<Tenet[]>(preSelected ?? []);
+  const allUnlocked = !unlockedTenetIds;
+  const effectiveMax = maxSlots;
 
   const toggle = (tenet: Tenet) => {
     setSelected(prev => {
       if (prev.find(t => t.id === tenet.id)) return prev.filter(t => t.id !== tenet.id);
-      if (prev.length >= MAX_SLOTS) return prev;
+      if (prev.length >= effectiveMax) return prev;
       return [...prev, tenet];
     });
   };
@@ -63,7 +74,7 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
 
       {/* Slot indicators */}
       <div className="flex gap-3 mb-5 z-10 flex-shrink-0">
-        {[0, 1, 2, 3].map(i => (
+        {Array.from({ length: effectiveMax }).map((_, i) => (
           <div key={i} className="w-32 h-10 rounded-lg flex items-center justify-center text-xs transition-all duration-200"
             style={{
               border: selected[i] ? '1px solid #8a6d2b' : '1px dashed #2a2a3d',
@@ -83,29 +94,38 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       <div className="grid grid-cols-4 gap-3 z-10 mb-5 px-8 flex-shrink-0" style={{ maxHeight: 360, overflowY: 'auto' }}>
         {TENETS.map((tenet, i) => {
           const isSelected = !!selected.find(t => t.id === tenet.id);
-          const isFull = selected.length >= MAX_SLOTS && !isSelected;
+          const isFull = selected.length >= effectiveMax && !isSelected;
+          const locked = !allUnlocked && !unlockedTenetIds!.includes(tenet.id);
+          const unlockInfo = locked ? TENET_UNLOCK_CONDITIONS[tenet.id] : null;
 
           return (
             <motion.div
               key={tenet.id}
               initial={{ y: 18, opacity: 0 }}
-              animate={{ y: 0, opacity: isFull ? 0.38 : 1 }}
+              animate={{ y: 0, opacity: locked ? 0.4 : isFull ? 0.38 : 1 }}
               transition={{ delay: 0.2 + i * 0.04 }}
-              whileHover={!isFull ? { y: -3, scale: 1.02 } : {}}
-              onClick={() => !isFull && toggle(tenet)}
+              whileHover={!isFull && !locked ? { y: -3, scale: 1.02 } : {}}
+              onClick={() => !isFull && !locked && toggle(tenet)}
               className="relative rounded-xl flex flex-col overflow-hidden"
               style={{
                 padding: '12px',
                 background: 'linear-gradient(135deg, rgba(26,26,40,0.97) 0%, rgba(14,14,22,0.99) 100%)',
                 border: isSelected ? '1px solid #8a6d2b' : '1px solid #2a2a3d',
                 boxShadow: isSelected ? '0 4px 16px rgba(212,168,67,0.1)' : 'none',
-                cursor: isFull ? 'not-allowed' : 'pointer',
+                cursor: locked || isFull ? 'not-allowed' : 'pointer',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
               }}
             >
               {/* Gold shimmer top */}
               {isSelected && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, #92600a, transparent)' }} />
+              )}
+              {/* Lock overlay */}
+              {locked && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none rounded-xl" style={{ background: 'rgba(6,6,11,0.72)' }}>
+                  <span style={{ fontSize: 16, marginBottom: 4 }}>🔒</span>
+                  <span style={{ color: '#8a8478', fontSize: 9, textAlign: 'center', maxWidth: 100 }}>{unlockInfo?.label}</span>
+                </div>
               )}
               <div className="flex items-start justify-between mb-1.5">
                 <span style={{ fontSize: 20 }}>{tenet.icon}</span>
@@ -140,11 +160,11 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       <div className="flex gap-4 z-10 pb-7 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-          onClick={() => onConfirm([])}
+          onClick={() => onClose ? onClose() : onConfirm([])}
           className="px-6 py-3 rounded-xl text-sm font-medium uppercase tracking-wider"
           style={{ border: '1px solid #2a2a3d', color: '#8a8478', background: 'transparent' }}
         >
-          Skip
+          {onClose ? 'Cancel' : 'Skip'}
         </motion.button>
         <motion.button
           whileHover={selected.length > 0 ? { scale: 1.04 } : {}}
