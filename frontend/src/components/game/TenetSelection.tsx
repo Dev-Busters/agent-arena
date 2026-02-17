@@ -24,7 +24,8 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-      className="absolute inset-0 bg-slate-950/98 z-50 flex flex-col items-center justify-center pointer-events-auto"
+      // fixed + z-[100] covers the HUD which is a sibling of ArenaCanvas in page.tsx
+      className="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center pointer-events-auto overflow-y-auto"
     >
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse at center, rgba(20,60,40,0.15) 0%, transparent 70%)' }}
@@ -33,7 +34,7 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       {/* Title */}
       <motion.div
         initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
-        className="text-center mb-6 z-10"
+        className="text-center mb-5 z-10 flex-shrink-0 pt-6"
       >
         <p className="text-xs uppercase tracking-[0.4em] mb-1 text-yellow-500">⚖️ Doctrine</p>
         <h1 className="text-4xl font-black text-white">Equip Your Tenets</h1>
@@ -41,7 +42,7 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       </motion.div>
 
       {/* Slot indicators */}
-      <div className="flex gap-3 mb-6 z-10">
+      <div className="flex gap-3 mb-5 z-10 flex-shrink-0">
         {[0, 1, 2, 3].map(i => (
           <div key={i}
             className={`w-32 h-10 rounded-lg border flex items-center justify-center text-xs transition-all duration-200
@@ -58,8 +59,8 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
         ))}
       </div>
 
-      {/* Tenet grid — 4 columns × 2 rows */}
-      <div className="grid grid-cols-4 gap-4 z-10 mb-6 px-8">
+      {/* Tenet grid — 4 columns × 2 rows, scrollable if needed */}
+      <div className="grid grid-cols-4 gap-3 z-10 mb-5 px-8 flex-shrink-0 overflow-y-auto max-h-[380px]">
         {TENETS.map((tenet, i) => {
           const isSelected = !!selected.find(t => t.id === tenet.id);
           const isFull = selected.length >= MAX_SLOTS && !isSelected;
@@ -72,7 +73,7 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
               transition={{ delay: 0.2 + i * 0.04 }}
               whileHover={!isFull ? { y: -4, scale: 1.02 } : {}}
               onClick={() => !isFull && toggle(tenet)}
-              className={`rounded-xl border p-4 flex flex-col cursor-pointer transition-all duration-150
+              className={`rounded-xl border p-3 flex flex-col cursor-pointer transition-all duration-150
                 ${isSelected
                   ? 'border-yellow-500 bg-yellow-950/30 shadow-md shadow-yellow-900/30'
                   : isFull
@@ -80,12 +81,12 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
                     : 'border-slate-700 bg-slate-900/60 hover:border-slate-500'
                 }`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <span className="text-2xl">{tenet.icon}</span>
+              <div className="flex items-start justify-between mb-1.5">
+                <span className="text-xl">{tenet.icon}</span>
                 {isSelected && <span className="text-yellow-400 text-xs font-bold">✓</span>}
               </div>
               <h3 className="text-sm font-bold text-white mb-0.5">{tenet.name}</h3>
-              <p className="text-yellow-500/70 text-[10px] mb-2">{tenet.tagline}</p>
+              <p className="text-yellow-500/70 text-[10px] mb-1.5">{tenet.tagline}</p>
               <p className="text-slate-500 text-[10px] leading-relaxed flex-1">{tenet.description}</p>
 
               {/* Effects */}
@@ -111,7 +112,7 @@ export default function TenetSelection({ onConfirm }: TenetSelectionProps) {
       </div>
 
       {/* CTA */}
-      <div className="flex gap-4 z-10">
+      <div className="flex gap-4 z-10 pb-6 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
           onClick={() => onConfirm([])}

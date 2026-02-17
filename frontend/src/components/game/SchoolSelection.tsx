@@ -24,7 +24,8 @@ export default function SchoolSelection({ onSelect }: SchoolSelectionProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="absolute inset-0 bg-slate-950/98 z-50 flex flex-col items-center justify-center pointer-events-auto"
+      // fixed + z-[100] ensures this covers the HUD (which is a sibling of ArenaCanvas in the DOM)
+      className="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center pointer-events-auto overflow-y-auto"
     >
       {/* Background glow */}
       <div className="absolute inset-0 pointer-events-none"
@@ -36,15 +37,15 @@ export default function SchoolSelection({ onSelect }: SchoolSelectionProps) {
         initial={{ y: -30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="text-center mb-10 z-10"
+        className="text-center mb-6 z-10 flex-shrink-0 pt-6"
       >
         <p className="text-slate-500 text-xs uppercase tracking-[0.4em] mb-2">Entering The Crucible</p>
-        <h1 className="text-5xl font-black text-white">Choose Your Combat School</h1>
-        <p className="text-slate-400 text-sm mt-3">Your school defines your agent's fighting style</p>
+        <h1 className="text-4xl font-black text-white">Choose Your Combat School</h1>
+        <p className="text-slate-400 text-sm mt-2">Your school defines your agent's fighting style</p>
       </motion.div>
 
       {/* School cards */}
-      <div className="flex gap-6 z-10 px-8">
+      <div className="flex gap-5 z-10 px-6 pb-6 flex-shrink-0">
         {schools.map((school, i) => (
           <SchoolCard
             key={school.id}
@@ -78,28 +79,29 @@ function SchoolCard({ school, index, isHovered, onHover, onSelect }: {
       onHoverStart={() => onHover(school.id)}
       onHoverEnd={() => onHover(null)}
       onClick={() => onSelect(school)}
+      // max-h + overflow-y-auto: abilities section scrolls within the card if it overflows
       className={`w-72 rounded-2xl border-2 ${school.borderColor} bg-gradient-to-b ${school.gradient}
-        cursor-pointer flex flex-col overflow-hidden
+        cursor-pointer flex flex-col max-h-[500px] overflow-y-auto
         ${isHovered ? 'shadow-lg shadow-black/50' : ''}
         transition-shadow duration-200`}
     >
       {/* Card header */}
-      <div className="p-6 pb-4 border-b border-white/10">
-        <div className="text-4xl mb-3">{school.icon}</div>
-        <h2 className={`text-2xl font-bold text-white`}>{school.name}</h2>
-        <p className={`text-sm ${school.uiColor} font-medium mt-0.5`}>{school.tagline}</p>
-        <p className="text-slate-400 text-xs mt-3 leading-relaxed">{school.description}</p>
+      <div className="p-5 pb-3 border-b border-white/10 flex-shrink-0">
+        <div className="text-3xl mb-2">{school.icon}</div>
+        <h2 className={`text-xl font-bold text-white`}>{school.name}</h2>
+        <p className={`text-xs ${school.uiColor} font-medium mt-0.5`}>{school.tagline}</p>
+        <p className="text-slate-400 text-xs mt-2 leading-relaxed">{school.description}</p>
       </div>
 
       {/* Stats */}
-      <div className="px-6 py-4 border-b border-white/10">
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">Stats</div>
+      <div className="px-5 py-3 border-b border-white/10 flex-shrink-0">
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Stats</div>
         {stats.map(row => {
           const val = row.getValue(school);
           const pct = Math.min(100, (val / row.max) * 100);
           return (
-            <div key={row.label} className="mb-2">
-              <div className="flex justify-between text-xs mb-1">
+            <div key={row.label} className="mb-1.5">
+              <div className="flex justify-between text-xs mb-0.5">
                 <span className="text-slate-400">{row.label}</span>
                 <span className="text-white font-mono">{val}{row.suffix}</span>
               </div>
@@ -116,11 +118,11 @@ function SchoolCard({ school, index, isHovered, onHover, onSelect }: {
         })}
       </div>
 
-      {/* Abilities */}
-      <div className="px-6 py-4 flex-1">
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">Abilities</div>
+      {/* Abilities — scrolls within the card if content is too tall */}
+      <div className="px-5 py-3">
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Abilities</div>
         {Object.values(school.abilities).map(ability => (
-          <div key={ability.key} className="flex gap-2 mb-2 items-start">
+          <div key={ability.key} className="flex gap-2 mb-1.5 items-start">
             <span className={`text-xs font-bold font-mono ${school.uiColor} w-4 flex-shrink-0 mt-0.5`}>
               {ability.key}
             </span>
@@ -135,7 +137,8 @@ function SchoolCard({ school, index, isHovered, onHover, onSelect }: {
       {/* CTA */}
       <motion.div
         animate={{ opacity: isHovered ? 1 : 0.6 }}
-        className={`text-center py-3 text-sm font-bold ${school.uiColor} border-t border-white/10`}
+        className={`text-center py-2.5 text-sm font-bold ${school.uiColor} border-t border-white/10 flex-shrink-0 sticky bottom-0`}
+        style={{ background: 'inherit' }}
       >
         {isHovered ? `Deploy as ${school.name} →` : 'Click to Select'}
       </motion.div>

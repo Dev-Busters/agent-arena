@@ -29,7 +29,8 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="absolute inset-0 bg-slate-950/98 z-50 flex flex-col items-center justify-center pointer-events-auto"
+      // fixed + z-[100] covers the HUD which is a sibling of ArenaCanvas in page.tsx
+      className="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center pointer-events-auto overflow-y-auto"
     >
       <div className="absolute inset-0 pointer-events-none"
         style={{ background: 'radial-gradient(ellipse at center, rgba(40,20,80,0.2) 0%, transparent 70%)' }}
@@ -38,7 +39,7 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       {/* Title */}
       <motion.div
         initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
-        className="text-center mb-8 z-10"
+        className="text-center mb-6 z-10 flex-shrink-0 pt-6"
       >
         <p className={`text-xs uppercase tracking-[0.4em] mb-1 ${school.uiColor}`}>
           {school.icon} {school.name}
@@ -50,10 +51,10 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       </motion.div>
 
       {/* Slot indicators */}
-      <div className="flex gap-4 mb-8 z-10">
+      <div className="flex gap-4 mb-6 z-10 flex-shrink-0">
         {[0, 1].map(i => (
           <div key={i}
-            className={`w-40 h-14 rounded-xl border-2 flex items-center justify-center text-sm transition-all duration-200
+            className={`w-40 h-12 rounded-xl border-2 flex items-center justify-center text-sm transition-all duration-200
               ${selected[i]
                 ? `${school.borderColor} bg-slate-800/80`
                 : 'border-slate-700 border-dashed bg-slate-900/40'
@@ -71,7 +72,7 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       </div>
 
       {/* Discipline cards */}
-      <div className="flex gap-5 z-10 mb-8">
+      <div className="flex gap-5 z-10 mb-6 flex-shrink-0 px-6">
         {disciplines.map((disc, i) => {
           const isSelected = !!selected.find(d => d.id === disc.id);
           const isFull = selected.length >= MAX_SLOTS && !isSelected;
@@ -84,16 +85,17 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
               transition={{ delay: 0.2 + i * 0.08 }}
               whileHover={!isFull ? { y: -6, scale: 1.02 } : {}}
               onClick={() => !isFull && toggle(disc)}
-              className={`w-72 rounded-2xl border-2 p-6 flex flex-col
+              // max-h + overflow-y-auto: effects section scrolls if too tall
+              className={`w-72 rounded-2xl border-2 p-5 flex flex-col max-h-[380px] overflow-y-auto
                 bg-gradient-to-b ${school.gradient} transition-all duration-200
                 ${isSelected ? `${school.borderColor} shadow-lg shadow-black/40` : 'border-slate-700'}
                 ${isFull ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between mb-3 flex-shrink-0">
                 <div>
-                  <div className="text-3xl mb-1">{disc.icon}</div>
-                  <h3 className="text-xl font-bold text-white">{disc.name}</h3>
+                  <div className="text-2xl mb-1">{disc.icon}</div>
+                  <h3 className="text-lg font-bold text-white">{disc.name}</h3>
                   <p className={`text-xs ${school.uiColor} font-medium`}>{disc.tagline}</p>
                 </div>
                 {isSelected && (
@@ -104,11 +106,11 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
                 )}
               </div>
 
-              <p className="text-slate-400 text-xs leading-relaxed mb-4">{disc.description}</p>
+              <p className="text-slate-400 text-xs leading-relaxed mb-3 flex-shrink-0">{disc.description}</p>
 
               {/* Effects */}
-              <div className="mt-auto space-y-1">
-                <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Effects</div>
+              <div className="mt-auto space-y-1 flex-shrink-0">
+                <div className="text-xs text-slate-500 uppercase tracking-wider mb-1.5">Effects</div>
                 {Object.entries(disc.effects).map(([key, val]) => (
                   <EffectRow key={key} effectKey={key} value={val as number} uiColor={school.uiColor} />
                 ))}
@@ -119,7 +121,7 @@ export default function DisciplineSelection({ school, onConfirm }: DisciplineSel
       </div>
 
       {/* CTA */}
-      <div className="flex gap-4 z-10">
+      <div className="flex gap-4 z-10 pb-6 flex-shrink-0">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
