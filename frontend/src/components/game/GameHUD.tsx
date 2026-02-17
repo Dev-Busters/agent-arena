@@ -9,6 +9,8 @@ export interface AbilityCooldownState {
   heal: { cooldown: number; lastUsed: number; };
 }
 
+import type { SchoolConfig } from './schools';
+
 export interface GameState {
   playerHp: number;
   playerMaxHp: number;
@@ -24,6 +26,7 @@ export interface GameState {
   isPaused: boolean;
   bossHp?: number;
   bossMaxHp?: number;
+  school?: SchoolConfig;
 }
 
 interface GameHUDProps {
@@ -37,7 +40,10 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school } = gameState;
+  const abilityNames = school?.abilities ?? {
+    Q: { name: 'Dash' }, E: { name: 'Blast' }, R: { name: 'Shot' }, F: { name: 'Heal' },
+  };
   const isBossFight = bossHp !== undefined && bossMaxHp !== undefined && bossMaxHp > 0;
   const bossPct = isBossFight ? Math.max(0, (bossHp! / bossMaxHp!) * 100) : 0;
   const hpPercent = (playerHp / playerMaxHp) * 100;
@@ -185,7 +191,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
           <div className={`relative w-16 h-16 bg-slate-900/80 backdrop-blur-sm rounded-lg border ${dashCooldownPercent === 0 ? 'border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]' : 'border-slate-700/50'} overflow-hidden`}>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <div className="text-xs font-bold text-cyan-300">Q</div>
-              <div className="text-[10px] text-slate-400">Dash</div>
+              <div className="text-[10px] text-slate-400">{abilityNames.Q.name}</div>
             </div>
             {dashCooldownPercent > 0 && (
               <div 
@@ -199,7 +205,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
           <div className={`relative w-16 h-16 bg-slate-900/80 backdrop-blur-sm rounded-lg border ${blastCooldownPercent === 0 ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'border-slate-700/50'} overflow-hidden`}>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <div className="text-xs font-bold text-yellow-300">E</div>
-              <div className="text-[10px] text-slate-400">Blast</div>
+              <div className="text-[10px] text-slate-400">{abilityNames.E.name}</div>
             </div>
             {blastCooldownPercent > 0 && (
               <div 
@@ -213,7 +219,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
           <div className={`relative w-16 h-16 bg-slate-900/80 backdrop-blur-sm rounded-lg border ${projectileCooldownPercent === 0 ? 'border-orange-400 shadow-[0_0_10px_rgba(251,146,60,0.5)]' : 'border-slate-700/50'} overflow-hidden`}>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <div className="text-xs font-bold text-orange-300">R</div>
-              <div className="text-[10px] text-slate-400">Projectile</div>
+              <div className="text-[10px] text-slate-400">{abilityNames.R.name}</div>
             </div>
             {projectileCooldownPercent > 0 && (
               <div 
@@ -227,7 +233,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
           <div className={`relative w-16 h-16 bg-slate-900/80 backdrop-blur-sm rounded-lg border ${healCooldownPercent === 0 ? 'border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'border-slate-700/50'} overflow-hidden`}>
             <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
               <div className="text-xs font-bold text-green-300">F</div>
-              <div className="text-[10px] text-slate-400">Heal</div>
+              <div className="text-[10px] text-slate-400">{abilityNames.F.name}</div>
             </div>
             {healCooldownPercent > 0 && (
               <div 

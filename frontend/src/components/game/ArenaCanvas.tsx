@@ -16,6 +16,8 @@ import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
 import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateDamageMultiplier } from './Modifier';
 import FloorMapComponent from './FloorMap';
+import SchoolSelection from './SchoolSelection';
+import { SchoolConfig, DEFAULT_SCHOOL } from './schools';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
@@ -42,6 +44,7 @@ export interface GameStats {
   abilities: AbilityCooldownState;
   bossHp?: number;
   bossMaxHp?: number;
+  school?: import('./schools').SchoolConfig;
 }
 
 export interface DamageEvent {
@@ -171,11 +174,14 @@ export default function ArenaCanvas({
   const [showFloorMap, setShowFloorMap] = useState(false);
   const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
   const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
+  const [showSchoolSelection, setShowSchoolSelection] = useState(true);
+  const [selectedSchool, setSelectedSchool] = useState<SchoolConfig>(DEFAULT_SCHOOL);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
   const activeModifiersRef = useRef<ActiveModifier[]>([]);
   const floorMapRef = useRef<FloorMap | null>(null);
   const currentNodeIdRef = useRef<string | null>(null);
+  const selectedSchoolRef = useRef<SchoolConfig>(DEFAULT_SCHOOL);
   const gameStatsRef = useRef<GameStats>({
     playerHp: 100,
     playerMaxHp: 100,
@@ -276,7 +282,8 @@ export default function ArenaCanvas({
           blast: { cooldown: 6000, lastUsed: agent.state.lastBlastTime },
           projectile: { cooldown: 5000, lastUsed: agent.state.lastProjectileTime },
           heal: { cooldown: 12000, lastUsed: agent.state.lastHealTime }
-        }
+        },
+        school: agent.getSchoolConfig() ?? undefined,
       };
       onGameStateChange?.(gameStatsRef.current);
     };
@@ -471,13 +478,21 @@ export default function ArenaCanvas({
     // Expose handlers to React component via window
     (window as any).handleModifierSelect = handleModifierSelect;
     (window as any).handleNodeSelect = handleNodeSelect;
+    (window as any).applySchool = (config: SchoolConfig) => {
+      agent.setSchool(config);
+      setSelectedSchool(config);
+      selectedSchoolRef.current = config;
+      console.log(`🎖️ Applied school: ${config.name}`);
+      updateStats(); // Push school data to HUD immediately
+      setShowFloorMap(true);
+    };
 
-    // Start the game by showing the floor 1 map
+    // Pre-generate floor 1 map but don't show it yet
+    // School selection is shown first; applySchool() will reveal the floor map
     app.ticker.stop();
     const initialMap = generateFloorMap(currentFloor);
     floorMapRef.current = initialMap;
     setFloorMapData({ ...initialMap });
-    setTimeout(() => setShowFloorMap(true), 100);
     
     // Sound manager
     const sound = getSoundManager();
@@ -1021,6 +1036,21 @@ export default function ArenaCanvas({
         />
       )}
       
+      {/* School Selection — shown before first floor map */}
+      {showSchoolSelection && (
+        <SchoolSelection
+          onSelect={(school) => {
+            setSelectedSchool(school);
+            selectedSchoolRef.current = school;
+            setShowSchoolSelection(false);
+            // Apply school to the agent (game loop is already initialized by this point)
+            if ((window as any).applySchool) {
+              (window as any).applySchool(school);
+            }
+          }}
+        />
+      )}
+
       {/* Boss Announcement */}
       {showBossAnnouncement && (
         <BossAnnouncement

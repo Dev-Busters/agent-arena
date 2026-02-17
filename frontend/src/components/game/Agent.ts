@@ -1,5 +1,6 @@
 import { Graphics, Container } from 'pixi.js';
 import { Enemy } from './Enemy';
+import { SchoolConfig } from './schools';
 
 // Agent configuration
 const AGENT_SIZE = 32;
@@ -83,6 +84,36 @@ export class Agent {
   
   // Keyboard handler for cleanup
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  // School-derived instance properties
+  private schoolConfig: SchoolConfig | null = null;
+  private _moveSpeed = MOVE_SPEED;
+  private _attackDamage = ATTACK_DAMAGE;
+  private _attackCooldown = ATTACK_COOLDOWN;
+  private _dashCooldown = DASH_COOLDOWN;
+  private _blastRange = BLAST_RANGE;
+  private _blastDamage = BLAST_DAMAGE;
+  private _preferredDistance = 80;
+  private _critBonus = 0;
+
+  /** Apply a combat school — changes stats, sprite color, AI behavior */
+  public setSchool(config: SchoolConfig): void {
+    this.schoolConfig = config;
+    this.state.maxHp = 100 + config.stats.hpBonus;
+    this.state.hp = this.state.maxHp;
+    this._moveSpeed = MOVE_SPEED * config.stats.speedMultiplier;
+    this._attackDamage = ATTACK_DAMAGE * config.stats.damageMultiplier;
+    this._attackCooldown = ATTACK_COOLDOWN * config.ai.attackCooldownMult;
+    this._dashCooldown = DASH_COOLDOWN * config.ai.dashCooldownMult;
+    this._blastRange = BLAST_RANGE * (1 + config.stats.blastRadiusBonus / 100);
+    this._blastDamage = BLAST_DAMAGE * config.stats.damageMultiplier;
+    this._preferredDistance = config.ai.preferredDistance;
+    this._critBonus = config.stats.critBonus;
+    this.drawAgent(); // redraw with new color
+    console.log(`🎖️ School: ${config.name} | HP:${this.state.maxHp} Speed:${this._moveSpeed.toFixed(1)} Crit:${10 + this._critBonus}%`);
+  }
+
+  public getSchoolConfig(): SchoolConfig | null { return this.schoolConfig; }
   
   constructor(x: number, y: number, arenaWidth: number, arenaHeight: number, wallThickness: number = 16) {
     this.container = new Container();
@@ -143,7 +174,7 @@ export class Agent {
    */
   private attack(): boolean {
     const now = Date.now();
-    if (now - this.state.lastAttackTime < ATTACK_COOLDOWN) {
+    if (now - this.state.lastAttackTime < this._attackCooldown) {
       return false;
     }
     
@@ -155,7 +186,7 @@ export class Agent {
     
     // Trigger callback
     if (this.onAttack) {
-      this.onAttack(this.state.x, this.state.y, ATTACK_RANGE, ATTACK_DAMAGE);
+      this.onAttack(this.state.x, this.state.y, ATTACK_RANGE, this._attackDamage);
     }
     
     // Reset attack state after animation
@@ -171,7 +202,7 @@ export class Agent {
    */
   public dash(): boolean {
     const now = Date.now();
-    if (now - this.state.lastDashTime < DASH_COOLDOWN) {
+    if (now - this.state.lastDashTime < this._dashCooldown) {
       return false;
     }
     
@@ -225,7 +256,7 @@ export class Agent {
     
     // Trigger callback for damage
     if (this.onBlast) {
-      this.onBlast(this.state.x, this.state.y, BLAST_RANGE, BLAST_DAMAGE);
+      this.onBlast(this.state.x, this.state.y, this._blastRange, this._blastDamage);
     }
     
     // Visual flash
@@ -316,8 +347,10 @@ export class Agent {
   }
   
   private drawAgent(): void {
+    this.graphics.clear();
+    const color = this.schoolConfig?.spriteColor ?? AGENT_COLOR;
     // Body circle
-    this.graphics.beginFill(AGENT_COLOR);
+    this.graphics.beginFill(color);
     this.graphics.lineStyle(2, AGENT_OUTLINE);
     this.graphics.drawCircle(0, 0, AGENT_SIZE / 2);
     this.graphics.endFill();
@@ -405,8 +438,8 @@ export class Agent {
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (dist > 0) {
-      this.state.vx = (dx / dist) * MOVE_SPEED;
-      this.state.vy = (dy / dist) * MOVE_SPEED;
+      this.state.vx = (dx / dist) * this._moveSpeed;
+      this.state.vy = (dy / dist) * this._moveSpeed;
     }
   }
   
@@ -419,8 +452,8 @@ export class Agent {
     const dist = Math.sqrt(dx * dx + dy * dy);
     
     if (dist > 0) {
-      this.state.vx = (dx / dist) * MOVE_SPEED;
-      this.state.vy = (dy / dist) * MOVE_SPEED;
+      this.state.vx = (dx / dist) * this._moveSpeed;
+      this.state.vy = (dy / dist) * this._moveSpeed;
     }
   }
   
@@ -464,12 +497,11 @@ export class Agent {
         if (!this.state.target) {
           this.state.aiState = AgentAIState.IDLE;
         } else {
-          // Move toward target
+          // Move toward target until within preferred distance
           this.moveToward(this.state.target.state.x, this.state.target.state.y);
           
-          // Check if in attack range
           const dist = this.distanceTo(this.state.target);
-          if (dist <= ATTACK_RANGE) {
+          if (dist <= this._preferredDistance) {
             this.state.aiState = AgentAIState.ATTACK;
           }
         }
@@ -481,16 +513,30 @@ export class Agent {
         } else {
           const dist = this.distanceTo(this.state.target);
           
-          if (dist > ATTACK_RANGE) {
-            // Target moved out of range - approach
+          if (dist > this._preferredDistance * 1.4) {
+            // Drifted too far — re-approach
             this.state.aiState = AgentAIState.APPROACH;
           } else {
-            // Attack!
-            this.attack();
-            
-            // Slow movement while attacking (maintain distance)
-            this.state.vx *= 0.3;
-            this.state.vy *= 0.3;
+            // In range: if close enough, melee attack
+            if (dist <= ATTACK_RANGE) {
+              this.attack();
+            }
+            // Drift toward preferred distance
+            if (dist > this._preferredDistance) {
+              this.moveToward(this.state.target.state.x, this.state.target.state.y);
+              this.state.vx *= 0.5;
+              this.state.vy *= 0.5;
+            } else if (dist < this._preferredDistance * 0.5) {
+              // Too close — drift back slightly
+              const dx = this.state.x - this.state.target.state.x;
+              const dy = this.state.y - this.state.target.state.y;
+              const d = Math.sqrt(dx * dx + dy * dy) || 1;
+              this.state.vx = (dx / d) * this._moveSpeed * 0.4;
+              this.state.vy = (dy / d) * this._moveSpeed * 0.4;
+            } else {
+              this.state.vx *= 0.3;
+              this.state.vy *= 0.3;
+            }
           }
         }
         break;
