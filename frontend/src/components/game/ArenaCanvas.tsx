@@ -18,6 +18,8 @@ import { Modifier, ActiveModifier, getRandomModifiers, applyModifier, calculateD
 import FloorMapComponent from './FloorMap';
 import SchoolSelection from './SchoolSelection';
 import { SchoolConfig, DEFAULT_SCHOOL } from './schools';
+import DisciplineSelection from './DisciplineSelection';
+import { Discipline } from './disciplines';
 import { FloorMap, FloorMapNode, generateFloorMap, updateMapAfterClear } from './floorMapGenerator';
 import { generateRoomForNodeType, BehaviorProfile } from './Room';
 import { Boss } from './Boss';
@@ -175,6 +177,7 @@ export default function ArenaCanvas({
   const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
   const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
   const [showSchoolSelection, setShowSchoolSelection] = useState(true);
+  const [showDisciplineSelection, setShowDisciplineSelection] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolConfig>(DEFAULT_SCHOOL);
   const isPausedRef = useRef(isPaused);
   const runStartTimeRef = useRef<number>(Date.now());
@@ -478,12 +481,13 @@ export default function ArenaCanvas({
     // Expose handlers to React component via window
     (window as any).handleModifierSelect = handleModifierSelect;
     (window as any).handleNodeSelect = handleNodeSelect;
-    (window as any).applySchool = (config: SchoolConfig) => {
+    (window as any).applySchool = (config: SchoolConfig, disciplines: Discipline[] = []) => {
       agent.setSchool(config);
+      disciplines.forEach(d => agent.applyDiscipline(d));
       setSelectedSchool(config);
       selectedSchoolRef.current = config;
-      console.log(`🎖️ Applied school: ${config.name}`);
-      updateStats(); // Push school data to HUD immediately
+      console.log(`🎖️ Applied school: ${config.name} + ${disciplines.length} discipline(s)`);
+      updateStats();
       setShowFloorMap(true);
     };
 
@@ -508,7 +512,8 @@ export default function ArenaCanvas({
         
         if (dist <= range) {
           // Crit chance (10%)
-          const isCrit = Math.random() < 0.1;
+          const critChance = (10 + (agent.getSchoolConfig()?.stats.critBonus ?? 0)) / 100;
+          const isCrit = Math.random() < critChance;
           const damageMultiplier = calculateDamageMultiplier(activeModifiersRef.current);
           const finalDamage = (isCrit ? damage * 2 : damage) * damageMultiplier;
           
@@ -770,9 +775,9 @@ export default function ArenaCanvas({
         
         const collisionRange = 40;
         if (dist < collisionRange) {
-          // 0.2 dmg/frame = 12 DPS per enemy — survivable with 3 enemies on screen
-          agent.takeDamage(0.2);
-          damageThisRun += 0.2;
+          const rawDmg = 0.2 * agent.getDamageTakenMult();
+          agent.takeDamage(rawDmg);
+          damageThisRun += rawDmg;
           updateStats();
         }
       });
@@ -1036,16 +1041,26 @@ export default function ArenaCanvas({
         />
       )}
       
-      {/* School Selection — shown before first floor map */}
+      {/* School Selection — shown before discipline picker */}
       {showSchoolSelection && (
         <SchoolSelection
           onSelect={(school) => {
             setSelectedSchool(school);
             selectedSchoolRef.current = school;
             setShowSchoolSelection(false);
-            // Apply school to the agent (game loop is already initialized by this point)
+            setShowDisciplineSelection(true);
+          }}
+        />
+      )}
+
+      {/* Discipline Selection — shown after school, before floor map */}
+      {showDisciplineSelection && (
+        <DisciplineSelection
+          school={selectedSchool}
+          onConfirm={(disciplines) => {
+            setShowDisciplineSelection(false);
             if ((window as any).applySchool) {
-              (window as any).applySchool(school);
+              (window as any).applySchool(selectedSchoolRef.current, disciplines);
             }
           }}
         />

@@ -1,6 +1,7 @@
 import { Graphics, Container } from 'pixi.js';
 import { Enemy } from './Enemy';
 import { SchoolConfig } from './schools';
+import { Discipline } from './disciplines';
 
 // Agent configuration
 const AGENT_SIZE = 32;
@@ -95,6 +96,24 @@ export class Agent {
   private _blastDamage = BLAST_DAMAGE;
   private _preferredDistance = 80;
   private _critBonus = 0;
+  private _damageTakenMult = 1.0;
+
+  public getDamageTakenMult(): number { return this._damageTakenMult; }
+
+  /** Apply a discipline on top of current school stats */
+  public applyDiscipline(disc: Discipline): void {
+    const e = disc.effects;
+    if (e.hpBonus)             { this.state.maxHp += e.hpBonus; this.state.hp += e.hpBonus; }
+    if (e.damageMult)          { this._attackDamage *= e.damageMult; this._blastDamage *= e.damageMult; }
+    if (e.speedMult)           { this._moveSpeed *= e.speedMult; }
+    if (e.critBonus)           { this._critBonus += e.critBonus; }
+    if (e.blastRadiusMult)     { this._blastRange *= e.blastRadiusMult; }
+    if (e.attackCooldownMult)  { this._attackCooldown *= e.attackCooldownMult; }
+    if (e.dashCooldownMult)    { this._dashCooldown *= e.dashCooldownMult; }
+    if (e.damageTakenMult)     { this._damageTakenMult *= e.damageTakenMult; }
+    this.drawAgent();
+    console.log(`📖 Discipline: ${disc.name} applied | HP:${Math.round(this.state.maxHp)} Dmg:${this._attackDamage.toFixed(1)} Crit:${10 + this._critBonus}%`);
+  }
 
   /** Apply a combat school — changes stats, sprite color, AI behavior */
   public setSchool(config: SchoolConfig): void {
