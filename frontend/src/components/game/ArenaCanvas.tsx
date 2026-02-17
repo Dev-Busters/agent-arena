@@ -507,6 +507,7 @@ export default function ArenaCanvas({
     
     // Handle agent attacks
     agent.onAttack = (px, py, range, damage) => {
+      abilitiesUsed++;
       sound.playAttack();
       
       enemies.forEach(enemy => {
@@ -596,6 +597,7 @@ export default function ArenaCanvas({
     
     // Handle agent area blast (E ability)
     agent.onBlast = (px, py, range, damage) => {
+      abilitiesUsed++;
       sound.playAttack();
       let hitCount = 0;
       
@@ -659,6 +661,7 @@ export default function ArenaCanvas({
     
     // Handle agent projectile (R ability)
     agent.onProjectile = (px, py, targetX, targetY, damage) => {
+      abilitiesUsed++;
       sound.playAttack();
       
       // Create simple projectile visual (orange circle moving toward target)
