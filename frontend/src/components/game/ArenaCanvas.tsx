@@ -231,7 +231,6 @@ export default function ArenaCanvas({
       particles.update();
       if (isPausedRef.current) return;
 
-      agent.setEnemies(enemies);
       agent.update(delta);
 
       // Behavior sampling for Trial floors
