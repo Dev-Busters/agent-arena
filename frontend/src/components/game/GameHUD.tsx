@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface AbilityCooldownState {
   dash: { cooldown: number; lastUsed: number; };
@@ -40,6 +41,22 @@ interface GameHUDProps {
  * Renders on top of PixiJS canvas
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
+  const [showControls, setShowControls] = useState(true);
+
+  // Auto-hide after 30 seconds of gameplay
+  useEffect(() => {
+    const timer = setTimeout(() => setShowControls(false), 30000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // H key toggles controls hint
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code === 'KeyH') setShowControls(v => !v);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school } = gameState;
   const abilityNames = school?.abilities ?? {
     Q: { name: 'Dash' }, E: { name: 'Blast' }, R: { name: 'Shot' }, F: { name: 'Heal' },
@@ -245,15 +262,26 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
         </div>
       </div>
       
-      {/* Controls hint */}
-      <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-900/60 backdrop-blur-sm rounded-lg px-4 py-2 border border-slate-700/30">
-        <div className="text-xs text-slate-500 text-center">
-          <span className="text-cyan-300 font-semibold">Q</span> Dash • 
-          <span className="text-yellow-300 font-semibold"> E</span> Blast • 
-          <span className="text-orange-300 font-semibold"> R</span> Projectile • 
-          <span className="text-green-300 font-semibold"> F</span> Heal
-        </div>
-      </div>
+      {/* Controls hint — press H to toggle, auto-hides after 30s */}
+      <AnimatePresence>
+        {showControls && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute bottom-4 left-4 rounded px-3 py-2 pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5" style={{ fontSize: 10, color: '#5c574e' }}>
+              <span><span style={{ color: '#8a8478' }}>WASD</span> — Move</span>
+              <span><span style={{ color: '#8a8478' }}>Space / Click</span> — Attack</span>
+              <span><span style={{ color: '#7eb8d4' }}>Q</span> — Dash</span>
+              <span><span style={{ color: '#d4c67e' }}>E</span> — Blast</span>
+              <span><span style={{ color: '#d4967e' }}>R</span> — Projectile</span>
+              <span><span style={{ color: '#7ed48a' }}>F</span> — Heal</span>
+            </div>
+            <div style={{ fontSize: 9, color: '#3a3630', marginTop: 3 }}>H to hide</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
