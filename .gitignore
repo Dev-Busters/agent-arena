@@ -3,6 +3,8 @@ dist/
 .env
 .env.local
 .env.*.local
+frontend/.env.production
+.railwayrc.json
 *.log
 npm-debug.log*
 yarn-debug.log*
