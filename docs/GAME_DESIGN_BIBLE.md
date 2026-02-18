@@ -8,13 +8,47 @@
 
 ## 1. CORE IDENTITY
 
-**One-sentence pitch:** You command an AI agent in real-time action combat — the AI fights, you make the tactical decisions that determine victory or death.
+**One-sentence pitch:** Fight through the depths yourself. Every run shapes a champion who will fight in your name.
 
-**What makes this game unique:** The player's champion is controlled by an actual AI model (Claude, GPT, Llama, etc.). The AI handles moment-to-moment combat — movement, dodging, targeting, basic attacks — autonomously. The player's role is strategic: triggering abilities at the right moment, choosing upgrades between encounters, managing the run's trajectory, and building the agent's permanent loadout outside of runs.
+**What makes this game unique:** Agent Arena is built around two distinct modes that feed each other. In the Crucible, *you* are the fighter — a player-controlled champion descending an endless dungeon, earning power, and forging your agent's identity through the choices you make. In the Arena (future), your agent fights *for* you — battling other players' agents autonomously, using the schools, disciplines, tenets, and equipment you earned in the Crucible. Think Pokémon: you go on the adventure, train your team, then compete. Or Teamfight Tactics: you build the roster, then watch it fight.
 
-**Why this matters:** Two players with identical equipment but different AI models will have different experiences. A cautious model kites and plays safe. An aggressive model charges in. A creative model finds unexpected positioning. The AI isn't a skin — it's a living variable that makes every playthrough genuinely unique. Agent Arena is, quietly, a benchmark for AI adaptability disguised as an action game.
+**The two-mode structure:**
+- **The Crucible** — Player-controlled PvE. You fight. You choose upgrades. You push deeper. Everything you earn here powers your agent's identity.
+- **The Arena** — AI-driven PvP (future). Your agent fights autonomously against other players' agents. The build you forged in the Crucible is its weapon.
 
-**The feel:** Hades-speed real-time combat. Diablo/Path of Exile depth of itemization and crafting. Slay the Spire's run-based decision-making. But none of these are direct copies — the AI commander dynamic creates a category of gameplay that doesn't exist yet.
+**Why this works:** Real-time AI combat in a 60fps action game is technically impractical today (LLM latency kills it). But AI-driven PvP in an asynchronous or tick-based format is genuinely compelling. Separating the modes means both can be great on their own terms. The Crucible is a fantastic action roguelike. The Arena will be a deep strategic PvP system. Neither compromises for the other.
+
+**The feel:** Hades-speed real-time combat in the Crucible. Diablo/Path of Exile depth of itemization. Slay the Spire's run-based decision-making. And in the Arena: the strategic satisfaction of watching a build you crafted go to war.
+
+---
+
+## 1A. THE AGENT IDENTITY
+
+Your agent is not just a character — it is a strategic identity shaped entirely by your choices.
+
+Schools define what kind of fighter your agent is. Disciplines specialize that fighting style into something distinct. Tenets encode behavioral instincts: how aggressive, how defensive, how opportunistic. Equipment defines raw power and unlocks special properties.
+
+Every run in the Crucible is training. Every piece of gear, every unlocked discipline, every chosen tenet is preparation for the Arena. When your agent eventually enters PvP, it fights as you built it — not as a blank slate.
+
+This is the core fiction of Agent Arena: *you are building a champion who will carry your legacy into battle.*
+
+---
+
+## 1B. PVP ARENA (FUTURE)
+
+The Arena is Agent Arena's defining long-term feature. It is **not being built yet** — it requires dedicated design work before implementation.
+
+**Placeholder intent:** Agents built through Crucible progression will battle other players' agents using AI-driven decision making. Both players' builds, equipment, and doctrine choices define how the fight unfolds. Neither player controls the combat in real-time — the agents execute autonomously based on how they were built.
+
+**Open design questions (to be answered before Phase I begins):**
+- Turn-based, tick-based, or real-time?
+- What decisions does the AI agent make during a match?
+- How much does the player configure strategy vs. the AI adapting?
+- Synchronous (both watch live) or asynchronous (challenge and check results later)?
+- How does build diversity prevent a single dominant meta?
+- What rank/ELO structure governs competitive play?
+
+These questions will be answered when Phases G and H are complete and the progression and economy systems are solid.
 
 ---
 
@@ -29,10 +63,10 @@ An endless dungeon run. You descend floor by floor, clearing rooms of enemies in
 **The goal:** Push as deep as possible. Leaderboards track maximum depth reached, with tiebreakers on time, HP remaining, and enemies defeated.
 
 **Run pacing (variable):**
-- Floors 1–5: Fast. Rooms clear in 15-30 seconds. Enemies are simple. You're building momentum, collecting early modifiers. Minimal ability usage needed — your AI handles it.
+- Floors 1–5: Fast. Rooms clear in 15-30 seconds. Enemies are simple. You're building momentum, collecting early modifiers.
 - Floors 6–15: Medium. Rooms take 30-60 seconds. Enemy variety increases. You're actively timing abilities. Modifier synergies are forming. Decisions start to matter.
 - Floors 16–30: Intense. Rooms are genuine fights. Elite enemies appear. Your modifier build is either coming together or falling apart. Heavy ability management required.
-- Floors 30+: Endgame. Every room is a survival challenge. You need a strong modifier build AND good ability timing AND a well-built agent to survive. This is where the leaderboard separates.
+- Floors 30+: Endgame. Every room is a survival challenge. You need a strong modifier build AND good ability timing AND a well-built champion to survive. This is where the leaderboard separates.
 
 **Adaptive floors:** Floors 5, 10, 15, 20 (every 5th) are "Trial" floors. These analyze your agent's behavior patterns from the previous floors and generate encounters designed to test weaknesses. If your agent excels at melee, the Trial spawns ranged enemies with knockback. If your agent kites effectively, the Trial spawns fast chasers in tight rooms. All other floors are randomly generated. This prevents any single strategy from being an autopilot solution while keeping most of the run feeling organic and surprising.
 

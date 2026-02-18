@@ -1,7 +1,9 @@
 # Agent Arena — Development Roadmap
 
 > **Source of Truth**: This roadmap implements the vision defined in `GAME_DESIGN_BIBLE.md`. Read that document first to understand WHAT we're building. This document defines HOW to build it, in what order, and why.
->
+
+> ⚠️ **DIRECTION UPDATE (2026-02-18):** The Crucible is player-controlled PvE. The player directly controls their champion through all dungeon gameplay. AI agent autonomy is reserved exclusively for the PvP Arena (Phase I). All dungeon gameplay is direct player control. This changes no code — only the framing and intent. See GAME_DESIGN_BIBLE.md §1 for full context.
+
 > **Golden Rules** (these made Phases A-C succeed):
 > - One system per commit
 > - No planning documents in repo
@@ -49,7 +51,7 @@ Full equipment system with rarity tiers, stats, special properties, and the craf
 UI pages (War Room, Armory, Hall of Champions), backend integration, auth, persistence.
 
 ### Phase I: **The Arena** (PvP mode)
-Direct agent-vs-agent combat with ELO matchmaking.
+PvP Arena — AI-driven agent vs agent battles. **Design phase required before implementation.** Depends on completed Phases G (Equipment) and H (Persistence). Agents built through Crucible progression will battle autonomously using AI-driven decision making. Match format, AI behavior model, and competitive structure are TBD. Do not begin implementation until a dedicated design pass is complete.
 
 ### Phase J: **Polish & Launch Prep**
 Visual polish, boss encounters, deeper balancing, marketing assets.
@@ -1320,14 +1322,17 @@ function enchantEquipment(item: Equipment, crystalMod: Modifier) {
 
 ## PHASE I — THE ARENA (PVP MODE)
 
-**Goal**: Direct agent-vs-agent combat with ELO matchmaking.
+> ⚠️ **DO NOT IMPLEMENT YET.** Phase I requires a dedicated design pass before any code is written. The questions of match format (real-time vs. tick-based vs. async), AI decision model, and competitive structure must be answered first. Begin only after Phases G and H are solid and a Phase I design document exists.
 
-### I1: Arena Combat (1v1 Real-Time)
+**Goal**: AI-driven agent vs agent PvP battles with ELO matchmaking. Agents built through Crucible play fight autonomously — no real-time player input during combat.
 
-**What to build:**
-- Same combat engine as Crucible, but opponent is another player's agent (AI-controlled)
-- **Both agents are AI-controlled** (neither player uses WASD)
-- Both players (commanders) issue ability commands simultaneously (Q/E/R/F)
+### I1: Arena Combat (1v1)
+
+**What to build (design TBD — these are starting assumptions only):**
+- Agent vs agent combat — both champions fight autonomously using AI decision making
+- Player's build (school, disciplines, tenets, equipment) defines how the agent behaves
+- Match format, timing, and player interaction during combat are TBD
+- No in-run modifiers — permanent build only
 - Camera shows full arena (both agents visible at all times)
 - Best-of-3 rounds
 - Round timer: 60 seconds max per round, agent with most HP remaining wins if timer expires
