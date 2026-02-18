@@ -1,4 +1,10 @@
 node_modules/
+.next/
+.vercel/
+frontend/.next/
+frontend/.vercel/
+dist/
+build/
 dist/
 .env
 .env.local
