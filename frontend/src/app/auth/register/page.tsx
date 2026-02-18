@@ -43,12 +43,17 @@ export default function RegisterPage() {
   }
 
   const handleGoogleLogin = () => {
+    // Generate cryptographically secure nonce
+    const nonceArray = new Uint8Array(16)
+    crypto.getRandomValues(nonceArray)
+    const nonce = Array.from(nonceArray, byte => byte.toString(16).padStart(2, '0')).join('')
+    
     const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
       client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
       redirect_uri: `${window.location.origin}/auth/google/callback`,
       response_type: 'token id_token',
       scope: 'openid email profile',
-      nonce: Math.random().toString(36).substring(2)
+      nonce
     })}`
     window.location.href = googleUrl
   }
