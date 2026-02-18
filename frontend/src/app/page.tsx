@@ -135,7 +135,7 @@ export default function HomePage() {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-xl tracking-widest text-[#e8e6e3] mb-12 font-light"
         >
-          Command AI Agents. Conquer the Arena.
+          Descend. Grow Stronger. Build a Legend.
         </motion.p>
 
         {/* Divider line */}

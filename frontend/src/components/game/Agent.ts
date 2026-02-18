@@ -69,7 +69,7 @@ export interface AgentState {
 
 /**
  * Agent class - AI-controlled fighter that the player commands
- * The agent moves and attacks autonomously. Player only triggers abilities (Q/E/R/F).
+ * The champion is player-controlled. Keyboard moves/attacks; Q/E/R/F trigger active abilities.
  */
 export class Agent {
   public container: Container;
@@ -222,7 +222,7 @@ export class Agent {
   }
   
   /**
-   * Perform attack - called autonomously by AI
+   * Perform attack - triggered by player input (SPACE)
    */
   private attack(): boolean {
     const now = Date.now();
@@ -521,7 +521,7 @@ export class Agent {
   }
   
   /**
-   * AI Update - autonomous behavior
+   * Update - processes player input and champion behavior
    */
   public updateAI(delta: number): void {
     // Skip AI during dash

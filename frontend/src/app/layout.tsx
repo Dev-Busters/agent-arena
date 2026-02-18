@@ -19,8 +19,8 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Agent Arena — Command AI Champions',
-  description: 'Command AI agents. Conquer the depths. Rise to glory.',
+  title: 'Agent Arena — Build a Legend',
+  description: 'Descend into the Crucible. Earn power. Forge a champion who will fight in your name.',
 }
 
 export default function RootLayout({
