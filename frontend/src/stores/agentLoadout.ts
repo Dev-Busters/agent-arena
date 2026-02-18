@@ -253,3 +253,50 @@ function mergeMaterials(existing: Material[], incoming: Material[]): Material[] 
 export function calculateRunXP(floors: number, kills: number, bossKilled: boolean, newRecord: boolean): number {
   return 50 + (floors * 20) + (kills * 2) + (bossKilled ? 200 : 0) + (newRecord ? 100 : 0);
 }
+
+// ── Dynamic nearest-unlock computation ───────────────────────────────────────
+// Maps each unlock ID to a function that returns [current, target, hint]
+const UNLOCK_PROGRESS: Record<string, (s: AgentLoadoutState) => [number, number, string]> = {
+  invoker:            s => [s.deepestFloor, 5,  'Reach Floor 5'],
+  phantom:            s => [s.deepestFloor, 10, 'Reach Floor 10'],
+  'glass-cannon':     s => [s.totalKills,   50, 'Kill 50 enemies total'],
+  'chaos-doctrine':   s => [s.totalRuns,    1,  'Complete 1 run'],
+  'iron-resolve':     s => [s.deepestFloor, 10, 'Survive to Floor 10'],
+  'swift-execution':  s => [s.totalKills,   25, 'Kill 25 enemies total'],
+  'berserkers-rage':  s => [s.totalRuns,    3,  'Complete 3 runs'],
+  'arcane-efficiency':s => [s.totalRuns,    5,  'Complete 5 runs'],
+};
+
+export function findNearestUnlock(state: AgentLoadoutState): {
+  label: string; progress: string; percent: number; hint: string;
+} | null {
+  let best: { label: string; progress: string; percent: number; hint: string } | null = null;
+
+  // Schools
+  for (const [id, cond] of Object.entries(SCHOOL_UNLOCK_CONDITIONS)) {
+    if (state.unlocks.schools.includes(id)) continue;
+    const prog = UNLOCK_PROGRESS[id]?.(state);
+    if (!prog) continue;
+    const [cur, target, hint] = prog;
+    const percent = Math.min(cur / target, 0.99);
+    if (!best || percent > best.percent) {
+      best = { label: `${cond.label} (${id.charAt(0).toUpperCase() + id.slice(1)} School)`,
+               progress: `${cur} / ${target}`, percent, hint };
+    }
+  }
+
+  // Tenets
+  for (const [id, cond] of Object.entries(TENET_UNLOCK_CONDITIONS)) {
+    if (state.unlocks.tenets.includes(id)) continue;
+    const prog = UNLOCK_PROGRESS[id]?.(state);
+    if (!prog) continue;
+    const [cur, target, hint] = prog;
+    const percent = Math.min(cur / target, 0.99);
+    if (!best || percent > best.percent) {
+      best = { label: `${cond.label} Tenet`,
+               progress: `${cur} / ${target}`, percent, hint };
+    }
+  }
+
+  return best;
+}
