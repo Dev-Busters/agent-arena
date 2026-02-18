@@ -103,6 +103,9 @@ export class Agent {
   private _executioner = false;
 
   public getDamageTakenMult(): number { return this._damageTakenMult; }
+  public getMoveSpeed(): number { return this._moveSpeed; }
+  /** Public wrapper used by AgentAI in autonomous (PvP) mode */
+  public tryAttack(): boolean { return this.attack(); }
 
   /** Live damage multiplier (includes berserker scaling based on current HP) */
   public getLiveDamageMultiplier(): number {
