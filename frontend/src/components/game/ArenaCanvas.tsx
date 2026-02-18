@@ -124,6 +124,8 @@ export default function ArenaCanvas({
 
     const agent = new Agent(width / 2, height / 2, width, height, WALL_THICKNESS);
     app.stage.addChild(agent.container);
+    // Pass canvas so mouse tracking uses correct coordinates
+    agent.setCanvas(app.view as HTMLCanvasElement);
 
     const particles = new ParticleSystem();
     app.stage.addChild(particles.container);
