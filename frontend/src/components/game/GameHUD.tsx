@@ -30,6 +30,7 @@ export interface GameState {
   bossMaxHp?: number;
   school?: SchoolConfig;
   doctrineLevel?: { iron: number; arc: number; edge: number };
+  techniqueFragments?: { iron: number; arc: number; edge: number };
 }
 
 interface GameHUDProps {
@@ -59,7 +60,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school, doctrineLevel } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school, doctrineLevel, techniqueFragments } = gameState;
   const abilityNames = school?.abilities ?? {
     Q: { name: 'Dash' }, E: { name: 'Blast' }, R: { name: 'Shot' }, F: { name: 'Heal' },
   };
@@ -171,6 +172,14 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">⚡ Valor</div>
                 <div className="text-xl font-bold" style={{ color: '#c0c0c0' }}>{valor}</div>
+                {/* Technique Fragments — compact row, only show non-zero */}
+                {techniqueFragments && (techniqueFragments.iron > 0 || techniqueFragments.arc > 0 || techniqueFragments.edge > 0) && (
+                  <div className="flex gap-2 mt-1 text-[10px] font-mono">
+                    {techniqueFragments.iron > 0 && <span style={{ color: '#c0392b' }}>🔴{techniqueFragments.iron}</span>}
+                    {techniqueFragments.arc  > 0 && <span style={{ color: '#2e86de' }}>🔵{techniqueFragments.arc}</span>}
+                    {techniqueFragments.edge > 0 && <span style={{ color: '#27ae60' }}>🟢{techniqueFragments.edge}</span>}
+                  </div>
+                )}
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">Enemies</div>

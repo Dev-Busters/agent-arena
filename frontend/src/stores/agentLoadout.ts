@@ -85,6 +85,7 @@ export interface RunRewards {
   doctrineXPGains?: { iron: number; arc: number; edge: number };
   ashEarned?: number;
   emberEarned?: number;
+  fragmentsEarned?: { iron: number; arc: number; edge: number };
   abilityDamageDealt?: number;
   criticalHits?: number;
   damageTaken?: number;
@@ -121,6 +122,11 @@ export interface AgentLoadoutState {
   // ── Phase G: Shrine investments ──
   shrineRanks: Record<string, number>;
 
+  // ── Phase H: Technique Fragments, Ability Ranks, Respec Shards ──
+  techniqueFragments: { iron: number; arc: number; edge: number };
+  abilityRanks: Record<string, 1 | 2 | 3>;
+  respecShards: { iron: number; arc: number; edge: number; prismatic: number };
+
   // ── Phase F: Ability system ──
   unlockedAbilities: string[];
   equippedAbilities: { Q: string|null; E: string|null; R: string|null; F: string|null };
@@ -145,6 +151,11 @@ export interface AgentLoadoutState {
   equipAbility: (slot: 'Q'|'E'|'R'|'F', abilityId: string|null) => void;
   setPendingAbilityUnlock: (data: { doctrine: DoctrineKey; level: number; options: [string, string] } | null) => void;
   investShrine: (upgradeId: string) => void;
+  addFragments: (gains: { iron?: number; arc?: number; edge?: number }) => void;
+  spendFragments: (doctrine: DoctrineKey, amount: number) => boolean;
+  rankUpAbility: (abilityId: string) => boolean;
+  addRespecShards: (gains: { iron?: number; arc?: number; edge?: number; prismatic?: number }) => void;
+  respecDoctrineNode: (nodeId: string, doctrine: DoctrineKey) => boolean;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -165,6 +176,9 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       doctrinePoints: { iron:0, arc:0, edge:0 },
       doctrineInvestedRanks: {},
       shrineRanks: {},
+      techniqueFragments: { iron:0, arc:0, edge:0 },
+      abilityRanks: {},
+      respecShards: { iron:0, arc:0, edge:0, prismatic:0 },
       unlockedAbilities: [],
       equippedAbilities: { Q:null, E:null, R:null, F:null },
       pendingAbilityUnlock: null,
@@ -192,6 +206,59 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
           if ((state.shrineRanks[opposing] ?? 0) > 0) return; // blocked
         }
         set(s => ({ shrineRanks: { ...s.shrineRanks, [upgradeId]: (s.shrineRanks[upgradeId] ?? 0) + 1 } }));
+      },
+
+      addFragments: (gains) => set(s => ({
+        techniqueFragments: {
+          iron:  s.techniqueFragments.iron  + (gains.iron  ?? 0),
+          arc:   s.techniqueFragments.arc   + (gains.arc   ?? 0),
+          edge:  s.techniqueFragments.edge  + (gains.edge  ?? 0),
+        }
+      })),
+      spendFragments: (doctrine, amount) => {
+        const s = get();
+        if (s.techniqueFragments[doctrine] < amount) return false;
+        set(st => ({ techniqueFragments: { ...st.techniqueFragments, [doctrine]: st.techniqueFragments[doctrine] - amount } }));
+        return true;
+      },
+      rankUpAbility: (abilityId) => {
+        const { DOCTRINE_ABILITIES } = require('@/components/game/doctrineAbilities');
+        const ability = DOCTRINE_ABILITIES.find((a: any) => a.id === abilityId);
+        if (!ability) return false;
+        const state = get();
+        const currentRank = (state.abilityRanks[abilityId] ?? 1) as 1 | 2 | 3;
+        if (currentRank >= 3) return false;
+        const cost = currentRank === 1 ? 5 : 12;
+        if (state.techniqueFragments[ability.doctrine] < cost) return false;
+        set(st => ({
+          techniqueFragments: { ...st.techniqueFragments, [ability.doctrine]: st.techniqueFragments[ability.doctrine] - cost },
+          abilityRanks: { ...st.abilityRanks, [abilityId]: (currentRank + 1) as 2 | 3 },
+        }));
+        return true;
+      },
+      addRespecShards: (gains) => set(s => ({
+        respecShards: {
+          iron:      s.respecShards.iron      + (gains.iron      ?? 0),
+          arc:       s.respecShards.arc       + (gains.arc       ?? 0),
+          edge:      s.respecShards.edge      + (gains.edge      ?? 0),
+          prismatic: s.respecShards.prismatic + (gains.prismatic ?? 0),
+        }
+      })),
+      respecDoctrineNode: (nodeId, doctrine) => {
+        const state = get();
+        const currentRanks = state.doctrineInvestedRanks[nodeId] ?? 0;
+        if (currentRanks <= 0) return false;
+        const hasMatchingShard = state.respecShards[doctrine] > 0;
+        const hasPrismatic = state.respecShards.prismatic > 0;
+        if (!hasMatchingShard && !hasPrismatic) return false;
+        const newRanks = { ...state.doctrineInvestedRanks, [nodeId]: currentRanks - 1 };
+        if (newRanks[nodeId] === 0) delete newRanks[nodeId];
+        const newPoints = { ...state.doctrinePoints, [doctrine]: state.doctrinePoints[doctrine] + 1 };
+        const newShards = { ...state.respecShards };
+        if (hasMatchingShard) newShards[doctrine]--;
+        else newShards.prismatic--;
+        set({ doctrineInvestedRanks: newRanks, doctrinePoints: newPoints, respecShards: newShards });
+        return true;
       },
 
       addDoctrineXP: (gains) => {
@@ -269,7 +336,8 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         const newDeepest = Math.max(state.deepestFloor, rewards.floorsCleared);
         const newRunsPerSchool = { ...state.runsPerSchool, [rewards.schoolId]: (state.runsPerSchool[rewards.schoolId] ?? 0) + 1 };
         const newDeepestPerSchool = { ...state.deepestFloorPerSchool, [rewards.schoolId]: Math.max(state.deepestFloorPerSchool[rewards.schoolId] ?? 0, rewards.floorsCleared) };
-        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, totalAbilityDamage: state.totalAbilityDamage + (rewards.abilityDamageDealt ?? 0), totalCriticalHits: state.totalCriticalHits + (rewards.criticalHits ?? 0), totalDamageTaken: state.totalDamageTaken + (rewards.damageTaken ?? 0), runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
+        const fe = rewards.fragmentsEarned;
+        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), techniqueFragments: { iron: state.techniqueFragments.iron + (fe?.iron ?? 0), arc: state.techniqueFragments.arc + (fe?.arc ?? 0), edge: state.techniqueFragments.edge + (fe?.edge ?? 0) }, materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, totalAbilityDamage: state.totalAbilityDamage + (rewards.abilityDamageDealt ?? 0), totalCriticalHits: state.totalCriticalHits + (rewards.criticalHits ?? 0), totalDamageTaken: state.totalDamageTaken + (rewards.damageTaken ?? 0), runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
         const simulatedState = { ...state, ...updated };
         const newUnlocks: string[] = [];
         const updatedUnlocks = { ...state.unlocks };

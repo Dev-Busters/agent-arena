@@ -17,6 +17,7 @@ export interface RunStats {
   goldEarned: number;
   ashEarned?: number;
   emberEarned?: number;
+  fragmentsEarned?: { iron: number; arc: number; edge: number };
   accountXPEarned: number;
   newAccountLevel: number;
   newUnlocks: string[];
@@ -446,6 +447,25 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
                 <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
                   <span style={{ color: '#8a8478' }}>🔥 Ember</span>
                   <span style={{ color: '#e67e22', fontWeight: 700 }}>+{stats.emberEarned}</span>
+                </div>
+              )}
+              {/* Technique Fragments */}
+              {(stats.fragmentsEarned?.iron ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>🔴 Iron Fragments</span>
+                  <span style={{ color: '#c0392b', fontWeight: 700 }}>+{stats.fragmentsEarned!.iron}</span>
+                </div>
+              )}
+              {(stats.fragmentsEarned?.arc ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>🔵 Arc Fragments</span>
+                  <span style={{ color: '#2e86de', fontWeight: 700 }}>+{stats.fragmentsEarned!.arc}</span>
+                </div>
+              )}
+              {(stats.fragmentsEarned?.edge ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>🟢 Edge Fragments</span>
+                  <span style={{ color: '#27ae60', fontWeight: 700 }}>+{stats.fragmentsEarned!.edge}</span>
                 </div>
               )}
 

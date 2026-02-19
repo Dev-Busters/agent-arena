@@ -50,6 +50,7 @@ export class RunManager {
   private valor = 0;
   private ashThisRun = 0;
   private emberThisRun = 0;
+  private fragmentsThisRun = { iron: 0, arc: 0, edge: 0 };
   private _pendingEliteEmber = 0;
   private doctrineXPThisRun = { iron: 0, arc: 0, edge: 0 };
 
@@ -82,6 +83,7 @@ export class RunManager {
   onValorEarned(amount: number): void { this.valor += amount; }
   onAshEarned(amount: number): void { this.ashThisRun += amount; }
   onEmberEarned(amount: number): void { this.emberThisRun += amount; }
+  onFragmentEarned(doctrine: 'iron' | 'arc' | 'edge', amount: number): void { this.fragmentsThisRun[doctrine] += amount; }
   
   // Track doctrine XP based on attack type
   onBasicAttackKill(): void {
@@ -282,6 +284,7 @@ export class RunManager {
       doctrineXPGains: this.doctrineXPThisRun,
       ashEarned: this.ashThisRun,
       emberEarned: this.emberThisRun,
+      fragmentsEarned: { ...this.fragmentsThisRun },
     });
 
     const newState = useAgentLoadout.getState();
@@ -295,6 +298,7 @@ export class RunManager {
       goldEarned, accountXPEarned: xpEarned,
       ashEarned: this.ashThisRun,
       emberEarned: this.emberThisRun,
+      fragmentsEarned: { ...this.fragmentsThisRun },
       newAccountLevel: newState.accountLevel,
       newUnlocks,
       nearestUnlockLabel: nearest?.label,

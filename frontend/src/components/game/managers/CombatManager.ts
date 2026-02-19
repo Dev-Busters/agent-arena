@@ -28,6 +28,7 @@ export interface CombatManagerDeps {
   onValorEarned: (amount: number) => void;
   onAshEarned: (amount: number) => void;
   onEmberEarned: (amount: number) => void;
+  onFragmentEarned: (doctrine: 'iron' | 'arc' | 'edge', amount: number) => void;
   particles: ParticleSystem;
   sound: SoundManager;
   getActiveModifiers: () => ActiveModifier[];
@@ -133,7 +134,7 @@ export class CombatManager {
   }
 
   private killEnemy(enemy: Enemy): void {
-    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled, onValorEarned, onAshEarned, onEmberEarned } = this.deps;
+    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled, onValorEarned, onAshEarned, onEmberEarned, onFragmentEarned, getIsTrial } = this.deps;
     enemy.dead = true;
     onEnemyKilled();
     sound.playDeath();
@@ -158,11 +159,20 @@ export class CombatManager {
     const ashDrop = 1 + Math.floor(Math.random() * 3);
     onAshEarned(ashDrop);
 
-    // Elite enemies (high HP) drop 1-3 Ember
-    const isElite = (enemy.state.maxHp ?? 0) > 80; // standard max HP is ~60-80; elites are scaled higher
+    // Elite enemies (high HP) drop 1-3 Ember + 1-2 Fragments
+    const isElite = (enemy.state.maxHp ?? 0) > 80;
     if (isElite) {
       const emberDrop = 1 + Math.floor(Math.random() * 3);
       onEmberEarned(emberDrop);
+      // Elites and trial floor enemies drop 1-2 Technique Fragments (doctrine-matched to enemy type)
+      const fragDoctrine = enemy.state.type === 'charger' ? 'iron'
+        : enemy.state.type === 'ranger' ? 'arc' : 'edge';
+      onFragmentEarned(fragDoctrine, 1 + Math.floor(Math.random() * 2));
+    } else if (getIsTrial()) {
+      // All enemies on trial floors drop 1 fragment
+      const fragDoctrine = enemy.state.type === 'charger' ? 'iron'
+        : enemy.state.type === 'ranger' ? 'arc' : 'edge';
+      onFragmentEarned(fragDoctrine, 1);
     }
 
     if (Math.random() < 0.2) {

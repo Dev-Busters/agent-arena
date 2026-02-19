@@ -12,7 +12,7 @@ interface SkillTreeRendererProps {
 type NodeState = 'locked' | 'available' | 'invested' | 'maxed';
 
 const W = 400;
-const H = 560;
+const H = 720; // taller to accommodate Tier 2 branches
 
 function nodeState(node: TreeNode, invested: Record<string, number>, tree: DoctrineTree): NodeState {
   const ranks = invested[node.id] ?? 0;
@@ -23,11 +23,16 @@ function nodeState(node: TreeNode, invested: Record<string, number>, tree: Doctr
 }
 
 function nodeRadius(tier: TreeNode['tier']): number {
-  return tier === 'root' ? 26 : tier === 'gate' ? 22 : 16;
+  if (tier === 'root') return 26;
+  if (tier === 'gate') return 22;
+  if (tier === 'keystone') return 20;
+  if (tier === 'bridge') return 14;
+  return 16;
 }
 
+// y values can exceed 1.0 for Tier 2 nodes — map to extended canvas height
 function toPixel(x: number, y: number): [number, number] {
-  return [x * (W - 40) + 20, y * (H - 40) + 20];
+  return [x * (W - 40) + 20, y * (H - 60) + 20];
 }
 
 function effectLabel(effect: TreeNode['effect'], ranks: number): string {
@@ -62,16 +67,30 @@ export default function SkillTreeRenderer({ tree, investedRanks, availablePoints
         {tree.nodes.map(node =>
           node.connections.map(targetId => {
             const [x1, y1] = positions.get(node.id)!;
+            const targetInTree = tree.nodes.find(n => n.id === targetId);
+            // Cross-tree bridge connections — render as a short dashed arc pointing out of frame
+            if (!targetInTree) {
+              const isBridgeSrc = node.tier === 'bridge';
+              return (
+                <line key={`${node.id}-${targetId}`}
+                  x1={x1} y1={y1} x2={x1} y2={y1 + 20}
+                  stroke="#7a6d9a" strokeWidth={1.5} strokeOpacity={0.4}
+                  strokeDasharray="3 3" strokeLinecap="round"
+                />
+              );
+            }
             const [x2, y2] = positions.get(targetId) ?? [x1, y1];
             const srcInvested = (investedRanks[node.id] ?? 0) > 0;
-            const tgtState = nodeState(tree.nodes.find(n => n.id === targetId)!, investedRanks, tree);
+            const tgtState = nodeState(targetInTree, investedRanks, tree);
             const opacity = srcInvested ? 0.6 : 0.2;
-            const stroke = tgtState === 'locked' ? '#444' : color;
+            const isBridgeLine = node.tier === 'bridge' || targetInTree.tier === 'bridge';
+            const stroke = isBridgeLine ? '#7a6d9a' : tgtState === 'locked' ? '#444' : color;
             return (
               <line key={`${node.id}-${targetId}`}
                 x1={x1} y1={y1} x2={x2} y2={y2}
                 stroke={stroke} strokeWidth={2} strokeOpacity={opacity}
                 strokeLinecap="round"
+                strokeDasharray={isBridgeLine ? '5 3' : undefined}
               />
             );
           })
@@ -85,46 +104,67 @@ export default function SkillTreeRenderer({ tree, investedRanks, availablePoints
           const ranks = investedRanks[node.id] ?? 0;
           const canInvest = state !== 'locked' && state !== 'maxed' && availablePoints > 0;
 
-          const fill = state === 'maxed'    ? color
-                     : state === 'invested' ? `${color}44`
+          const isKeystone = node.tier === 'keystone';
+          const isBridge = node.tier === 'bridge';
+          const keystoneColor = '#d4a843';
+
+          const fill = state === 'maxed'    ? (isKeystone ? keystoneColor : color)
+                     : state === 'invested' ? (isKeystone ? `${keystoneColor}44` : `${color}44`)
                      : state === 'available'? 'rgba(30,30,40,0.9)'
                      : 'rgba(20,20,28,0.9)';
-          const stroke = state === 'locked'    ? '#333'
-                       : state === 'available'  ? color
-                       : color;
+          const stroke = isBridge   ? '#7a6d9a'
+                       : isKeystone ? keystoneColor
+                       : state === 'locked' ? '#333' : color;
           const strokeOpacity = state === 'locked' ? 0.3 : state === 'available' ? 0.9 : 1;
-          const glowFilter = state === 'available' ? `drop-shadow(0 0 6px ${color})` : undefined;
+          const strokeWidth = isKeystone ? 3 : node.tier === 'gate' ? 3 : 2;
+          const glowFilter = state === 'available'
+            ? `drop-shadow(0 0 6px ${isKeystone ? keystoneColor : color})`
+            : isKeystone && state === 'maxed'
+            ? `drop-shadow(0 0 10px ${keystoneColor})`
+            : undefined;
 
           return (
             <g key={node.id}
               style={{ cursor: canInvest ? 'pointer' : 'default', filter: glowFilter }}
               onClick={() => canInvest && onInvest(node.id)}
-              onMouseEnter={(e) => {
-                const rect = (e.currentTarget.closest('div') as HTMLElement)?.getBoundingClientRect();
-                setTooltip({ node, mx: cx, my: cy - r - 8 });
-              }}
+              onMouseEnter={() => setTooltip({ node, mx: cx, my: cy - r - 8 })}
               onMouseLeave={() => setTooltip(null)}
             >
               <circle cx={cx} cy={cy} r={r}
-                fill={fill} stroke={stroke} strokeWidth={node.tier === 'gate' ? 3 : 2}
+                fill={fill} stroke={stroke} strokeWidth={strokeWidth}
                 strokeOpacity={strokeOpacity}
+                strokeDasharray={isBridge ? '4 2' : undefined}
               />
-              {/* Label */}
-              <text x={cx} y={cy - (node.maxRanks > 1 ? 4 : 0)}
-                textAnchor="middle" dominantBaseline="middle"
-                fill={state === 'locked' ? '#555' : '#e8e6f0'}
-                fontSize={node.tier === 'root' ? 8 : 7}
-                fontWeight={node.tier !== 'minor' ? 'bold' : 'normal'}
-              >
-                {node.label.split(' ').map((w, i) => (
-                  <tspan key={i} x={cx} dy={i === 0 ? 0 : 8}>{w}</tspan>
-                ))}
-              </text>
+              {/* Keystone diamond overlay */}
+              {isKeystone && (
+                <polygon
+                  points={`${cx},${cy - r + 4} ${cx + r - 4},${cy} ${cx},${cy + r - 4} ${cx - r + 4},${cy}`}
+                  fill="none" stroke={keystoneColor} strokeWidth={1} strokeOpacity={state === 'locked' ? 0.2 : 0.6}
+                />
+              )}
+              {/* Bridge ⇌ icon */}
+              {isBridge && (
+                <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
+                  fill={state === 'locked' ? '#444' : '#7a6d9a'} fontSize={8}>⇌</text>
+              )}
+              {/* Label (skip for bridge — icon is enough) */}
+              {!isBridge && (
+                <text x={cx} y={cy - (node.maxRanks > 1 ? 4 : 0)}
+                  textAnchor="middle" dominantBaseline="middle"
+                  fill={state === 'locked' ? '#555' : (isKeystone ? '#f5d98a' : '#e8e6f0')}
+                  fontSize={node.tier === 'root' ? 8 : 7}
+                  fontWeight={node.tier !== 'minor' ? 'bold' : 'normal'}
+                >
+                  {node.label.split(' ').map((w, i) => (
+                    <tspan key={i} x={cx} dy={i === 0 ? 0 : 8}>{w}</tspan>
+                  ))}
+                </text>
+              )}
               {/* Rank counter */}
-              {node.maxRanks > 1 && (
+              {node.maxRanks > 1 && !isBridge && (
                 <text x={cx} y={cy + r - 4}
                   textAnchor="middle" dominantBaseline="middle"
-                  fill={state === 'locked' ? '#444' : color} fontSize={7} fontWeight="bold"
+                  fill={state === 'locked' ? '#444' : (isKeystone ? keystoneColor : color)} fontSize={7} fontWeight="bold"
                 >
                   {ranks}/{node.maxRanks}
                 </text>
