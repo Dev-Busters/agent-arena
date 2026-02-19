@@ -120,7 +120,25 @@ export const TIER_LABELS: Record<ContractTier, string> = {
   gold:   'Gold',
 };
 
-// Active contracts = first 4 (simulating rotation; in production this would be time-based)
+/** Returns 4 active contracts, rotated daily based on the current date. */
 export function getActiveContracts(): Contract[] {
-  return ALL_CONTRACTS.slice(0, 4);
+  // Seed from today's date so contracts rotate once per day
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  // Simple deterministic shuffle using seed
+  const shuffled = [...ALL_CONTRACTS].sort((a, b) => {
+    const ha = hashStr(a.id + seed);
+    const hb = hashStr(b.id + seed);
+    return ha - hb;
+  });
+  return shuffled.slice(0, 4);
+}
+
+function hashStr(s: string | number): number {
+  const str = String(s);
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return h >>> 0; // unsigned
 }

@@ -158,6 +158,13 @@ export class CombatManager {
     const ashDrop = 1 + Math.floor(Math.random() * 3);
     onAshEarned(ashDrop);
 
+    // Elite enemies (high HP) drop 1-3 Ember
+    const isElite = (enemy.state.maxHp ?? 0) > 80; // standard max HP is ~60-80; elites are scaled higher
+    if (isElite) {
+      const emberDrop = 1 + Math.floor(Math.random() * 3);
+      onEmberEarned(emberDrop);
+    }
+
     if (Math.random() < 0.2) {
       const loot = new Loot(enemy.state.x, enemy.state.y, randomLootType());
       this.lootItems.push(loot);

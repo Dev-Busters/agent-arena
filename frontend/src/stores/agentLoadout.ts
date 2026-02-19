@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware';
 import { SchoolConfig, DEFAULT_SCHOOL } from '@/components/game/schools';
 import { Discipline } from '@/components/game/disciplines';
 import { Tenet } from '@/components/game/tenets';
-import { DOCTRINE_TREES, DoctrineKey } from '@/components/game/doctrineTrees';
+import { DOCTRINE_TREES, DoctrineKey, isNodeAvailable } from '@/components/game/doctrineTrees';
 import { DOCTRINE_ABILITIES, getAbilityPair, UNLOCK_LEVELS } from '@/components/game/doctrineAbilities';
 
 // ── Stub types for Phase I ───────────────────────────────────────────────────
@@ -85,6 +85,9 @@ export interface RunRewards {
   doctrineXPGains?: { iron: number; arc: number; edge: number };
   ashEarned?: number;
   emberEarned?: number;
+  abilityDamageDealt?: number;
+  criticalHits?: number;
+  damageTaken?: number;
 }
 
 // ── Store shape ───────────────────────────────────────────────────────────────
@@ -103,6 +106,9 @@ export interface AgentLoadoutState {
   deepestFloor: number;
   totalKills: number;
   totalRuns: number;
+  totalAbilityDamage: number;
+  totalCriticalHits: number;
+  totalDamageTaken: number;
   runsPerSchool: Record<string, number>;
   deepestFloorPerSchool: Record<string, number>;
 
@@ -151,6 +157,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       gold: 0, ash: 0, ember: 0, materials: [],
       accountLevel: 0, accountXP: 0,
       deepestFloor: 0, totalKills: 0, totalRuns: 0,
+      totalAbilityDamage: 0, totalCriticalHits: 0, totalDamageTaken: 0,
       runsPerSchool: {}, deepestFloorPerSchool: {},
       // Phase F init
       doctrineXP: { iron:0, arc:0, edge:0 },
@@ -175,7 +182,17 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       unlockAbility:    (id) => set(s => ({ unlockedAbilities: [...new Set([...s.unlockedAbilities, id])] })),
       equipAbility:     (slot, id) => set(s => ({ equippedAbilities: { ...s.equippedAbilities, [slot]: id } })),
       setPendingAbilityUnlock: (data) => set({ pendingAbilityUnlock: data }),
-      investShrine: (upgradeId) => set(s => ({ shrineRanks: { ...s.shrineRanks, [upgradeId]: (s.shrineRanks[upgradeId] ?? 0) + 1 } })),
+      investShrine: (upgradeId) => {
+        // Enforce A/B exclusivity: block if opposing option in same slot has ranks
+        const { SHRINE_SLOTS } = require('@/components/game/DoctrineShrines');
+        const state = get();
+        const slot = (SHRINE_SLOTS as any[]).find((s: any) => s.a.id === upgradeId || s.b.id === upgradeId);
+        if (slot) {
+          const opposing = slot.a.id === upgradeId ? slot.b.id : slot.a.id;
+          if ((state.shrineRanks[opposing] ?? 0) > 0) return; // blocked
+        }
+        set(s => ({ shrineRanks: { ...s.shrineRanks, [upgradeId]: (s.shrineRanks[upgradeId] ?? 0) + 1 } }));
+      },
 
       addDoctrineXP: (gains) => {
         const state = get();
@@ -236,7 +253,6 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         const currentRanks = state.doctrineInvestedRanks[nodeId] ?? 0;
         if (currentRanks >= node.maxRanks) return false;
         if (state.doctrinePoints[doctrine] <= 0) return false;
-        const { isNodeAvailable } = require('@/components/game/doctrineTrees');
         if (!isNodeAvailable(nodeId, tree, state.doctrineInvestedRanks)) return false;
         const newRanks = { ...state.doctrineInvestedRanks, [nodeId]: currentRanks + 1 };
         const newPoints = { ...state.doctrinePoints, [doctrine]: state.doctrinePoints[doctrine] - 1 };
@@ -253,7 +269,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         const newDeepest = Math.max(state.deepestFloor, rewards.floorsCleared);
         const newRunsPerSchool = { ...state.runsPerSchool, [rewards.schoolId]: (state.runsPerSchool[rewards.schoolId] ?? 0) + 1 };
         const newDeepestPerSchool = { ...state.deepestFloorPerSchool, [rewards.schoolId]: Math.max(state.deepestFloorPerSchool[rewards.schoolId] ?? 0, rewards.floorsCleared) };
-        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
+        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, totalAbilityDamage: state.totalAbilityDamage + (rewards.abilityDamageDealt ?? 0), totalCriticalHits: state.totalCriticalHits + (rewards.criticalHits ?? 0), totalDamageTaken: state.totalDamageTaken + (rewards.damageTaken ?? 0), runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
         const simulatedState = { ...state, ...updated };
         const newUnlocks: string[] = [];
         const updatedUnlocks = { ...state.unlocks };
