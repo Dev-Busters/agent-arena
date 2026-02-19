@@ -28,6 +28,9 @@ export interface RunManagerDeps {
   addActiveModifier: (m: ActiveModifier) => void;
   getKills: () => number;
   getGold: () => number;
+  getValor: () => number;
+  onShowShop: (valorAmount: number) => void;
+  onShopClose: (remainingValor: number) => void;
   runStartTime: () => number;
 }
 
@@ -42,6 +45,7 @@ export class RunManager {
   private distanceSamples: number[] = [];
   private abilitiesUsed = 0;
   private damageThisRun = 0;
+  private valor = 0;
 
   constructor(deps: RunManagerDeps) {
     this.deps = deps;
@@ -69,9 +73,12 @@ export class RunManager {
 
   onAbilityUsed(): void { this.abilitiesUsed++; }
   onAgentDamaged(amount: number): void { this.damageThisRun += amount; }
+  onValorEarned(amount: number): void { this.valor += amount; }
 
   getFloor(): number { return this.floor; }
   getRoomsCompleted(): number { return this.roomsCompleted; }
+  getValor(): number { return this.valor; }
+  setValor(amount: number): void { this.valor = amount; }
 
   getBehaviorProfile(): BehaviorProfile {
     return {
@@ -98,8 +105,8 @@ export class RunManager {
     }
 
     if (node.type === 'shop') {
-      // Stub: +15 gold — full shop UI in Phase H
-      this.completedNode(node.id);
+      this.deps.onShowShop(this.valor);
+      // onShopClose will be called when shop closes, which will update valor and complete the node
       return;
     }
 
@@ -148,11 +155,18 @@ export class RunManager {
     }
   }
 
-  /** Called when room is cleared — show modifier selection */
+  /** Called when room is cleared — show modifier selection and grant valor bonus */
   onRoomCleared(): void {
+    this.valor += 5; // +5 Valor per room clear
     this.deps.app.ticker.stop();
     const choices = getRandomModifiers(3);
     this.deps.onShowModifierSelect(choices);
+  }
+
+  /** Called when shop closes — update valor and complete node */
+  onShopClose(remainingValor: number): void {
+    this.valor = remainingValor;
+    if (this.currentNodeId) this.completedNode(this.currentNodeId);
   }
 
   /** Called from GameBridge 'boss:start' event */

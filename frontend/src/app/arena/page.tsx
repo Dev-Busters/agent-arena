@@ -121,7 +121,7 @@ export default function ArenaPage() {
 
   const [gameState, setGameState] = useState<GameState>({
     playerHp: 100, playerMaxHp: 100, playerLevel: 1, playerXP: 0,
-    playerXPToNext: 100, kills: 0, gold: 0, floor: 1,
+    playerXPToNext: 100, kills: 0, gold: 0, valor: 0, floor: 1,
     roomsCompleted: 0, enemiesRemaining: 0,
     abilities: {
       dash: { cooldown: 3000, lastUsed: 0 }, blast: { cooldown: 6000, lastUsed: 0 },

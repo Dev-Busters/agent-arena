@@ -10,6 +10,8 @@ import { Boss } from './Boss';
 import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
+import CrucibleShop from './CrucibleShop';
+import type { ShopEffect } from './CrucibleShop';
 import { Modifier, ActiveModifier } from './Modifier';
 import FloorMapComponent from './FloorMap';
 import { DEFAULT_SCHOOL } from './schools';
@@ -29,7 +31,7 @@ export interface AbilityCooldownState {
 
 export interface GameStats {
   playerHp: number; playerMaxHp: number; playerLevel: number;
-  playerXP: number; playerXPToNext: number; kills: number; gold: number;
+  playerXP: number; playerXPToNext: number; kills: number; gold: number; valor: number;
   floor: number; roomsCompleted: number; enemiesRemaining: number;
   abilities: AbilityCooldownState;
   bossHp?: number; bossMaxHp?: number;
@@ -94,6 +96,9 @@ export default function ArenaCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<Application | null>(null);
   const isPausedRef = useRef(isPaused);
+  const agentRef = useRef<any>(null);
+  const activeModifiersRef = useRef<ActiveModifier[]>([]);
+  const onShopCloseRef = useRef<(remainingValor: number) => void>(() => {});
 
   const [isReady, setIsReady] = useState(false);
   const [runEnded, setRunEnded] = useState(false);
@@ -106,6 +111,8 @@ export default function ArenaCanvas({
   const [showFloorMap, setShowFloorMap] = useState(false);
   const [floorMapData, setFloorMapData] = useState<FloorMap | null>(null);
   const [showBossAnnouncement, setShowBossAnnouncement] = useState(false);
+  const [showShop, setShowShop] = useState(false);
+  const [shopValor, setShopValor] = useState(0);
 
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
 
@@ -123,6 +130,7 @@ export default function ArenaCanvas({
     app.stage.addChild(createArenaWalls(width, height));
 
     const agent = new Agent(width / 2, height / 2, width, height, WALL_THICKNESS);
+    agentRef.current = agent;
     app.stage.addChild(agent.container);
     // Pass canvas so mouse tracking uses correct coordinates
     agent.setCanvas(app.view as HTMLCanvasElement);
@@ -136,8 +144,10 @@ export default function ArenaCanvas({
     const enemies: import('./Enemy').Enemy[] = [];
     let bossRef: Boss | null = null;
     const activeModifiers: ActiveModifier[] = [];
+    activeModifiersRef.current = activeModifiers;
     let kills = 0;
     let gold = 0;
+    let valor = 0;
     const runStartTime = Date.now();
 
     const gameStatsRef = { current: { kills, gold, floor: 1, roomsCompleted: 0 } as any };
@@ -146,7 +156,7 @@ export default function ArenaCanvas({
       const stats: GameStats = {
         playerHp: agent.state.hp, playerMaxHp: agent.state.maxHp,
         playerLevel: agent.state.level, playerXP: agent.state.xp, playerXPToNext: agent.state.xpToNext,
-        kills, gold, floor: runManager.getFloor(),
+        kills, gold, valor, floor: runManager.getFloor(),
         roomsCompleted: runManager.getRoomsCompleted(),
         enemiesRemaining: enemies.length,
         abilities: {
@@ -177,6 +187,7 @@ export default function ArenaCanvas({
       },
       onDamageEvent: (e) => onDamage?.(e),
       onGoldCollected: (v) => { gold += v; updateStats(); },
+      onValorEarned: (v) => { valor += v; runManager.onValorEarned(v); updateStats(); },
       particles,
       sound,
       getActiveModifiers: () => activeModifiers,
@@ -210,8 +221,18 @@ export default function ArenaCanvas({
       addActiveModifier: (m) => activeModifiers.push(m),
       getKills: () => kills,
       getGold: () => gold,
+      getValor: () => valor,
+      onShowShop: (shopValorAmount) => { setShopValor(shopValorAmount); setShowShop(true); },
+      onShopClose: (remainingValor) => { valor = remainingValor; setShowShop(false); updateStats(); },
       runStartTime: () => runStartTime,
     });
+    
+    // Set ref for shop close callback
+    onShopCloseRef.current = (remainingValor: number) => {
+      valor = remainingValor;
+      setShowShop(false);
+      runManager.onShopClose(remainingValor);
+    };
 
     // ── Apply loadout ──────────────────────────────────────────────────────
     const loadout = useAgentLoadout.getState();
@@ -310,6 +331,44 @@ export default function ArenaCanvas({
       {showBossAnnouncement && (
         <BossAnnouncement bossName="THE WARDEN"
           onDismiss={() => { setShowBossAnnouncement(false); getGameBridge().emit('boss:start'); }} />
+      )}
+      {showShop && (
+        <CrucibleShop valor={shopValor}
+          onPurchase={(itemId, cost, effect) => {
+            // Deduct valor and update shop display
+            setShopValor(prev => prev - cost);
+            // Apply effect to agent using refs
+            const agent = agentRef.current;
+            if (agent) {
+              if (effect.healPct) {
+                agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + agent.state.maxHp * effect.healPct);
+              }
+              if (effect.hpBonus) {
+                agent.state.maxHp += effect.hpBonus;
+                agent.state.hp += effect.hpBonus;
+              }
+              if (effect.damagePctBonus || effect.speedPctBonus) {
+                // Store as active modifiers for this run
+                const mods = activeModifiersRef.current;
+                if (mods) {
+                  mods.push({
+                    id: itemId,
+                    name: 'Shop Effect',
+                    category: 'shop',
+                    rarity: 'rare',
+                    effects: {
+                      damageBonus: effect.damagePctBonus ? effect.damagePctBonus * 100 : 0,
+                      speedBonus: effect.speedPctBonus ? effect.speedPctBonus * 100 : 0,
+                    },
+                  } as any);
+                }
+              }
+            }
+          }}
+          onClose={() => {
+            onShopCloseRef.current(shopValor);
+          }}
+        />
       )}
       {runEnded && finalRunStats && (
         <RunEndScreen stats={finalRunStats} onReturnToWarRoom={() => { window.location.href = '/dashboard'; }} />

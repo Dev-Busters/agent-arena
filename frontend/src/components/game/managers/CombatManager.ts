@@ -25,6 +25,7 @@ export interface CombatManagerDeps {
   onRoomCleared: () => void;
   onDamageEvent: (event: DamageEvent) => void;
   onGoldCollected: (amount: number) => void;
+  onValorEarned: (amount: number) => void;
   particles: ParticleSystem;
   sound: SoundManager;
   getActiveModifiers: () => ActiveModifier[];
@@ -130,7 +131,7 @@ export class CombatManager {
   }
 
   private killEnemy(enemy: Enemy): void {
-    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled } = this.deps;
+    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled, onValorEarned } = this.deps;
     enemy.dead = true;
     onEnemyKilled();
     sound.playDeath();
@@ -146,6 +147,10 @@ export class CombatManager {
     const coin = new GoldCoin(enemy.state.x, enemy.state.y, 5);
     this.goldCoins.push(coin);
     app.stage.addChild(coin.container);
+
+    // Drop Valor: regular enemies drop 2-5 Valor
+    const valorDrop = 2 + Math.floor(Math.random() * 4);
+    onValorEarned(valorDrop);
 
     if (Math.random() < 0.2) {
       const loot = new Loot(enemy.state.x, enemy.state.y, randomLootType());

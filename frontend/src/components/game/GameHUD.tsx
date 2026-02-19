@@ -20,6 +20,7 @@ export interface GameState {
   playerXPToNext: number;
   kills: number;
   gold: number;
+  valor: number;
   floor: number;
   roomsCompleted: number;
   enemiesRemaining: number;
@@ -57,7 +58,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school } = gameState;
   const abilityNames = school?.abilities ?? {
     Q: { name: 'Dash' }, E: { name: 'Blast' }, R: { name: 'Shot' }, F: { name: 'Heal' },
   };
@@ -165,6 +166,10 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">Gold</div>
                 <div className="text-xl font-bold text-yellow-400">{gold}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-slate-400 uppercase tracking-wider">⚡ Valor</div>
+                <div className="text-xl font-bold" style={{ color: '#c0c0c0' }}>{valor}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs text-slate-400 uppercase tracking-wider">Enemies</div>
