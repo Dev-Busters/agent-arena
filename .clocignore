@@ -1,0 +1,12 @@
+node_modules
+.next
+.vercel
+dist
+build
+out
+frontend/node_modules
+package-lock.json
+.next
+frontend/.next
+.vercel
+frontend.vercel
