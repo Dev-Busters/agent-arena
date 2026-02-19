@@ -15,6 +15,8 @@ export interface RunStats {
   enemiesKilled: number;
   timeSeconds: number;
   goldEarned: number;
+  ashEarned?: number;
+  emberEarned?: number;
   accountXPEarned: number;
   newAccountLevel: number;
   newUnlocks: string[];
@@ -432,6 +434,20 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
                   +{stats.goldEarned}
                 </span>
               </div>
+              {/* Ash */}
+              {(stats.ashEarned ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>⬡ Crucible Ash</span>
+                  <span style={{ color: '#c0c0c0', fontWeight: 700 }}>+{stats.ashEarned}</span>
+                </div>
+              )}
+              {/* Ember */}
+              {(stats.emberEarned ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>🔥 Ember</span>
+                  <span style={{ color: '#e67e22', fontWeight: 700 }}>+{stats.emberEarned}</span>
+                </div>
+              )}
 
               {/* XP — animated counter */}
               <div

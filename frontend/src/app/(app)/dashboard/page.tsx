@@ -12,6 +12,9 @@ import DisciplineSelection from '@/components/game/DisciplineSelection';
 import TenetSelection from '@/components/game/TenetSelection';
 import SkillTreeRenderer from '@/components/game/SkillTreeRenderer';
 import AbilityUnlockModal from '@/components/game/AbilityUnlockModal';
+import DoctrineShrinesPanel from '@/components/game/DoctrineShrines';
+import CrucibleCodex from '@/components/game/CrucibleCodex';
+import ContractBoard from '@/components/game/ContractBoard';
 import { DOCTRINE_TREES, DoctrineKey } from '@/components/game/doctrineTrees';
 import { DOCTRINE_ABILITIES, DOCTRINE_COLORS, getAbilityById } from '@/components/game/doctrineAbilities';
 
@@ -399,11 +402,13 @@ export default function DashboardPage() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
         className="rounded-xl" style={{ background: 'linear-gradient(180deg, rgba(18,18,28,0.6) 0%, rgba(10,10,16,0.8) 100%)', border: '1px solid #2a2a3d', padding: '16px 20px' }}>
         <div className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color: '#8a6d2b' }}>⚡ Progression</div>
-        <div className="grid grid-cols-3 gap-4 font-mono text-center">
+        <div className="grid grid-cols-5 gap-4 font-mono text-center">
           {[
             { label: 'DEEPEST FLOOR', value: loadout.deepestFloor || '—', color: '#9b5de5' },
             { label: 'TOTAL KILLS',   value: loadout.totalKills,           color: '#d44040' },
             { label: 'GOLD HELD',     value: `${loadout.gold}g`,           color: '#d4a843' },
+            { label: 'CRUCIBLE ASH',  value: `${loadout.ash}`,             color: '#c0c0c0' },
+            { label: 'EMBER',         value: `${loadout.ember}`,           color: '#e67e22' },
           ].map(p => (
             <div key={p.label}>
               <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: '#5c574e' }}>{p.label}</div>
@@ -418,6 +423,15 @@ export default function DashboardPage() {
 
       {/* ── Ability Loadout ── */}
       <AbilityLoadoutPanel />
+
+      {/* ── Doctrine Shrines ── */}
+      <DoctrineShrinesPanel />
+
+      {/* ── Crucible Codex ── */}
+      <CrucibleCodex />
+
+      {/* ── Arena Contracts ── */}
+      <ContractBoard />
 
       {/* Modals */}
       <AnimatePresence>

@@ -83,6 +83,8 @@ export interface RunRewards {
   floorsCleared: number; killsThisRun: number; schoolId: string;
   modifierCategories: string[];
   doctrineXPGains?: { iron: number; arc: number; edge: number };
+  ashEarned?: number;
+  emberEarned?: number;
 }
 
 // ── Store shape ───────────────────────────────────────────────────────────────
@@ -93,6 +95,8 @@ export interface AgentLoadoutState {
   equipment: { weapon: Equipment|null; armor: Equipment|null; helm: Equipment|null; boots: Equipment|null; accessory1: Equipment|null; accessory2: Equipment|null };
   unlocks: { schools: string[]; disciplines: string[]; tenets: string[]; recipes: string[] };
   gold: number;
+  ash: number;
+  ember: number;
   materials: Material[];
   accountLevel: number;
   accountXP: number;
@@ -108,6 +112,9 @@ export interface AgentLoadoutState {
   doctrinePoints: { iron: number; arc: number; edge: number }; // spendable = level - spent
   doctrineInvestedRanks: Record<string, number>; // nodeId → ranks
 
+  // ── Phase G: Shrine investments ──
+  shrineRanks: Record<string, number>;
+
   // ── Phase F: Ability system ──
   unlockedAbilities: string[];
   equippedAbilities: { Q: string|null; E: string|null; R: string|null; F: string|null };
@@ -119,6 +126,8 @@ export interface AgentLoadoutState {
   setTenets: (t: Tenet[]) => void;
   addGold: (n: number) => void;
   spendGold: (n: number) => boolean;
+  spendAsh: (n: number) => boolean;
+  spendEmber: (n: number) => boolean;
   unlockSchool: (id: string) => void;
   unlockDiscipline: (id: string) => void;
   unlockTenet: (id: string) => void;
@@ -129,6 +138,7 @@ export interface AgentLoadoutState {
   unlockAbility: (id: string) => void;
   equipAbility: (slot: 'Q'|'E'|'R'|'F', abilityId: string|null) => void;
   setPendingAbilityUnlock: (data: { doctrine: DoctrineKey; level: number; options: [string, string] } | null) => void;
+  investShrine: (upgradeId: string) => void;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -138,7 +148,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       school: null, disciplines: [], tenets: [],
       equipment: { weapon:null, armor:null, helm:null, boots:null, accessory1:null, accessory2:null },
       unlocks: { schools:['vanguard'], disciplines:[], tenets:['strike-wounded','executioner'], recipes:[] },
-      gold: 0, materials: [],
+      gold: 0, ash: 0, ember: 0, materials: [],
       accountLevel: 0, accountXP: 0,
       deepestFloor: 0, totalKills: 0, totalRuns: 0,
       runsPerSchool: {}, deepestFloorPerSchool: {},
@@ -147,6 +157,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       doctrineLevel: { iron:0, arc:0, edge:0 },
       doctrinePoints: { iron:0, arc:0, edge:0 },
       doctrineInvestedRanks: {},
+      shrineRanks: {},
       unlockedAbilities: [],
       equippedAbilities: { Q:null, E:null, R:null, F:null },
       pendingAbilityUnlock: null,
@@ -155,13 +166,16 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       setDisciplines: (disciplines) => set({ disciplines }),
       setTenets: (tenets) => set({ tenets }),
       addGold: (n) => set(s => ({ gold: s.gold + n })),
-      spendGold: (n) => { if (get().gold < n) return false; set(s => ({ gold: s.gold - n })); return true; },
+      spendGold:  (n) => { if (get().gold  < n) return false; set(s => ({ gold:  s.gold  - n })); return true; },
+      spendAsh:   (n) => { if (get().ash   < n) return false; set(s => ({ ash:   s.ash   - n })); return true; },
+      spendEmber: (n) => { if (get().ember < n) return false; set(s => ({ ember: s.ember - n })); return true; },
       unlockSchool:     (id) => set(s => ({ unlocks: { ...s.unlocks, schools:     [...new Set([...s.unlocks.schools, id])] } })),
       unlockDiscipline: (id) => set(s => ({ unlocks: { ...s.unlocks, disciplines: [...new Set([...s.unlocks.disciplines, id])] } })),
       unlockTenet:      (id) => set(s => ({ unlocks: { ...s.unlocks, tenets:      [...new Set([...s.unlocks.tenets, id])] } })),
       unlockAbility:    (id) => set(s => ({ unlockedAbilities: [...new Set([...s.unlockedAbilities, id])] })),
       equipAbility:     (slot, id) => set(s => ({ equippedAbilities: { ...s.equippedAbilities, [slot]: id } })),
       setPendingAbilityUnlock: (data) => set({ pendingAbilityUnlock: data }),
+      investShrine: (upgradeId) => set(s => ({ shrineRanks: { ...s.shrineRanks, [upgradeId]: (s.shrineRanks[upgradeId] ?? 0) + 1 } })),
 
       addDoctrineXP: (gains) => {
         const state = get();
@@ -239,7 +253,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         const newDeepest = Math.max(state.deepestFloor, rewards.floorsCleared);
         const newRunsPerSchool = { ...state.runsPerSchool, [rewards.schoolId]: (state.runsPerSchool[rewards.schoolId] ?? 0) + 1 };
         const newDeepestPerSchool = { ...state.deepestFloorPerSchool, [rewards.schoolId]: Math.max(state.deepestFloorPerSchool[rewards.schoolId] ?? 0, rewards.floorsCleared) };
-        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
+        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
         const simulatedState = { ...state, ...updated };
         const newUnlocks: string[] = [];
         const updatedUnlocks = { ...state.unlocks };

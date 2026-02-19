@@ -29,6 +29,8 @@ export interface RunManagerDeps {
   getKills: () => number;
   getGold: () => number;
   getValor: () => number;
+  getAsh: () => number;
+  getEmber: () => number;
   onShowShop: (valorAmount: number) => void;
   onShopClose: (remainingValor: number) => void;
   runStartTime: () => number;
@@ -46,6 +48,9 @@ export class RunManager {
   private abilitiesUsed = 0;
   private damageThisRun = 0;
   private valor = 0;
+  private ashThisRun = 0;
+  private emberThisRun = 0;
+  private _pendingEliteEmber = 0;
   private doctrineXPThisRun = { iron: 0, arc: 0, edge: 0 };
 
   constructor(deps: RunManagerDeps) {
@@ -75,6 +80,8 @@ export class RunManager {
   onAbilityUsed(): void { this.abilitiesUsed++; }
   onAgentDamaged(amount: number): void { this.damageThisRun += amount; }
   onValorEarned(amount: number): void { this.valor += amount; }
+  onAshEarned(amount: number): void { this.ashThisRun += amount; }
+  onEmberEarned(amount: number): void { this.emberThisRun += amount; }
   
   // Track doctrine XP based on attack type
   onBasicAttackKill(): void {
@@ -149,6 +156,10 @@ export class RunManager {
       node.type as 'combat' | 'elite' | 'exit',
       this.floor, node.id, isTrial, this.getBehaviorProfile()
     );
+    // Elite rooms and trial floors drop Ember on clear
+    if (node.type === 'elite' || isTrial) {
+      this._pendingEliteEmber = 5 + Math.floor(Math.random() * 6); // 5-10
+    }
     this.deps.combatManager.spawnRoom(room);
     this.deps.app.ticker.start();
   }
@@ -182,9 +193,14 @@ export class RunManager {
     }
   }
 
-  /** Called when room is cleared — show modifier selection and grant valor bonus */
+  /** Called when room is cleared — show modifier selection and grant valor/ember bonus */
   onRoomCleared(): void {
     this.valor += 5; // +5 Valor per room clear
+    // Bank any pending elite/trial Ember
+    if (this._pendingEliteEmber > 0) {
+      this.emberThisRun += this._pendingEliteEmber;
+      this._pendingEliteEmber = 0;
+    }
     this.deps.app.ticker.stop();
     const choices = getRandomModifiers(3);
     this.deps.onShowModifierSelect(choices);
@@ -242,6 +258,8 @@ export class RunManager {
     app.stage.removeChild(boss.container);
     boss.destroy();
     setBoss(null);
+    // Boss drops 10-15 Ember
+    this.emberThisRun += 10 + Math.floor(Math.random() * 6);
     this.currentNodeId = `boss_${this.floor}`;
     const bossModifiers = getRandomModifiers(3, 'epic');
     app.ticker.stop();
@@ -262,6 +280,8 @@ export class RunManager {
       schoolId: currentSchool.id,
       modifierCategories: Array.from(this.modCategoriesUsed),
       doctrineXPGains: this.doctrineXPThisRun,
+      ashEarned: this.ashThisRun,
+      emberEarned: this.emberThisRun,
     });
 
     const newState = useAgentLoadout.getState();
@@ -273,6 +293,8 @@ export class RunManager {
       enemiesKilled: this.deps.getKills(),
       timeSeconds: runTime,
       goldEarned, accountXPEarned: xpEarned,
+      ashEarned: this.ashThisRun,
+      emberEarned: this.emberThisRun,
       newAccountLevel: newState.accountLevel,
       newUnlocks,
       nearestUnlockLabel: nearest?.label,
