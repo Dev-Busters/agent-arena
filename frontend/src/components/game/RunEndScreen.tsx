@@ -18,6 +18,7 @@ export interface RunStats {
   accountXPEarned: number;
   newAccountLevel: number;
   newUnlocks: string[];
+  doctrineXPGains?: { iron: number; arc: number; edge: number };
   nearestUnlockLabel?: string;
   nearestUnlockProgress?: string; // e.g. "3 / 5"
   nearestUnlockHint?: string;     // e.g. "Reach Floor 5 to unlock"
@@ -466,6 +467,44 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
                     ⬆
                   </motion.span>
                   LEVEL UP — Level {stats.newAccountLevel}
+                </motion.div>
+              )}
+
+              {/* Doctrine XP */}
+              {stats.doctrineXPGains && (stats.doctrineXPGains.iron > 0 || stats.doctrineXPGains.arc > 0 || stats.doctrineXPGains.edge > 0) && (
+                <motion.div
+                  style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(212,168,67,0.1)' }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: T.rewards + 0.6 }}
+                >
+                  <div style={{ fontSize: '10px', color: '#8a6d2b', letterSpacing: '0.15em', marginBottom: 6, textTransform: 'uppercase' }}>
+                    ⚔ Doctrine XP
+                  </div>
+                  {stats.doctrineXPGains.iron > 0 && (
+                    <div className="flex justify-between items-center font-mono text-xs mb-2">
+                      <span style={{ color: '#c0392b' }}>🔴 Iron</span>
+                      <span style={{ color: '#c0392b', fontWeight: 600 }}>
+                        +<AnimatedNumber target={stats.doctrineXPGains.iron} delay={T.rewards + 0.8} prefix="" />
+                      </span>
+                    </div>
+                  )}
+                  {stats.doctrineXPGains.arc > 0 && (
+                    <div className="flex justify-between items-center font-mono text-xs mb-2">
+                      <span style={{ color: '#2e86de' }}>🔵 Arc</span>
+                      <span style={{ color: '#2e86de', fontWeight: 600 }}>
+                        +<AnimatedNumber target={stats.doctrineXPGains.arc} delay={T.rewards + 0.9} prefix="" />
+                      </span>
+                    </div>
+                  )}
+                  {stats.doctrineXPGains.edge > 0 && (
+                    <div className="flex justify-between items-center font-mono text-xs">
+                      <span style={{ color: '#27ae60' }}>🟢 Edge</span>
+                      <span style={{ color: '#27ae60', fontWeight: 600 }}>
+                        +<AnimatedNumber target={stats.doctrineXPGains.edge} delay={T.rewards + 1.0} prefix="" />
+                      </span>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </div>

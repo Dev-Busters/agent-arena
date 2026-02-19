@@ -10,6 +10,10 @@ import { TENETS } from '@/components/game/tenets';
 import SchoolSelection from '@/components/game/SchoolSelection';
 import DisciplineSelection from '@/components/game/DisciplineSelection';
 import TenetSelection from '@/components/game/TenetSelection';
+import SkillTreeRenderer from '@/components/game/SkillTreeRenderer';
+import AbilityUnlockModal from '@/components/game/AbilityUnlockModal';
+import { DOCTRINE_TREES, DoctrineKey } from '@/components/game/doctrineTrees';
+import { DOCTRINE_ABILITIES, DOCTRINE_COLORS, getAbilityById } from '@/components/game/doctrineAbilities';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, suffix, labelColor, borderColor, gradientFrom }: {
@@ -26,6 +30,185 @@ function StatCard({ icon, label, value, suffix, labelColor, borderColor, gradien
         {value}{suffix && <span style={{ color: '#5c574e', fontSize: '0.9rem' }}>{suffix}</span>}
       </div>
     </div>
+  );
+}
+
+// ── Doctrine Trees Panel ───────────────────────────────────────────────────────
+function DoctrineTreesPanel() {
+  const loadout = useAgentLoadout();
+  const [activeDoc, setActiveDoc] = useState<DoctrineKey>('iron');
+  const tree = DOCTRINE_TREES[activeDoc];
+  const points = loadout.doctrinePoints[activeDoc];
+  const level = loadout.doctrineLevel[activeDoc];
+
+  const tabs: { key: DoctrineKey; label: string }[] = [
+    { key: 'iron', label: '🔴 Iron' },
+    { key: 'arc',  label: '🔵 Arc' },
+    { key: 'edge', label: '🟢 Edge' },
+  ];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+      className="relative overflow-hidden rounded-2xl mb-4"
+      style={{ background: 'linear-gradient(160deg, rgba(18,18,28,0.8) 0%, rgba(10,10,16,0.9) 100%)', border: '1px solid #2a2a3d', padding: '20px 24px' }}>
+      <div className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color: '#8a6d2b' }}>⬡ Doctrine Trees</div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setActiveDoc(t.key)}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: activeDoc === t.key ? `${DOCTRINE_COLORS[t.key]}22` : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${activeDoc === t.key ? DOCTRINE_COLORS[t.key] : '#2a2a3d'}`,
+              color: activeDoc === t.key ? DOCTRINE_COLORS[t.key] : '#8a8478',
+            }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Level + points */}
+      <div className="flex items-center gap-4 mb-3 font-mono text-xs">
+        <span style={{ color: DOCTRINE_COLORS[activeDoc] }}>Level {level}</span>
+        <span style={{ color: '#5c574e' }}>·</span>
+        <span style={{ color: points > 0 ? '#d4a843' : '#5c574e' }}>
+          {points > 0 ? `${points} point${points !== 1 ? 's' : ''} available` : 'No points available'}
+        </span>
+        {level === 0 && <span className="italic" style={{ color: '#5c574e' }}>— earn XP through Crucible runs</span>}
+      </div>
+
+      {/* Renderer */}
+      <div className="overflow-auto">
+        <SkillTreeRenderer
+          tree={tree}
+          investedRanks={loadout.doctrineInvestedRanks}
+          availablePoints={points}
+          onInvest={(nodeId) => loadout.investDoctrineNode(nodeId, activeDoc)}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Ability Loadout Panel ──────────────────────────────────────────────────────
+function AbilityLoadoutPanel() {
+  const loadout = useAgentLoadout();
+  const [pickerSlot, setPickerSlot] = useState<'Q'|'E'|'R'|'F'|null>(null);
+  const pending = loadout.pendingAbilityUnlock;
+  const slots: ('Q'|'E'|'R'|'F')[] = ['Q','E','R','F'];
+
+  const pendingAbilities = pending
+    ? [getAbilityById(pending.options[0])!, getAbilityById(pending.options[1])!].filter(Boolean) as [typeof DOCTRINE_ABILITIES[0], typeof DOCTRINE_ABILITIES[0]]
+    : null;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
+      className="relative overflow-hidden rounded-2xl mb-4"
+      style={{ background: 'linear-gradient(160deg, rgba(18,18,28,0.8) 0%, rgba(10,10,16,0.9) 100%)', border: '1px solid #2a2a3d', padding: '20px 24px' }}>
+      <div className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color: '#8a6d2b' }}>⚔ Abilities</div>
+
+      {/* Pending unlock banner */}
+      {pending && (
+        <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+          className="rounded-xl px-4 py-3 mb-4 flex items-center justify-between"
+          style={{ background: `${DOCTRINE_COLORS[pending.doctrine]}18`, border: `1px solid ${DOCTRINE_COLORS[pending.doctrine]}44` }}>
+          <div>
+            <span className="text-xs font-bold" style={{ color: DOCTRINE_COLORS[pending.doctrine] }}>
+              🔓 New Ability Available — {pending.doctrine.charAt(0).toUpperCase()+pending.doctrine.slice(1)} Level {pending.level}
+            </span>
+            <p className="text-xs mt-0.5" style={{ color: '#8a8478' }}>Choose one ability to unlock</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Slots */}
+      <div className="grid grid-cols-4 gap-3">
+        {slots.map(slot => {
+          const abilityId = loadout.equippedAbilities[slot];
+          const ability = abilityId ? getAbilityById(abilityId) : null;
+          return (
+            <div key={slot} className="relative">
+              <button onClick={() => setPickerSlot(slot)}
+                className="w-full rounded-xl p-3 text-left transition-all"
+                style={{
+                  background: ability ? `${DOCTRINE_COLORS[ability.doctrine]}11` : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${ability ? DOCTRINE_COLORS[ability.doctrine]+'44' : '#2a2a3d'}`,
+                  minHeight: 80,
+                }}>
+                <div className="font-mono text-xs font-bold mb-1" style={{ color: ability ? DOCTRINE_COLORS[ability.doctrine] : '#5c574e' }}>{slot}</div>
+                {ability ? (
+                  <>
+                    <div className="text-lg mb-1">{ability.icon}</div>
+                    <div className="text-xs font-bold truncate" style={{ color: '#e8e6f0' }}>{ability.name}</div>
+                    <div className="text-[10px]" style={{ color: '#8a8478' }}>{(ability.cooldownMs/1000).toFixed(0)}s CD</div>
+                  </>
+                ) : (
+                  <div className="text-xs italic" style={{ color: '#5c574e' }}>— Empty</div>
+                )}
+              </button>
+              {ability && (
+                <button onClick={() => loadout.equipAbility(slot, null)}
+                  className="absolute top-1 right-1 text-[10px] rounded px-1"
+                  style={{ color: '#5c574e', background: 'rgba(0,0,0,0.4)' }}>✕</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {loadout.unlockedAbilities.length === 0 && !pending && (
+        <p className="text-xs italic mt-3 text-center" style={{ color: '#5c574e' }}>
+          Complete Crucible runs to unlock abilities through Doctrine leveling
+        </p>
+      )}
+
+      {/* Slot picker modal */}
+      <AnimatePresence>
+        {pickerSlot && (
+          <motion.div className="absolute inset-0 rounded-2xl flex items-center justify-center z-10"
+            style={{ background: 'rgba(10,10,18,0.96)', backdropFilter: 'blur(4px)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="w-full px-6">
+              <div className="text-xs font-bold mb-3" style={{ color: '#d4a843' }}>Equip ability in slot {pickerSlot}</div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {loadout.unlockedAbilities.length === 0 ? (
+                  <p className="text-xs italic" style={{ color: '#5c574e' }}>No abilities unlocked yet</p>
+                ) : (
+                  loadout.unlockedAbilities.map(id => {
+                    const ab = getAbilityById(id);
+                    if (!ab) return null;
+                    return (
+                      <button key={id} onClick={() => { loadout.equipAbility(pickerSlot, id); setPickerSlot(null); }}
+                        className="w-full text-left flex items-center gap-3 rounded-lg px-3 py-2 transition-all"
+                        style={{ background: `${DOCTRINE_COLORS[ab.doctrine]}11`, border: `1px solid ${DOCTRINE_COLORS[ab.doctrine]}33` }}>
+                        <span>{ab.icon}</span>
+                        <div>
+                          <div className="text-xs font-bold" style={{ color: DOCTRINE_COLORS[ab.doctrine] }}>{ab.name}</div>
+                          <div className="text-[10px]" style={{ color: '#8a8478' }}>{ab.description}</div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              <button onClick={() => setPickerSlot(null)} className="mt-3 w-full text-xs py-2 rounded-lg" style={{ color: '#5c574e', border: '1px solid #2a2a3d' }}>Cancel</button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Ability unlock modal */}
+        {pending && pendingAbilities && pendingAbilities.length === 2 && (
+          <AbilityUnlockModal
+            doctrine={pending.doctrine}
+            level={pending.level}
+            options={pendingAbilities as [typeof pendingAbilities[0], typeof pendingAbilities[0]]}
+            onUnlock={(id) => { loadout.unlockAbility(id); loadout.setPendingAbilityUnlock(null); }}
+            onDismiss={() => loadout.setPendingAbilityUnlock(null)}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -229,6 +412,12 @@ export default function DashboardPage() {
           ))}
         </div>
       </motion.div>
+
+      {/* ── Doctrine Trees ── */}
+      <DoctrineTreesPanel />
+
+      {/* ── Ability Loadout ── */}
+      <AbilityLoadoutPanel />
 
       {/* Modals */}
       <AnimatePresence>

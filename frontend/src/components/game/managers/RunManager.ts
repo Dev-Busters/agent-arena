@@ -46,6 +46,7 @@ export class RunManager {
   private abilitiesUsed = 0;
   private damageThisRun = 0;
   private valor = 0;
+  private doctrineXPThisRun = { iron: 0, arc: 0, edge: 0 };
 
   constructor(deps: RunManagerDeps) {
     this.deps = deps;
@@ -74,11 +75,36 @@ export class RunManager {
   onAbilityUsed(): void { this.abilitiesUsed++; }
   onAgentDamaged(amount: number): void { this.damageThisRun += amount; }
   onValorEarned(amount: number): void { this.valor += amount; }
+  
+  // Track doctrine XP based on attack type
+  onBasicAttackKill(): void {
+    this.doctrineXPThisRun.iron += 3; // Basic attacks reward iron
+  }
+  
+  // Track doctrine XP based on ability usage
+  onAbilityDoctrineXP(key: 'Q' | 'E' | 'R' | 'F'): void {
+    switch (key) {
+      case 'Q': this.doctrineXPThisRun.edge += 2; break; // Dash -> Edge
+      case 'E': this.doctrineXPThisRun.arc += 3; break;  // Blast -> Arc
+      case 'R': this.doctrineXPThisRun.arc += 2; break;  // Projectile -> Arc
+      case 'F': this.doctrineXPThisRun.iron += 2; break; // Heal -> Iron
+    }
+  }
+  
+  // Track doctrine XP on modifier pick
+  onModifierPickedDoctrineXP(category: string): void {
+    switch (category) {
+      case 'amplifier': this.doctrineXPThisRun.iron += 5; break;
+      case 'trigger': this.doctrineXPThisRun.edge += 5; break;
+      case 'transmuter': this.doctrineXPThisRun.arc += 5; break;
+    }
+  }
 
   getFloor(): number { return this.floor; }
   getRoomsCompleted(): number { return this.roomsCompleted; }
   getValor(): number { return this.valor; }
   setValor(amount: number): void { this.valor = amount; }
+  getDoctrineXPThisRun(): { iron: number; arc: number; edge: number } { return this.doctrineXPThisRun; }
 
   getBehaviorProfile(): BehaviorProfile {
     return {
@@ -131,6 +157,7 @@ export class RunManager {
   handleModifierSelect(modifier: Modifier): void {
     applyModifier(modifier, this.deps.getActiveModifiers());
     this.modCategoriesUsed.add(modifier.category);
+    this.onModifierPickedDoctrineXP(modifier.category);
 
     // If nodeId is a boss kill sentinel, advance floor after modifier
     const nodeId = this.currentNodeId;
@@ -234,6 +261,7 @@ export class RunManager {
       floorsCleared: this.floor, killsThisRun: this.deps.getKills(),
       schoolId: currentSchool.id,
       modifierCategories: Array.from(this.modCategoriesUsed),
+      doctrineXPGains: this.doctrineXPThisRun,
     });
 
     const newState = useAgentLoadout.getState();

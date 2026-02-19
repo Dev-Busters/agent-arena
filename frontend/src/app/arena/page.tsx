@@ -183,7 +183,7 @@ export default function ArenaPage() {
             onDamage={handleDamage}
             isPaused={gameState.isPaused}
           />
-          <GameHUD gameState={gameState} onPause={handlePause} onResume={handleResume} />
+          <GameHUD gameState={{ ...gameState, doctrineLevel: loadout.doctrineLevel }} onPause={handlePause} onResume={handleResume} />
           {damageNumbers.map(dmg => (
             <DamageNumber key={dmg.id} damage={dmg.damage} x={dmg.x} y={dmg.y}
               isCrit={dmg.isCrit} isHeal={dmg.isHeal}

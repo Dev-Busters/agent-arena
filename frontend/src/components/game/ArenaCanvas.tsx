@@ -10,8 +10,7 @@ import { Boss } from './Boss';
 import RunEndScreen from './RunEndScreen';
 import type { RunStats } from './RunEndScreen';
 import ModifierSelection from './ModifierSelection';
-import CrucibleShop from './CrucibleShop';
-import type { ShopEffect } from './CrucibleShop';
+import CrucibleShop, { ShopItem } from './CrucibleShop';
 import { Modifier, ActiveModifier } from './Modifier';
 import FloorMapComponent from './FloorMap';
 import { DEFAULT_SCHOOL } from './schools';
@@ -334,40 +333,20 @@ export default function ArenaCanvas({
       )}
       {showShop && (
         <CrucibleShop valor={shopValor}
-          onPurchase={(itemId, cost, effect) => {
-            // Deduct valor and update shop display
-            setShopValor(prev => prev - cost);
-            // Apply effect to agent using refs
+          onPurchase={(item: ShopItem, newValor: number) => {
+            setShopValor(newValor);
             const agent = agentRef.current;
             if (agent) {
-              if (effect.healPct) {
-                agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + agent.state.maxHp * effect.healPct);
+              if (item.effect.healPct) {
+                agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + agent.state.maxHp * item.effect.healPct);
               }
-              if (effect.hpBonus) {
-                agent.state.maxHp += effect.hpBonus;
-                agent.state.hp += effect.hpBonus;
-              }
-              if (effect.damagePctBonus || effect.speedPctBonus) {
-                // Store as active modifiers for this run
-                const mods = activeModifiersRef.current;
-                if (mods) {
-                  mods.push({
-                    id: itemId,
-                    name: 'Shop Effect',
-                    category: 'shop',
-                    rarity: 'rare',
-                    effects: {
-                      damageBonus: effect.damagePctBonus ? effect.damagePctBonus * 100 : 0,
-                      speedBonus: effect.speedPctBonus ? effect.speedPctBonus * 100 : 0,
-                    },
-                  } as any);
-                }
+              if (item.effect.hpBonus) {
+                agent.state.maxHp += item.effect.hpBonus;
+                agent.state.hp = Math.min(agent.state.maxHp, agent.state.hp + item.effect.hpBonus);
               }
             }
           }}
-          onClose={() => {
-            onShopCloseRef.current(shopValor);
-          }}
+          onClose={() => { onShopCloseRef.current(shopValor); }}
         />
       )}
       {runEnded && finalRunStats && (

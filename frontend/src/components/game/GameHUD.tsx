@@ -29,6 +29,7 @@ export interface GameState {
   bossHp?: number;
   bossMaxHp?: number;
   school?: SchoolConfig;
+  doctrineLevel?: { iron: number; arc: number; edge: number };
 }
 
 interface GameHUDProps {
@@ -58,7 +59,7 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school } = gameState;
+  const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school, doctrineLevel } = gameState;
   const abilityNames = school?.abilities ?? {
     Q: { name: 'Dash' }, E: { name: 'Blast' }, R: { name: 'Shot' }, F: { name: 'Heal' },
   };
@@ -267,6 +268,27 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
         </div>
       </div>
       
+      {/* Doctrine level indicators — bottom-left */}
+      {doctrineLevel && (doctrineLevel.iron > 0 || doctrineLevel.arc > 0 || doctrineLevel.edge > 0) && (
+        <div className="absolute bottom-24 left-4 flex flex-col gap-1 pointer-events-none">
+          {doctrineLevel.iron > 0 && (
+            <div className="flex items-center gap-2 rounded-full px-2 py-1" style={{ background: 'rgba(192,57,43,0.3)', border: '1px solid rgba(192,57,43,0.5)' }}>
+              <span style={{ fontSize: 10, color: '#c0392b', fontWeight: 700 }}>🔴 Fe.{doctrineLevel.iron}</span>
+            </div>
+          )}
+          {doctrineLevel.arc > 0 && (
+            <div className="flex items-center gap-2 rounded-full px-2 py-1" style={{ background: 'rgba(46,134,222,0.3)', border: '1px solid rgba(46,134,222,0.5)' }}>
+              <span style={{ fontSize: 10, color: '#2e86de', fontWeight: 700 }}>🔵 Ar.{doctrineLevel.arc}</span>
+            </div>
+          )}
+          {doctrineLevel.edge > 0 && (
+            <div className="flex items-center gap-2 rounded-full px-2 py-1" style={{ background: 'rgba(39,174,96,0.3)', border: '1px solid rgba(39,174,96,0.5)' }}>
+              <span style={{ fontSize: 10, color: '#27ae60', fontWeight: 700 }}>🟢 Ed.{doctrineLevel.edge}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Controls hint — press H to toggle, auto-hides after 30s */}
       <AnimatePresence>
         {showControls && (
