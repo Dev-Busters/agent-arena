@@ -293,10 +293,12 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         return true;
       },
       removeFromInventory: (id) => set(s => ({ gearInventory: s.gearInventory.filter(g => g.id !== id) })),
-      equipGear: (item) => set(s => ({
-        equipment: { ...s.equipment, [item.slot]: item },
-        gearInventory: s.gearInventory.filter(g => g.id !== item.id),
-      })),
+      equipGear: (item) => set(s => {
+        const existing = s.equipment[item.slot] as GearItem | null;
+        const newInventory = s.gearInventory.filter(g => g.id !== item.id);
+        if (existing) newInventory.push(existing); // return old gear to inventory
+        return { equipment: { ...s.equipment, [item.slot]: item }, gearInventory: newInventory };
+      }),
       unequipGear: (slot) => {
         const s = get();
         const item = s.equipment[slot];

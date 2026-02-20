@@ -10,6 +10,7 @@ import { Room } from '../Room';
 import { ActiveModifier, calculateDamageMultiplier } from '../Modifier';
 import type { DamageEvent } from '../ArenaCanvas';
 import type { SoundManager } from '../Sound';
+import { rollMaterialDrop, rollEnemyGearDrop } from '../gear';
 
 const WALL = 16;
 const COLLISION_RANGE = 40;
@@ -180,7 +181,6 @@ export class CombatManager {
     }
 
     // Phase I: Material drops
-    const { rollMaterialDrop, rollEnemyGearDrop } = require('@/components/game/gear');
     const matDoctrine: 'iron' | 'arc' | 'edge' = enemy.state.type === 'charger' ? 'iron'
       : enemy.state.type === 'ranger' ? 'arc' : 'edge';
     const mats = rollMaterialDrop(matDoctrine, isElite);

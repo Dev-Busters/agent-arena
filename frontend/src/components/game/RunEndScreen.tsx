@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SCHOOLS } from './schools';
 import { TENETS } from './tenets';
+import { MATERIALS } from './gear';
 
 // ─────────────────────────────────────────────
 // Types
@@ -484,7 +485,10 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
                 <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
                   <span style={{ color: '#8a8478' }}>🧱 Materials</span>
                   <span style={{ color: '#c0c0c0', fontWeight: 700, fontSize: 11 }}>
-                    {stats.materialsEarnedV2!.map(m => `${m.materialId.replace(/_/g,' ')} ×${m.qty}`).join(', ')}
+                    {stats.materialsEarnedV2!.map(m => {
+                      const mat = MATERIALS.find(x => x.id === m.materialId);
+                      return `${mat?.icon ?? '📦'} ${mat?.name ?? m.materialId} ×${m.qty}`;
+                    }).join(', ')}
                   </span>
                 </div>
               )}
