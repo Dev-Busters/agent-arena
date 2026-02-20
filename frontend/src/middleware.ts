@@ -1,7 +1,21 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+const PROTECTED = ['/dashboard', '/inventory', '/leaderboard', '/profile', '/arena'];
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Route protection — redirect to login if no token cookie
+  // Note: token is in localStorage (client-side), so we use a cookie set by login for SSR guard
+  const tokenCookie = request.cookies.get('aa_token')?.value;
+  const isProtected = PROTECTED.some(p => pathname.startsWith(p));
+  if (isProtected && !tokenCookie && process.env.NODE_ENV !== 'development') {
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   const response = NextResponse.next()
 
   // HSTS: Force HTTPS for 1 year

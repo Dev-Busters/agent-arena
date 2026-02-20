@@ -1,317 +1,189 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Swords, Mountain, Coins, Search } from 'lucide-react';
+import { Trophy, Mountain, Search } from 'lucide-react';
+import type { LeaderboardEntry } from '@/lib/api';
 
-const mockLeaderboard = [
-  { rank: 1, name: 'DragonSlayer', owner: '@alice', level: 12, elo: 2847, wins: 45, losses: 3, winRate: 93.8, type: 'warrior' },
-  { rank: 2, name: 'ShadowMaster', owner: '@bob', level: 11, elo: 2691, wins: 42, losses: 5, winRate: 89.4, type: 'rogue' },
-  { rank: 3, name: 'IronFist', owner: '@charlie', level: 10, elo: 2534, wins: 38, losses: 7, winRate: 84.4, type: 'tank' },
-  { rank: 4, name: 'StormCaller', owner: '@diana', level: 10, elo: 2412, wins: 35, losses: 8, winRate: 81.4, type: 'mage' },
-  { rank: 5, name: 'NightBlade', owner: '@eve', level: 9, elo: 2287, wins: 30, losses: 10, winRate: 75.0, type: 'rogue' },
-  { rank: 6, name: 'FireStarter', owner: '@frank', level: 9, elo: 2156, wins: 28, losses: 12, winRate: 70.0, type: 'mage' },
-  { rank: 7, name: 'FrostGuard', owner: '@grace', level: 8, elo: 2034, wins: 25, losses: 13, winRate: 65.8, type: 'tank' },
-  { rank: 8, name: 'LightBringer', owner: '@henry', level: 8, elo: 1923, wins: 22, losses: 15, winRate: 59.5, type: 'warrior' },
-  { rank: 9, name: 'DarkSoul', owner: '@ivy', level: 7, elo: 1845, wins: 20, losses: 17, winRate: 54.1, type: 'rogue' },
-  { rank: 10, name: 'ThunderFist', owner: '@jack', level: 7, elo: 1756, wins: 18, losses: 19, winRate: 48.6, type: 'warrior' },
-];
+type DocFilter = 'all' | 'iron' | 'arc' | 'edge';
 
-const sortTabs = [
-  { id: 'elo', label: 'ELO Rating', icon: Trophy },
-  { id: 'wins', label: 'Total Wins', icon: Swords },
-  { id: 'floor', label: 'Deepest Floor', icon: Mountain },
-  { id: 'gold', label: 'Gold Earned', icon: Coins },
-];
-
-const typeConfig: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-  warrior: { icon: '⚔️', color: '#f97316', bg: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.4)' },
-  rogue:   { icon: '🗡️', color: '#22c55e', bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.4)' },
-  mage:    { icon: '✦',  color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.4)' },
-  tank:    { icon: '🛡️', color: '#a855f7', bg: 'rgba(168,85,247,0.15)', border: 'rgba(168,85,247,0.4)' },
+const DOC_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
+  iron:      { icon: '🔴', color: '#c0392b', label: 'Iron' },
+  arc:       { icon: '🔵', color: '#2e86de', label: 'Arc' },
+  edge:      { icon: '🟢', color: '#27ae60', label: 'Edge' },
+  universal: { icon: '✨', color: '#d4a843', label: '?' },
 };
 
-function AgentIcon({ type, size = 56 }: { type: string; size?: number }) {
-  const c = typeConfig[type];
+function docColor(doctrine: string | null): string {
+  return DOC_CONFIG[doctrine ?? '']?.color ?? '#5c574e';
+}
+
+function AgentAvatar({ doctrine, size = 48 }: { doctrine: string | null; size?: number }) {
+  const cfg = DOC_CONFIG[doctrine ?? ''] ?? { icon: '⚔️', color: '#5c574e' };
   return (
-    <div
-      className="rounded-full flex items-center justify-center transition-transform duration-300 hover:scale-110"
-      style={{
-        width: size, height: size,
-        background: c.bg,
-        border: `2px solid ${c.border}`,
-        boxShadow: `inset 0 0 ${size/3}px ${c.bg}, 0 0 ${size/2}px ${c.bg}`,
-        fontSize: size * 0.4,
-      }}
-    >
-      {c.icon}
+    <div className="rounded-full flex items-center justify-center flex-shrink-0"
+      style={{ width:size, height:size, background:`${cfg.color}18`, border:`2px solid ${cfg.color}55`, fontSize:size*0.38 }}>
+      {cfg.icon}
     </div>
   );
 }
 
-function PodiumCard({ entry, position }: { entry: typeof mockLeaderboard[0]; position: 'first' | 'second' | 'third' }) {
-  const isFirst = position === 'first';
-  const badge = position === 'first' ? '👑' : position === 'second' ? '🥈' : '🥉';
-  const iconSize = isFirst ? 80 : 56;
-  const eloSize = isFirst ? 'text-[2.75rem]' : 'text-[2rem]';
-  const delay = position === 'first' ? 0.2 : position === 'second' ? 0.35 : 0.5;
-
+function PodiumCard({ entry, pos }: { entry: LeaderboardEntry; pos: 1|2|3 }) {
+  const badge = pos === 1 ? '👑' : pos === 2 ? '🥈' : '🥉';
+  const isFirst = pos === 1;
+  const col = docColor(entry.doctrine);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className={`
-        ${isFirst ? 'game-card-gold glow-pulse-gold' : 'game-card'} 
-        rounded-2xl text-center flex flex-col items-center
-        ${isFirst ? 'py-6 px-5 -mt-6 z-10 relative' : 'py-5 px-4 opacity-85'}
-      `}
-    >
-      {/* Animated badge */}
-      <motion.span
-        className={isFirst ? 'text-3xl mb-2' : 'text-2xl mb-1'}
-        animate={isFirst ? { y: [0, -4, 0] } : {}}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      >
+    <motion.div initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ delay: pos * 0.1 }}
+      whileHover={{ y:-4 }}
+      className="rounded-2xl flex flex-col items-center text-center"
+      style={{ padding: isFirst ? '24px 20px' : '20px 16px', marginTop: isFirst ? 0 : 24,
+        background:`${col}08`, border:`1px solid ${col}44`,
+        boxShadow: isFirst ? `0 0 30px ${col}22` : undefined }}>
+      <motion.span className="text-2xl mb-2" animate={isFirst ? { y:[0,-4,0] } : {}} transition={{ duration:2, repeat:Infinity }}>
         {badge}
       </motion.span>
-      
-      <AgentIcon type={entry.type} size={iconSize} />
-      
-      {/* Agent name with display font */}
-      <h3 className={`font-display font-bold text-shadow-sm mt-2 ${isFirst ? 'text-xl text-gradient-gold' : 'text-base text-[#e8e6e3]'}`}>
-        {entry.name}
-      </h3>
-      <p className="text-[#6b7280] text-xs">{entry.owner}</p>
-      
-      {/* ELO with glow effect */}
-      <motion.div
-        className={`font-mono font-bold mt-2 ${eloSize} ${isFirst ? 'text-glow-gold shimmer-gold' : 'text-gold-bright'}`}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: delay + 0.3, duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-      >
-        {entry.elo.toLocaleString()}
-      </motion.div>
-      
-      <div className="flex items-center gap-3 text-xs font-mono mt-1 text-[#6b7280]">
-        <span>Lv.{entry.level}</span>
-        <span className="text-venom">{entry.wins}W</span>
-        <span className="text-blood">{entry.losses}L</span>
+      <AgentAvatar doctrine={entry.doctrine} size={isFirst ? 72 : 52} />
+      <div className="font-bold mt-2 text-sm" style={{ color:'#f0ece4' }}>{entry.agentName}</div>
+      <div className="text-[10px] mb-1" style={{ color:'#5c574e' }}>{entry.username}</div>
+      <div className="font-mono font-bold text-xl" style={{ color: col }}>{entry.deepestFloor}</div>
+      <div className="text-[10px]" style={{ color:'#5c574e' }}>deepest floor</div>
+      <div className="font-mono text-[11px] mt-1" style={{ color:'#8a8478' }}>{entry.totalKills} kills · {entry.totalRuns} runs</div>
+      <div className="flex gap-1 mt-2 text-[9px] font-mono">
+        <span style={{ color:'#c0392b' }}>Iron {entry.doctrineLevel.iron}</span>
+        <span style={{ color:'#2e86de' }}>Arc {entry.doctrineLevel.arc}</span>
+        <span style={{ color:'#27ae60' }}>Edge {entry.doctrineLevel.edge}</span>
       </div>
     </motion.div>
   );
 }
 
 export default function LeaderboardPage() {
-  const [activeTab, setActiveTab] = useState('elo');
-  const top3 = mockLeaderboard.slice(0, 3);
-  const rest = mockLeaderboard.slice(3);
-  
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [docFilter, setDocFilter] = useState<DocFilter>('all');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const url = docFilter === 'all' ? '/api/leaderboard?limit=50' : `/api/leaderboard?limit=50&doctrine=${docFilter}`;
+    setLoading(true);
+    fetch(url)
+      .then(r => r.json())
+      .then(data => { setEntries(Array.isArray(data) ? data : []); })
+      .catch(() => setEntries([]))
+      .finally(() => setLoading(false));
+  }, [docFilter]);
+
+  const filtered = entries.filter(e =>
+    !search || e.agentName.toLowerCase().includes(search.toLowerCase()) || e.username.toLowerCase().includes(search.toLowerCase())
+  );
+  const top3 = filtered.slice(0, 3);
+  const rest = filtered.slice(3);
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-5xl mx-auto space-y-6">
-        
-        {/* Header with dramatic entrance */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="text-center space-y-2"
-        >
-          {/* Trophy with floating animation */}
-          <motion.span
-            className="text-5xl inline-block"
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            🏆
-          </motion.span>
-          
-          {/* Title with gradient gold text */}
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
-            className="font-display text-[2.75rem] font-bold tracking-wide leading-tight text-gradient-gold text-glow-gold"
-          >
+
+        {/* Header */}
+        <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} className="text-center space-y-2">
+          <motion.span className="text-5xl inline-block" animate={{ y:[0,-6,0] }} transition={{ duration:3, repeat:Infinity }}>🏆</motion.span>
+          <motion.h1 initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15 }}
+            className="text-[2.5rem] font-bold" style={{ color:'#d4a843', textShadow:'0 0 30px rgba(212,168,67,0.3)' }}>
             Hall of Champions
           </motion.h1>
-          
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-[#92600a] italic font-display text-sm tracking-widest uppercase"
-          >
-            The greatest warriors to descend into the depths
+          <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
+            className="text-[10px] uppercase tracking-[0.3em] italic" style={{ color:'#8a6d2b' }}>
+            Greatest warriors to descend into the Crucible
           </motion.p>
-          
-          {/* Ornamental divider */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
-            className="divider-gold max-w-xs mx-auto mt-3"
-          />
         </motion.div>
-        
-        {/* Sort Tabs with animated underline */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="flex justify-center gap-1.5"
-        >
-          {sortTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+
+        {/* Doctrine filter + search */}
+        <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
+          className="flex justify-center items-center gap-3 flex-wrap">
+          {(['all','iron','arc','edge'] as DocFilter[]).map(d => {
+            const cfg = d === 'all' ? { icon:'⚔️', color:'#d4a843', label:'All' } : { ...DOC_CONFIG[d], label: DOC_CONFIG[d].label };
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                  transition-all duration-200
-                  ${isActive 
-                    ? 'text-gold' 
-                    : 'text-[#6b7280] hover:text-[#e8e6e3] hover:bg-white/[0.03]'
-                  }
-                `}
-              >
-                <Icon size={14} />
-                {tab.label}
-                {/* Animated gold underline */}
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    className="absolute -bottom-0.5 left-2 right-2 h-[2px] rounded-full"
-                    style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
+              <button key={d} onClick={() => setDocFilter(d)}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
+                style={{ background: docFilter === d ? `${cfg.color}22` : 'rgba(255,255,255,0.03)', border:`1px solid ${docFilter === d ? cfg.color : '#2a2a3d'}`, color: docFilter === d ? cfg.color : '#5c574e' }}>
+                {cfg.icon} {cfg.label}
               </button>
             );
           })}
-        </motion.div>
-        
-        {/* Filters + Search */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35 }}
-          className="flex justify-center items-center gap-3"
-        >
-          <div className="flex gap-1.5">
-            {Object.entries(typeConfig).map(([type, config]) => (
-              <motion.button
-                key={type}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-9 h-9 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-gold-dim/40 flex items-center justify-center text-base transition-colors hover:bg-white/[0.04]"
-                title={type.charAt(0).toUpperCase() + type.slice(1)}
-              >
-                {config.icon}
-              </motion.button>
-            ))}
-          </div>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6b7280]" />
-            <input
-              type="text"
-              placeholder="Search champions..."
-              className="pl-8 pr-3 py-1.5 bg-white/[0.02] border border-white/[0.04] rounded-lg text-xs text-[#e8e6e3] placeholder-[#6b7280] focus:border-gold-dim/40 focus:outline-none focus:ring-1 focus:ring-gold/10 transition-all w-48"
-            />
+            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:'#5c574e' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search champions..."
+              className="pl-8 pr-3 py-1.5 text-xs rounded-lg w-44 focus:outline-none"
+              style={{ background:'rgba(255,255,255,0.03)', border:'1px solid #1e1e2e', color:'#d0cdc8' }} />
           </div>
         </motion.div>
-        
-        {/* TOP 3 PODIUM */}
-        <div className="grid gap-4 items-end max-w-4xl mx-auto" style={{ gridTemplateColumns: '1fr 1.3fr 1fr' }}>
-          <PodiumCard entry={top3[1]} position="second" />
-          <PodiumCard entry={top3[0]} position="first" />
-          <PodiumCard entry={top3[2]} position="third" />
-        </div>
-        
-        {/* Ornamental divider */}
-        <div className="ornament-header">
-          <span className="text-[0.65rem] text-[#6b7280] uppercase tracking-[0.15em] font-semibold whitespace-nowrap">
-            Full Rankings
-          </span>
-        </div>
-        
-        {/* Rankings Table */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-        >
-          <table className="w-full border-separate" style={{ borderSpacing: '0 3px' }}>
-            <thead>
-              <tr>
-                {['Rank', 'Champion', 'Commander', 'ELO', 'Level', 'Record', 'Win Rate'].map((h, i) => (
-                  <th key={h} className={`${i >= 3 ? 'text-right' : 'text-left'} px-3 py-1.5 text-[0.6rem] uppercase tracking-[0.15em] text-[#6b7280] font-semibold`}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}
+              className="w-8 h-8 rounded-full" style={{ border:'2px solid #1e1e2e', borderTopColor:'#d4a843' }} />
+          </div>
+        ) : (
+          <>
+            {/* Podium */}
+            {top3.length >= 3 && (
+              <div className="grid gap-4 items-end max-w-3xl mx-auto" style={{ gridTemplateColumns:'1fr 1.25fr 1fr' }}>
+                <PodiumCard entry={top3[1]} pos={2} />
+                <PodiumCard entry={top3[0]} pos={1} />
+                <PodiumCard entry={top3[2]} pos={3} />
+              </div>
+            )}
+
+            {/* Separator */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px" style={{ background:'rgba(255,255,255,0.04)' }} />
+              <span className="text-[9px] uppercase tracking-[0.2em]" style={{ color:'#5c574e' }}>Full Rankings</span>
+              <div className="flex-1 h-px" style={{ background:'rgba(255,255,255,0.04)' }} />
+            </div>
+
+            {/* Table */}
+            <div className="space-y-1">
               {rest.map((entry, idx) => {
-                const config = typeConfig[entry.type];
+                const col = docColor(entry.doctrine);
                 return (
-                  <motion.tr
-                    key={entry.rank}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.7 + idx * 0.06, ease: 'easeOut' }}
-                    className="group cursor-pointer"
-                    style={{ background: 'rgba(255,255,255,0.015)', borderRadius: 8 }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                      e.currentTarget.style.transform = 'translateX(3px)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.015)';
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <td className="px-3 py-2.5 rounded-l-lg">
-                      <span className="text-[#6b7280] font-mono font-bold text-sm">#{entry.rank}</span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <AgentIcon type={entry.type} size={28} />
-                        <span className="font-display font-semibold text-sm text-[#e8e6e3] group-hover:text-gold transition-colors duration-200">
-                          {entry.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-[#6b7280] text-sm">{entry.owner}</td>
-                    <td className="px-3 py-2.5 text-right">
-                      <span className="font-mono font-bold text-gold-bright text-sm">{entry.elo.toLocaleString()}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right text-[#9ca3af] text-sm">{entry.level}</td>
-                    <td className="px-3 py-2.5 text-right text-sm">
-                      <span className="text-venom font-bold font-mono">{entry.wins}</span>
-                      <span className="text-[#6b7280] mx-0.5">/</span>
-                      <span className="text-blood font-bold font-mono">{entry.losses}</span>
-                    </td>
-                    <td className="px-3 py-2.5 rounded-r-lg text-right">
-                      <span className={`font-mono font-bold text-sm ${entry.winRate >= 60 ? 'text-venom' : entry.winRate >= 50 ? 'text-gold' : 'text-blood'}`}>
-                        {entry.winRate}%
+                  <motion.div key={entry.userId} initial={{ opacity:0, x:-12 }} animate={{ opacity:1, x:0 }}
+                    transition={{ delay: 0.05 * idx }}
+                    className="flex items-center gap-4 px-4 py-3 rounded-xl transition-all"
+                    style={{ background:'rgba(255,255,255,0.015)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.015)')}>
+                    <span className="w-7 font-mono font-bold text-sm text-center flex-shrink-0" style={{ color:'#5c574e' }}>#{entry.rank}</span>
+                    <AgentAvatar doctrine={entry.doctrine} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm truncate" style={{ color:'#f0ece4' }}>{entry.agentName}</div>
+                      <div className="text-[10px]" style={{ color:'#5c574e' }}>{entry.username}</div>
+                    </div>
+                    <div className="flex items-center gap-6 font-mono text-sm">
+                      <span className="flex items-center gap-1" style={{ color: col }}>
+                        <Mountain size={12} /> {entry.deepestFloor}
                       </span>
-                    </td>
-                  </motion.tr>
+                      <span style={{ color:'#8a8478' }}>{entry.totalKills} kills</span>
+                      <span style={{ color:'#5c574e' }}>{entry.totalRuns} runs</span>
+                      <div className="flex gap-1 text-[9px]">
+                        <span style={{ color:'#c0392b' }}>Fe{entry.doctrineLevel.iron}</span>
+                        <span style={{ color:'#2e86de' }}>Ar{entry.doctrineLevel.arc}</span>
+                        <span style={{ color:'#27ae60' }}>Ed{entry.doctrineLevel.edge}</span>
+                      </div>
+                    </div>
+                  </motion.div>
                 );
               })}
-            </tbody>
-          </table>
-        </motion.div>
-        
-        <p className="text-center text-[#6b7280] text-xs italic font-display tracking-wide">
-          Rankings forged in the heat of battle • Updated each dawn
-        </p>
+            </div>
+
+            {filtered.length === 0 && (
+              <div className="text-center py-10 text-sm italic" style={{ color:'#3a3a4a' }}>
+                No champions found. Be the first to descend! 🗡️
+              </div>
+            )}
+
+            <p className="text-center text-[10px] italic" style={{ color:'#3a3a4a' }}>
+              Rankings by deepest floor reached · Updated after every run
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

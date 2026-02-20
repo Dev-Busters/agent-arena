@@ -26,6 +26,8 @@ export default function LoginPage() {
 
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
+      // Set cookie for SSR route protection in middleware
+      document.cookie = `aa_token=${response.data.token}; path=/; max-age=86400; SameSite=Strict`
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed')

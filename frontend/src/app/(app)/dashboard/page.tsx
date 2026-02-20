@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useAgentLoadout, xpToLevel, xpForNextLevel, getTenetSlots, SCHOOL_UNLOCK_CONDITIONS, TENET_UNLOCK_CONDITIONS } from '@/stores/agentLoadout';
@@ -17,6 +17,8 @@ import CrucibleCodex from '@/components/game/CrucibleCodex';
 import ContractBoard from '@/components/game/ContractBoard';
 import AbilityRankUp from '@/components/game/AbilityRankUp';
 import RespecPanel from '@/components/game/RespecPanel';
+import { useAuth } from '@/hooks/useAuth';
+import { runs as runsApi, type RunRecord } from '@/lib/api';
 import GearSlots from '@/components/game/GearSlots';
 import GearInventory from '@/components/game/GearInventory';
 import TheForge from '@/components/game/TheForge';
@@ -222,8 +224,44 @@ function AbilityLoadoutPanel() {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+function RecentRunsPanel() {
+  const [recentRuns, setRecentRuns] = useState<RunRecord[]>([]);
+  useEffect(() => {
+    runsApi.recent().then(setRecentRuns).catch(() => setRecentRuns([]));
+  }, []);
+  if (!recentRuns.length) return null;
+  const docColor: Record<string, string> = { iron:'#c0392b', arc:'#2e86de', edge:'#27ae60' };
+  return (
+    <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}
+      className="rounded-2xl mb-4" style={{ background:'linear-gradient(160deg,rgba(18,18,28,0.8) 0%,rgba(10,10,16,0.9) 100%)', border:'1px solid #2a2a3d', padding:'20px 24px' }}>
+      <div className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color:'#8a6d2b' }}>📜 Recent Runs</div>
+      <div className="space-y-2">
+        {recentRuns.map(run => (
+          <div key={run.id} className="flex items-center justify-between rounded-xl px-3 py-2"
+            style={{ background:'rgba(255,255,255,0.02)', border:'1px solid #1e1e2e' }}>
+            <div className="flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full" style={{ background: run.outcome === 'escaped' ? '#27ae60' : '#c0392b', boxShadow:`0 0 6px ${run.outcome === 'escaped' ? '#27ae60' : '#c0392b'}` }} />
+              <span className="text-xs font-bold" style={{ color: docColor[run.doctrine ?? ''] ?? '#8a8478' }}>
+                {run.doctrine ? run.doctrine.charAt(0).toUpperCase()+run.doctrine.slice(1) : 'Unknown'}
+              </span>
+            </div>
+            <div className="flex items-center gap-4 font-mono text-[11px]" style={{ color:'#8a8478' }}>
+              <span>Floor {run.floorsCleared}</span>
+              <span>{run.kills} kills</span>
+              <span style={{ color: run.outcome === 'escaped' ? '#27ae60' : '#c0392b' }}>
+                {run.outcome === 'escaped' ? '✓ Escaped' : '✗ Fallen'}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function DashboardPage() {
   const loadout = useAgentLoadout();
+  const { user } = useAuth();
   const [modal, setModal] = useState<'school' | 'discipline' | 'tenet' | null>(null);
 
   const school = loadout.school ?? DEFAULT_SCHOOL;
@@ -257,7 +295,7 @@ export default function DashboardPage() {
           War Room
         </h1>
         <p className="font-display" style={{ fontSize: '0.8rem', fontWeight: 400, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#8a6d2b', marginTop: 8 }}>
-          Your champion awaits orders
+          {user ? `Commander ${user.username}` : 'Your champion awaits orders'}
         </p>
         <div style={{ marginTop: 12, width: 50, height: 1, background: 'linear-gradient(90deg, transparent, #8a6d2b, transparent)' }} />
       </motion.div>
@@ -428,6 +466,26 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
+      {/* ── Quick Actions ── */}
+      <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.07 }}
+        className="flex gap-3 mb-4">
+        <Link href="/arena" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-90"
+          style={{ background:'linear-gradient(135deg,rgba(192,57,43,0.15),rgba(192,57,43,0.05))', border:'1px solid rgba(192,57,43,0.4)', color:'#c0392b' }}>
+          ⚔️ Enter The Crucible
+        </Link>
+        <Link href="/inventory" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-90"
+          style={{ background:'linear-gradient(135deg,rgba(212,168,67,0.1),rgba(212,168,67,0.03))', border:'1px solid rgba(212,168,67,0.3)', color:'#d4a843' }}>
+          ⚒ Open Armory
+        </Link>
+        <Link href="/leaderboard" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm transition-all hover:opacity-90"
+          style={{ background:'linear-gradient(135deg,rgba(155,93,229,0.1),rgba(155,93,229,0.03))', border:'1px solid rgba(155,93,229,0.3)', color:'#9b59b6' }}>
+          🏆 Hall of Champions
+        </Link>
+      </motion.div>
+
+      {/* ── Recent Runs ── */}
+      <RecentRunsPanel />
+
       {/* ── Doctrine Trees ── */}
       <DoctrineTreesPanel />
 
@@ -450,10 +508,10 @@ export default function DashboardPage() {
       <Enchanting />
 
       {/* ── Crucible Codex ── */}
-      <CrucibleCodex />
+      <div id="codex"><CrucibleCodex /></div>
 
       {/* ── Arena Contracts ── */}
-      <ContractBoard />
+      <div id="contracts"><ContractBoard /></div>
 
       {/* Modals */}
       <AnimatePresence>
