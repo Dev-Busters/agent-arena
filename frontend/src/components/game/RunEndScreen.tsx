@@ -18,6 +18,9 @@ export interface RunStats {
   ashEarned?: number;
   emberEarned?: number;
   fragmentsEarned?: { iron: number; arc: number; edge: number };
+  materialsEarnedV2?: { materialId: string; qty: number }[];
+  gearDrops?: import('./gear').GearItem[];
+  arenaMarksEarned?: number;
   accountXPEarned: number;
   newAccountLevel: number;
   newUnlocks: string[];
@@ -466,6 +469,32 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
                 <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
                   <span style={{ color: '#8a8478' }}>🟢 Edge Fragments</span>
                   <span style={{ color: '#27ae60', fontWeight: 700 }}>+{stats.fragmentsEarned!.edge}</span>
+                </div>
+              )}
+
+              {/* Arena Marks */}
+              {(stats.arenaMarksEarned ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>⚜️ Arena Marks</span>
+                  <span style={{ color: '#d4a843', fontWeight: 700 }}>+{stats.arenaMarksEarned}</span>
+                </div>
+              )}
+              {/* Materials */}
+              {(stats.materialsEarnedV2?.length ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>🧱 Materials</span>
+                  <span style={{ color: '#c0c0c0', fontWeight: 700, fontSize: 11 }}>
+                    {stats.materialsEarnedV2!.map(m => `${m.materialId.replace(/_/g,' ')} ×${m.qty}`).join(', ')}
+                  </span>
+                </div>
+              )}
+              {/* Gear drops */}
+              {(stats.gearDrops?.length ?? 0) > 0 && (
+                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
+                  <span style={{ color: '#8a8478' }}>⚔️ Gear Found</span>
+                  <span style={{ color: '#9b59b6', fontWeight: 700 }}>
+                    {stats.gearDrops!.length} item{stats.gearDrops!.length > 1 ? 's' : ''}
+                  </span>
                 </div>
               )}
 

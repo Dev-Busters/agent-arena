@@ -29,6 +29,10 @@ export interface CombatManagerDeps {
   onAshEarned: (amount: number) => void;
   onEmberEarned: (amount: number) => void;
   onFragmentEarned: (doctrine: 'iron' | 'arc' | 'edge', amount: number) => void;
+  onMaterialsDropped: (stacks: { materialId: string; qty: number }[]) => void;
+  onGearDropped: (item: import('@/components/game/gear').GearItem) => void;
+  onArenaMarkEarned: (amount: number) => void;
+  getCurrentFloor: () => number;
   particles: ParticleSystem;
   sound: SoundManager;
   getActiveModifiers: () => ActiveModifier[];
@@ -134,7 +138,7 @@ export class CombatManager {
   }
 
   private killEnemy(enemy: Enemy): void {
-    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled, onValorEarned, onAshEarned, onEmberEarned, onFragmentEarned, getIsTrial } = this.deps;
+    const { app, getEnemies, setEnemies, particles, sound, onEnemyKilled, onValorEarned, onAshEarned, onEmberEarned, onFragmentEarned, onMaterialsDropped, onGearDropped, onArenaMarkEarned, getIsTrial, getCurrentFloor } = this.deps;
     enemy.dead = true;
     onEnemyKilled();
     sound.playDeath();
@@ -173,6 +177,21 @@ export class CombatManager {
       const fragDoctrine = enemy.state.type === 'charger' ? 'iron'
         : enemy.state.type === 'ranger' ? 'arc' : 'edge';
       onFragmentEarned(fragDoctrine, 1);
+    }
+
+    // Phase I: Material drops
+    const { rollMaterialDrop, rollEnemyGearDrop } = require('@/components/game/gear');
+    const matDoctrine: 'iron' | 'arc' | 'edge' = enemy.state.type === 'charger' ? 'iron'
+      : enemy.state.type === 'ranger' ? 'arc' : 'edge';
+    const mats = rollMaterialDrop(matDoctrine, isElite);
+    if (mats.length > 0) onMaterialsDropped(mats);
+    // Gear drop from elites only
+    if (isElite) {
+      const floor = getCurrentFloor();
+      const gearDrop = rollEnemyGearDrop(floor, matDoctrine);
+      if (gearDrop) onGearDropped(gearDrop);
+      // Arena Marks: rare drop from elites (15% chance)
+      if (Math.random() < 0.15) onArenaMarkEarned(1);
     }
 
     if (Math.random() < 0.2) {

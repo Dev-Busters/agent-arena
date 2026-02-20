@@ -17,6 +17,10 @@ import CrucibleCodex from '@/components/game/CrucibleCodex';
 import ContractBoard from '@/components/game/ContractBoard';
 import AbilityRankUp from '@/components/game/AbilityRankUp';
 import RespecPanel from '@/components/game/RespecPanel';
+import GearSlots from '@/components/game/GearSlots';
+import GearInventory from '@/components/game/GearInventory';
+import TheForge from '@/components/game/TheForge';
+import Enchanting from '@/components/game/Enchanting';
 import { DOCTRINE_TREES, DoctrineKey } from '@/components/game/doctrineTrees';
 import { DOCTRINE_ABILITIES, DOCTRINE_COLORS, getAbilityById } from '@/components/game/doctrineAbilities';
 
@@ -414,6 +418,7 @@ export default function DashboardPage() {
             { label: '🔴 FRAGMENTS',  value: `${loadout.techniqueFragments?.iron ?? 0}`, color: '#c0392b' },
             { label: '🔵 FRAGMENTS',  value: `${loadout.techniqueFragments?.arc ?? 0}`,  color: '#2e86de' },
             { label: '🟢 FRAGMENTS',  value: `${loadout.techniqueFragments?.edge ?? 0}`, color: '#27ae60' },
+            { label: '⚜️ MARKS',      value: `${loadout.arenaMarks ?? 0}`,               color: '#d4a843' },
           ].map(p => (
             <div key={p.label}>
               <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: '#5c574e' }}>{p.label}</div>
@@ -437,6 +442,12 @@ export default function DashboardPage() {
 
       {/* ── Respec Workshop ── */}
       <RespecPanel />
+
+      {/* ── Phase I: Gear & Crafting ── */}
+      <GearSlots />
+      <GearInventory />
+      <TheForge />
+      <Enchanting />
 
       {/* ── Crucible Codex ── */}
       <CrucibleCodex />

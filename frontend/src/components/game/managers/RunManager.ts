@@ -51,6 +51,9 @@ export class RunManager {
   private ashThisRun = 0;
   private emberThisRun = 0;
   private fragmentsThisRun = { iron: 0, arc: 0, edge: 0 };
+  private materialsThisRun: { materialId: string; qty: number }[] = [];
+  private gearDropsThisRun: import('@/components/game/gear').GearItem[] = [];
+  private arenaMarksThisRun = 0;
   private _pendingEliteEmber = 0;
   private doctrineXPThisRun = { iron: 0, arc: 0, edge: 0 };
 
@@ -84,6 +87,14 @@ export class RunManager {
   onAshEarned(amount: number): void { this.ashThisRun += amount; }
   onEmberEarned(amount: number): void { this.emberThisRun += amount; }
   onFragmentEarned(doctrine: 'iron' | 'arc' | 'edge', amount: number): void { this.fragmentsThisRun[doctrine] += amount; }
+  onMaterialsDropped(stacks: { materialId: string; qty: number }[]): void {
+    stacks.forEach(s => {
+      const ex = this.materialsThisRun.find(m => m.materialId === s.materialId);
+      if (ex) ex.qty += s.qty; else this.materialsThisRun.push({ ...s });
+    });
+  }
+  onGearDropped(item: import('@/components/game/gear').GearItem): void { this.gearDropsThisRun.push(item); }
+  onArenaMarkEarned(amount: number): void { this.arenaMarksThisRun += amount; }
   
   // Track doctrine XP based on attack type
   onBasicAttackKill(): void {
@@ -285,6 +296,9 @@ export class RunManager {
       ashEarned: this.ashThisRun,
       emberEarned: this.emberThisRun,
       fragmentsEarned: { ...this.fragmentsThisRun },
+      materialsEarnedV2: [...this.materialsThisRun],
+      gearDrops: [...this.gearDropsThisRun],
+      arenaMarksEarned: this.arenaMarksThisRun,
     });
 
     const newState = useAgentLoadout.getState();
@@ -299,6 +313,9 @@ export class RunManager {
       ashEarned: this.ashThisRun,
       emberEarned: this.emberThisRun,
       fragmentsEarned: { ...this.fragmentsThisRun },
+      materialsEarnedV2: [...this.materialsThisRun],
+      gearDrops: [...this.gearDropsThisRun],
+      arenaMarksEarned: this.arenaMarksThisRun,
       newAccountLevel: newState.accountLevel,
       newUnlocks,
       nearestUnlockLabel: nearest?.label,

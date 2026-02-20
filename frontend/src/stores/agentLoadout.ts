@@ -11,15 +11,13 @@ import { Discipline } from '@/components/game/disciplines';
 import { Tenet } from '@/components/game/tenets';
 import { DOCTRINE_TREES, DoctrineKey, isNodeAvailable } from '@/components/game/doctrineTrees';
 import { DOCTRINE_ABILITIES, getAbilityPair, UNLOCK_LEVELS } from '@/components/game/doctrineAbilities';
+import { GearItem, GearSlot, GearEnchantment, rollMaterialDrop } from '@/components/game/gear';
 
-// ── Stub types for Phase I ───────────────────────────────────────────────────
-export interface Equipment {
-  id: string; name: string;
-  slot: 'weapon' | 'armor' | 'helm' | 'boots' | 'accessory1' | 'accessory2';
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-  stats: Record<string, number>;
-}
+// ── Phase I types ────────────────────────────────────────────────────────────
+export type { GearItem, GearSlot };
+export type Equipment = GearItem; // alias for backward-compat
 export interface Material { id: string; name: string; quantity: number; }
+export interface MaterialStack { materialId: string; qty: number; }
 
 // ── Doctrine XP helpers ──────────────────────────────────────────────────────
 /** Cumulative XP required to REACH level N (0-indexed check: totalXP >= threshold) */
@@ -86,6 +84,9 @@ export interface RunRewards {
   ashEarned?: number;
   emberEarned?: number;
   fragmentsEarned?: { iron: number; arc: number; edge: number };
+  gearDrops?: GearItem[];
+  materialsEarnedV2?: MaterialStack[];
+  arenaMarksEarned?: number;
   abilityDamageDealt?: number;
   criticalHits?: number;
   damageTaken?: number;
@@ -127,6 +128,12 @@ export interface AgentLoadoutState {
   abilityRanks: Record<string, 1 | 2 | 3>;
   respecShards: { iron: number; arc: number; edge: number; prismatic: number };
 
+  // ── Phase I: Gear & Crafting ──
+  arenaMarks: number;
+  gearInventory: GearItem[];         // unequipped held gear (max 20)
+  materialStacks: MaterialStack[];   // crafting materials
+  unlockedBlueprints: string[];      // blueprint IDs unlocked via Codex
+
   // ── Phase F: Ability system ──
   unlockedAbilities: string[];
   equippedAbilities: { Q: string|null; E: string|null; R: string|null; F: string|null };
@@ -156,6 +163,17 @@ export interface AgentLoadoutState {
   rankUpAbility: (abilityId: string) => boolean;
   addRespecShards: (gains: { iron?: number; arc?: number; edge?: number; prismatic?: number }) => void;
   respecDoctrineNode: (nodeId: string, doctrine: DoctrineKey) => boolean;
+  // Phase I actions
+  addArenaMarks: (n: number) => void;
+  spendArenaMarks: (n: number) => boolean;
+  addToInventory: (item: GearItem) => boolean;      // returns false if full (>20)
+  removeFromInventory: (id: string) => void;
+  equipGear: (item: GearItem) => void;              // equips + removes from inventory
+  unequipGear: (slot: GearSlot) => void;            // moves equipped → inventory
+  enchantGearItem: (itemId: string, enchantment: GearEnchantment) => void;
+  unlockBlueprint: (blueprintId: string) => void;
+  addMaterials: (stacks: MaterialStack[]) => void;
+  spendMaterials: (stacks: MaterialStack[]) => boolean;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -179,6 +197,7 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
       techniqueFragments: { iron:0, arc:0, edge:0 },
       abilityRanks: {},
       respecShards: { iron:0, arc:0, edge:0, prismatic:0 },
+      arenaMarks: 0, gearInventory: [], materialStacks: [], unlockedBlueprints: [],
       unlockedAbilities: [],
       equippedAbilities: { Q:null, E:null, R:null, F:null },
       pendingAbilityUnlock: null,
@@ -261,6 +280,65 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         return true;
       },
 
+      addArenaMarks: (n) => set(s => ({ arenaMarks: s.arenaMarks + n })),
+      spendArenaMarks: (n) => {
+        if (get().arenaMarks < n) return false;
+        set(s => ({ arenaMarks: s.arenaMarks - n }));
+        return true;
+      },
+      addToInventory: (item) => {
+        const s = get();
+        if (s.gearInventory.length >= 20) return false;
+        set(st => ({ gearInventory: [...st.gearInventory, item] }));
+        return true;
+      },
+      removeFromInventory: (id) => set(s => ({ gearInventory: s.gearInventory.filter(g => g.id !== id) })),
+      equipGear: (item) => set(s => ({
+        equipment: { ...s.equipment, [item.slot]: item },
+        gearInventory: s.gearInventory.filter(g => g.id !== item.id),
+      })),
+      unequipGear: (slot) => {
+        const s = get();
+        const item = s.equipment[slot];
+        if (!item || s.gearInventory.length >= 20) return;
+        set(st => ({ equipment: { ...st.equipment, [slot]: null }, gearInventory: [...st.gearInventory, item] }));
+      },
+      enchantGearItem: (itemId, enchantment) => set(s => {
+        // Check equipped slots
+        const newEquip = { ...s.equipment } as typeof s.equipment;
+        for (const slot of Object.keys(newEquip) as GearSlot[]) {
+          if (newEquip[slot]?.id === itemId) {
+            newEquip[slot] = { ...newEquip[slot]!, enchantment };
+            return { equipment: newEquip };
+          }
+        }
+        // Check inventory
+        return { gearInventory: s.gearInventory.map(g => g.id === itemId ? { ...g, enchantment } : g) };
+      }),
+      unlockBlueprint: (bpId) => set(s => ({ unlockedBlueprints: [...new Set([...s.unlockedBlueprints, bpId])] })),
+      addMaterials: (stacks) => set(s => {
+        const map = new Map(s.materialStacks.map(m => [m.materialId, { ...m }]));
+        stacks.forEach(st => {
+          const ex = map.get(st.materialId);
+          if (ex) ex.qty += st.qty;
+          else map.set(st.materialId, { ...st });
+        });
+        return { materialStacks: Array.from(map.values()) };
+      }),
+      spendMaterials: (stacks) => {
+        const s = get();
+        const map = new Map(s.materialStacks.map(m => [m.materialId, m.qty]));
+        for (const st of stacks) {
+          if ((map.get(st.materialId) ?? 0) < st.qty) return false;
+        }
+        set(st => {
+          const m = new Map(st.materialStacks.map(m => [m.materialId, { ...m }]));
+          stacks.forEach(req => { const ex = m.get(req.materialId); if (ex) ex.qty -= req.qty; });
+          return { materialStacks: Array.from(m.values()).filter(m => m.qty > 0) };
+        });
+        return true;
+      },
+
       addDoctrineXP: (gains) => {
         const state = get();
         const newXP = {
@@ -337,7 +415,16 @@ export const useAgentLoadout = create<AgentLoadoutState>()(
         const newRunsPerSchool = { ...state.runsPerSchool, [rewards.schoolId]: (state.runsPerSchool[rewards.schoolId] ?? 0) + 1 };
         const newDeepestPerSchool = { ...state.deepestFloorPerSchool, [rewards.schoolId]: Math.max(state.deepestFloorPerSchool[rewards.schoolId] ?? 0, rewards.floorsCleared) };
         const fe = rewards.fragmentsEarned;
-        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), techniqueFragments: { iron: state.techniqueFragments.iron + (fe?.iron ?? 0), arc: state.techniqueFragments.arc + (fe?.arc ?? 0), edge: state.techniqueFragments.edge + (fe?.edge ?? 0) }, materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, totalAbilityDamage: state.totalAbilityDamage + (rewards.abilityDamageDealt ?? 0), totalCriticalHits: state.totalCriticalHits + (rewards.criticalHits ?? 0), totalDamageTaken: state.totalDamageTaken + (rewards.damageTaken ?? 0), runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
+        // Merge Phase I material stacks
+        const matMap = new Map(state.materialStacks.map(m => [m.materialId, { ...m }]));
+        (rewards.materialsEarnedV2 ?? []).forEach(st => {
+          const ex = matMap.get(st.materialId);
+          if (ex) ex.qty += st.qty; else matMap.set(st.materialId, { ...st });
+        });
+        // Add gear drops to inventory (respect 20-item cap)
+        const newInventory = [...state.gearInventory];
+        for (const g of (rewards.gearDrops ?? [])) { if (newInventory.length < 20) newInventory.push(g); }
+        const updated = { accountXP: newXP, accountLevel: newLevel, gold: state.gold + rewards.goldEarned, ash: state.ash + (rewards.ashEarned ?? 0), ember: state.ember + (rewards.emberEarned ?? 0), arenaMarks: state.arenaMarks + (rewards.arenaMarksEarned ?? 0), techniqueFragments: { iron: state.techniqueFragments.iron + (fe?.iron ?? 0), arc: state.techniqueFragments.arc + (fe?.arc ?? 0), edge: state.techniqueFragments.edge + (fe?.edge ?? 0) }, materialStacks: Array.from(matMap.values()), gearInventory: newInventory, materials: mergeMaterials(state.materials, rewards.materialsEarned), totalKills: newKills, totalRuns: newRuns, deepestFloor: newDeepest, totalAbilityDamage: state.totalAbilityDamage + (rewards.abilityDamageDealt ?? 0), totalCriticalHits: state.totalCriticalHits + (rewards.criticalHits ?? 0), totalDamageTaken: state.totalDamageTaken + (rewards.damageTaken ?? 0), runsPerSchool: newRunsPerSchool, deepestFloorPerSchool: newDeepestPerSchool };
         const simulatedState = { ...state, ...updated };
         const newUnlocks: string[] = [];
         const updatedUnlocks = { ...state.unlocks };
