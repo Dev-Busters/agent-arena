@@ -80,6 +80,103 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * Get user's agent (Crucible stats)
+ * GET /agents/me
+ */
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const result = await pool.query(
+      `SELECT id, user_id, name, doctrine,
+              doctrine_xp_iron, doctrine_xp_arc, doctrine_xp_edge,
+              doctrine_lvl_iron, doctrine_lvl_arc, doctrine_lvl_edge,
+              total_kills, total_runs, deepest_floor,
+              ash, ember, arena_marks
+       FROM agents WHERE user_id = $1 LIMIT 1`,
+      [user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No agent found' });
+    }
+    const row = result.rows[0];
+    res.json({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      doctrine: row.doctrine,
+      doctrineXP: { iron: row.doctrine_xp_iron, arc: row.doctrine_xp_arc, edge: row.doctrine_xp_edge },
+      doctrineLevel: { iron: row.doctrine_lvl_iron, arc: row.doctrine_lvl_arc, edge: row.doctrine_lvl_edge },
+      totalKills: row.total_kills,
+      totalRuns: row.total_runs,
+      deepestFloor: row.deepest_floor,
+      ash: row.ash,
+      ember: row.ember,
+      arenaMarks: row.arena_marks
+    });
+  } catch (err: any) {
+    console.error('[Agents] GET /me error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Update user's agent (Crucible stats sync)
+ * PUT /agents/me
+ */
+router.put('/me', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const {
+      totalKills, totalRuns, deepestFloor,
+      ash, ember, arenaMarks,
+      doctrineXP, doctrineLevel
+    } = req.body;
+
+    // Build dynamic update query
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIdx = 1;
+
+    if (totalKills !== undefined) { updates.push(`total_kills = $${paramIdx++}`); values.push(totalKills); }
+    if (totalRuns !== undefined) { updates.push(`total_runs = $${paramIdx++}`); values.push(totalRuns); }
+    if (deepestFloor !== undefined) { updates.push(`deepest_floor = $${paramIdx++}`); values.push(deepestFloor); }
+    if (ash !== undefined) { updates.push(`ash = $${paramIdx++}`); values.push(ash); }
+    if (ember !== undefined) { updates.push(`ember = $${paramIdx++}`); values.push(ember); }
+    if (arenaMarks !== undefined) { updates.push(`arena_marks = $${paramIdx++}`); values.push(arenaMarks); }
+    if (doctrineXP?.iron !== undefined) { updates.push(`doctrine_xp_iron = $${paramIdx++}`); values.push(doctrineXP.iron); }
+    if (doctrineXP?.arc !== undefined) { updates.push(`doctrine_xp_arc = $${paramIdx++}`); values.push(doctrineXP.arc); }
+    if (doctrineXP?.edge !== undefined) { updates.push(`doctrine_xp_edge = $${paramIdx++}`); values.push(doctrineXP.edge); }
+    if (doctrineLevel?.iron !== undefined) { updates.push(`doctrine_lvl_iron = $${paramIdx++}`); values.push(doctrineLevel.iron); }
+    if (doctrineLevel?.arc !== undefined) { updates.push(`doctrine_lvl_arc = $${paramIdx++}`); values.push(doctrineLevel.arc); }
+    if (doctrineLevel?.edge !== undefined) { updates.push(`doctrine_lvl_edge = $${paramIdx++}`); values.push(doctrineLevel.edge); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(user.id);
+
+    const query = `
+      UPDATE agents SET ${updates.join(', ')}
+      WHERE user_id = $${paramIdx}
+      RETURNING id, total_kills, total_runs, deepest_floor
+    `;
+
+    const result = await pool.query(query, values);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No agent found' });
+    }
+
+    console.log('[Agents] PUT /me - synced stats for user:', user.id);
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    console.error('[Agents] PUT /me error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * Get user's active agent
  * GET /agents/me/current
  */
