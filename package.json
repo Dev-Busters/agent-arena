@@ -12,8 +12,8 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.bundle.js --format=esm --packages=external && npm run migrate",
-    "start": "node dist/server.bundle.js",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.bundle.js --format=esm --packages=external",
+    "start": "npm run migrate && node dist/server.bundle.js",
     "blogs": "tsc ls -R dist",
     "compile": "tsc --outDir dist",
     "bundle": "esbuild src/server.ts --bundle --platform=node --target=node20 --outfile=dist/server.bundle.js --format=esm --packages=external",
