@@ -326,6 +326,16 @@ export class RunManager {
       outcome: 'fallen',
     } as any).catch(err => console.error('[RunManager] Failed to submit run:', err));
 
+    // Log what we're syncing
+    console.log('[RunManager] Syncing agent stats:', {
+      totalKills: newState.totalKills,
+      totalRuns: newState.totalRuns,
+      deepestFloor: newState.deepestFloor,
+      ash: newState.ash,
+      ember: newState.ember,
+      arenaMarks: newState.arenaMarks,
+    });
+
     agents.sync({
       totalKills: newState.totalKills,
       totalRuns: newState.totalRuns,
