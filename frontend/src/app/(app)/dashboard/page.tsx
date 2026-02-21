@@ -226,11 +226,16 @@ function AbilityLoadoutPanel() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function RecentRunsPanel() {
   const [recentRuns, setRecentRuns] = useState<RunRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     runsApi.recent()
-      .then(data => setRecentRuns(Array.isArray(data) ? data : []))
-      .catch(() => setRecentRuns([]));
+      .then(data => {
+        setRecentRuns(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => { setRecentRuns([]); setLoading(false); });
   }, []);
+  if (loading) return <div className="text-xs text-gray-500 mb-4">Loading runs...</div>;
   if (!recentRuns || !recentRuns.length) return null;
   const docColor: Record<string, string> = { iron:'#c0392b', arc:'#2e86de', edge:'#27ae60' };
   return (
