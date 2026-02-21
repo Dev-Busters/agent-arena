@@ -308,11 +308,15 @@ export class RunManager {
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
     const userId = userStr ? JSON.parse(userStr).id : null;
 
+    // Find dominant doctrine (highest XP earned this run)
+    const dominantDoctrine = (Object.entries(this.doctrineXPThisRun)
+      .sort(([, xpA], [, xpB]) => xpB - xpA)[0]?.[0] ?? 'iron') as 'iron' | 'arc' | 'edge';
+
     // Sync to backend (async, non-blocking)
     const { runs, agents } = await import('@/lib/api');
     runs.submit({
       userId,
-      doctrine: newState.school?.id || 'iron',
+      doctrine: dominantDoctrine,
       floorsCleared: this.floor,
       kills: this.deps.getKills(),
       timeSeconds: runTime,
