@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { auth } from '@/lib/api';
 
 interface User {
   id: string;
@@ -37,19 +37,15 @@ export function useAuth() {
           return;
         }
 
-        // Verify token is still valid by making an authenticated request
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/me/current`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        // Verify token via API proxy
+        const response = await auth.me();
 
-        if (response.data) {
+        if (response) {
           setUser({
-            id: response.data.user_id || 'unknown',
-            email: response.data.email || '',
-            username: response.data.name || '',
-            level: response.data.level || 1
+            id: response.id,
+            email: response.email,
+            username: response.username,
+            level: response.level
           });
         }
       } catch (error) {
@@ -76,6 +72,7 @@ export function useAuth() {
 
   const logout = () => {
     localStorage.removeItem('token');
+    document.cookie = 'aa_token=; path=/; max-age=0';
     setUser(null);
   };
 

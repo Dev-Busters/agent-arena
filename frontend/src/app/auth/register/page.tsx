@@ -34,6 +34,7 @@ export default function RegisterPage() {
 
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
+      document.cookie = `aa_token=${response.data.token}; path=/; max-age=604800; SameSite=Lax`
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed')

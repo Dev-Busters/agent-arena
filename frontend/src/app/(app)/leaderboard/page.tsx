@@ -59,16 +59,27 @@ function PodiumCard({ entry, pos }: { entry: LeaderboardEntry; pos: 1|2|3 }) {
 export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [docFilter, setDocFilter] = useState<DocFilter>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     const url = docFilter === 'all' ? '/api/leaderboard?limit=50' : `/api/leaderboard?limit=50&doctrine=${docFilter}`;
     setLoading(true);
+    setError(null);
     fetch(url)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) {
+          setError('Backend unavailable — try again later');
+          return [];
+        }
+        return r.json();
+      })
       .then(data => { setEntries(Array.isArray(data) ? data : []); })
-      .catch(() => setEntries([]))
+      .catch(() => {
+        setError('Failed to load leaderboard');
+        setEntries([]);
+      })
       .finally(() => setLoading(false));
   }, [docFilter]);
 
@@ -173,9 +184,15 @@ export default function LeaderboardPage() {
               })}
             </div>
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !error && (
               <div className="text-center py-10 text-sm italic" style={{ color:'#3a3a4a' }}>
                 No champions found. Be the first to descend! 🗡️
+              </div>
+            )}
+
+            {error && (
+              <div className="text-center py-10 text-sm" style={{ color:'#c0392b' }}>
+                ⚠️ {error}
               </div>
             )}
 

@@ -280,7 +280,7 @@ export class RunManager {
   }
 
   /** Call when agent HP reaches 0 */
-  handleRunEnd(): void {
+  async handleRunEnd(): Promise<void> {
     const loadoutStore = useAgentLoadout.getState();
     const currentSchool = loadoutStore.school ?? DEFAULT_SCHOOL;
     const runTime = Math.floor((Date.now() - this.deps.runStartTime()) / 1000);
@@ -303,6 +303,30 @@ export class RunManager {
 
     const newState = useAgentLoadout.getState();
     const nearest = findNearestUnlock(newState);
+
+    // Sync to backend (async, non-blocking)
+    const { runs, agents } = await import('@/lib/api');
+    runs.submit({
+      doctrine: newState.school?.id || 'iron',
+      floorsCleared: this.floor,
+      kills: this.deps.getKills(),
+      timeSeconds: runTime,
+      ashEarned: this.ashThisRun,
+      emberEarned: this.emberThisRun,
+      arenaMarksEarned: this.arenaMarksThisRun,
+      outcome: 'fallen',
+    }).catch(err => console.error('[RunManager] Failed to submit run:', err));
+
+    agents.sync({
+      totalKills: newState.totalKills,
+      totalRuns: newState.totalRuns,
+      deepestFloor: newState.deepestFloor,
+      ash: newState.ash,
+      ember: newState.ember,
+      arenaMarks: newState.arenaMarks,
+      doctrineXP: newState.doctrineXP,
+      doctrineLevel: newState.doctrineLevel,
+    } as any).catch(err => console.error('[RunManager] Failed to sync agent:', err));
 
     this.deps.onRunEnd({
       floorsReached: this.floor,

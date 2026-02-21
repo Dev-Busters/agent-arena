@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE INDEX runs_user_id_idx        ON runs(user_id);
 CREATE INDEX runs_floors_cleared_idx ON runs(floors_cleared DESC);
 
--- ── Leaderboard view ──────────────────────────────────────────────────────────
+-- ── Leaderboard (materialized view or table - migration 004 compatibility) ───
+-- Note: If you need a table instead of a view, replace CREATE OR REPLACE VIEW with CREATE TABLE
 CREATE OR REPLACE VIEW leaderboard AS
   SELECT
     ROW_NUMBER() OVER (ORDER BY a.deepest_floor DESC, a.total_kills DESC) AS rank,
@@ -88,9 +89,11 @@ CREATE OR REPLACE VIEW leaderboard AS
     u.username,
     a.name       AS agent_name,
     a.doctrine,
-    a.deepest_floor,
+    a.deepest_floor AS max_depth, -- alias for migration compatibility
     a.total_kills,
     a.total_runs,
+    0            AS wins,   -- placeholder for PvP stats
+    0            AS losses, -- placeholder for PvP stats
     jsonb_build_object(
       'iron',  a.doctrine_lvl_iron,
       'arc',   a.doctrine_lvl_arc,
