@@ -304,9 +304,14 @@ export class RunManager {
     const newState = useAgentLoadout.getState();
     const nearest = findNearestUnlock(newState);
 
+    // Get userId from localStorage (set by auth callback)
+    const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+    const userId = userStr ? JSON.parse(userStr).id : null;
+
     // Sync to backend (async, non-blocking)
     const { runs, agents } = await import('@/lib/api');
     runs.submit({
+      userId,
       doctrine: newState.school?.id || 'iron',
       floorsCleared: this.floor,
       kills: this.deps.getKills(),
@@ -315,7 +320,7 @@ export class RunManager {
       emberEarned: this.emberThisRun,
       arenaMarksEarned: this.arenaMarksThisRun,
       outcome: 'fallen',
-    }).catch(err => console.error('[RunManager] Failed to submit run:', err));
+    } as any).catch(err => console.error('[RunManager] Failed to submit run:', err));
 
     agents.sync({
       totalKills: newState.totalKills,
