@@ -259,7 +259,7 @@ export default function ArenaCanvas({
 
     // ── Game loop ──────────────────────────────────────────────────────────
     app.ticker.add((delta) => {
-      particles.update();
+      particles.update(delta);
       if (isPausedRef.current) return;
 
       agent.update(delta);

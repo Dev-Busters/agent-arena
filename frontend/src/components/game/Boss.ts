@@ -131,8 +131,8 @@ export class Boss {
 
     // Execute current pattern each frame
     switch (this.pattern) {
-      case 'CHASE': this.updateChase(agentX, agentY); break;
-      case 'CHARGE': this.updateCharge(); break;
+      case 'CHASE': this.updateChase(agentX, agentY, delta); break;
+      case 'CHARGE': this.updateCharge(delta); break;
       case 'SLAM': this.updateSlam(delta); break;
       case 'SUMMON': break; // handled in executePatternStart
     }
@@ -171,19 +171,19 @@ export class Boss {
     }
   }
 
-  private updateChase(agentX: number, agentY: number): void {
+  private updateChase(agentX: number, agentY: number, delta: number): void {
     const dx = agentX - this.state.x;
     const dy = agentY - this.state.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > 60) {
-      this.state.x += (dx / dist) * BOSS_SPEED_CHASE;
-      this.state.y += (dy / dist) * BOSS_SPEED_CHASE;
+      this.state.x += (dx / dist) * BOSS_SPEED_CHASE * delta;
+      this.state.y += (dy / dist) * BOSS_SPEED_CHASE * delta;
     }
   }
 
-  private updateCharge(): void {
-    this.state.x += this.chargeVx;
-    this.state.y += this.chargeVy;
+  private updateCharge(delta: number): void {
+    this.state.x += this.chargeVx * delta;
+    this.state.y += this.chargeVy * delta;
   }
 
   private updateSlam(delta: number): void {

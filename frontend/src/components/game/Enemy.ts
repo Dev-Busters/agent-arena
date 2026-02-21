@@ -246,9 +246,9 @@ export class Enemy {
         break;
     }
     
-    // Apply velocity
-    this.state.x += this.state.vx;
-    this.state.y += this.state.vy;
+    // Apply velocity (frame-rate independent)
+    this.state.x += this.state.vx * delta;
+    this.state.y += this.state.vy * delta;
     
     // Clamp to bounds
     this.state.x = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, this.state.x));

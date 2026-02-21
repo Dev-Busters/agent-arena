@@ -90,19 +90,19 @@ export class ParticleSystem {
   /**
    * Update all particles - call every frame
    */
-  public update(): void {
+  public update(delta: number = 1): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       
-      // Update position
-      p.x += p.vx;
-      p.y += p.vy;
+      // Update position (frame-rate independent)
+      p.x += p.vx * delta;
+      p.y += p.vy * delta;
       p.graphics.x = p.x;
       p.graphics.y = p.y;
       
       // Friction
-      p.vx *= 0.95;
-      p.vy *= 0.95;
+      p.vx *= Math.pow(0.95, delta);
+      p.vy *= Math.pow(0.95, delta);
       
       // Fade out
       p.life--;

@@ -350,8 +350,8 @@ export class Agent {
   public update(delta: number): void {
     this.processInput(delta);
 
-    this.state.x += this.state.vx;
-    this.state.y += this.state.vy;
+    this.state.x += this.state.vx * delta;
+    this.state.y += this.state.vy * delta;
 
     this.state.x = Math.max(this.bounds.minX, Math.min(this.bounds.maxX, this.state.x));
     this.state.y = Math.max(this.bounds.minY, Math.min(this.bounds.maxY, this.state.y));
