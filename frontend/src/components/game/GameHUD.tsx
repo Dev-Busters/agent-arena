@@ -227,8 +227,8 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
             </div>
             {dashCooldownPercent > 0 && (
               <div 
-                className="absolute inset-0 bg-black/70 transition-all duration-100"
-                style={{ height: `${dashCooldownPercent}%`, top: 0 }}
+                className="absolute left-0 right-0 bottom-0 bg-black/70 transition-all duration-100"
+                style={{ height: `${dashCooldownPercent}%` }}
               />
             )}
           </div>
@@ -241,8 +241,8 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
             </div>
             {blastCooldownPercent > 0 && (
               <div 
-                className="absolute inset-0 bg-black/70 transition-all duration-100"
-                style={{ height: `${blastCooldownPercent}%`, top: 0 }}
+                className="absolute left-0 right-0 bottom-0 bg-black/70 transition-all duration-100"
+                style={{ height: `${blastCooldownPercent}%` }}
               />
             )}
           </div>
@@ -255,8 +255,8 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
             </div>
             {projectileCooldownPercent > 0 && (
               <div 
-                className="absolute inset-0 bg-black/70 transition-all duration-100"
-                style={{ height: `${projectileCooldownPercent}%`, top: 0 }}
+                className="absolute left-0 right-0 bottom-0 bg-black/70 transition-all duration-100"
+                style={{ height: `${projectileCooldownPercent}%` }}
               />
             )}
           </div>
@@ -269,8 +269,8 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
             </div>
             {healCooldownPercent > 0 && (
               <div 
-                className="absolute inset-0 bg-black/70 transition-all duration-100"
-                style={{ height: `${healCooldownPercent}%`, top: 0 }}
+                className="absolute left-0 right-0 bottom-0 bg-black/70 transition-all duration-100"
+                style={{ height: `${healCooldownPercent}%` }}
               />
             )}
           </div>

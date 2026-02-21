@@ -211,15 +211,18 @@ export class Enemy {
         break;
         
       case 'teleport':
-        // DASHER: Fast movement + occasional teleports
+        // DASHER: Fast movement + occasional teleports to the side
         const now = Date.now();
         const teleportCooldown = (this.config as any).teleportCooldown || 3000;
         
-        // Check if can teleport (close to player + cooldown ready)
-        if (dist < 200 && dist > 80 && now - this.lastTeleportTime > teleportCooldown) {
-          // Teleport behind player
-          const teleportDist = 60;
-          const angle = Math.atan2(dy, dx) + Math.PI; // Behind player
+        // Check if can teleport (medium distance + cooldown ready)
+        if (dist < 180 && dist > 60 && now - this.lastTeleportTime > teleportCooldown) {
+          // Teleport to a flanking position (45-135 degrees to the side)
+          const teleportDist = 50;
+          const baseAngle = Math.atan2(dy, dx);
+          // Randomly pick left or right flank
+          const flankOffset = (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 2 + Math.random() * Math.PI / 4);
+          const angle = baseAngle + flankOffset;
           this.state.x = playerX + Math.cos(angle) * teleportDist;
           this.state.y = playerY + Math.sin(angle) * teleportDist;
           this.lastTeleportTime = now;
@@ -230,8 +233,8 @@ export class Enemy {
             if (this.graphics) this.graphics.tint = 0xffffff;
           }, 100);
         } else {
-          // Normal fast movement
-          if (dist > 40) {
+          // Normal fast movement - aggressive chase
+          if (dist > 30) {
             this.state.vx = (dx / dist) * this.config.speed;
             this.state.vy = (dy / dist) * this.config.speed;
           } else {
