@@ -1,7 +1,7 @@
 FROM node:22-alpine
 
-# Cache buster - forces rebuild (2026-02-09 20:45 PST)
-ENV BUILD_DATE="2026-02-09T20:45:00Z"
+# Cache buster - forces rebuild (2026-02-20 19:48 EST - leaderboard schema fix)
+ENV BUILD_DATE="2026-02-21T00:48:32Z"
 
 WORKDIR /app
 
