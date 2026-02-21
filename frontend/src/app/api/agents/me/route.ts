@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'https://backend-production-6816.up.railway.app';
 
 async function proxy(req: NextRequest, backendPath: string) {

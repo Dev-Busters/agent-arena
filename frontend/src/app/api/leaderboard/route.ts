@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyToBackend } from '../_proxy';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const res = await proxyToBackend(req, '/api/leaderboard');
