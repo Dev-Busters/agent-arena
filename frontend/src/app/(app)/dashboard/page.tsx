@@ -227,9 +227,11 @@ function AbilityLoadoutPanel() {
 function RecentRunsPanel() {
   const [recentRuns, setRecentRuns] = useState<RunRecord[]>([]);
   useEffect(() => {
-    runsApi.recent().then(setRecentRuns).catch(() => setRecentRuns([]));
+    runsApi.recent()
+      .then(data => setRecentRuns(Array.isArray(data) ? data : []))
+      .catch(() => setRecentRuns([]));
   }, []);
-  if (!recentRuns.length) return null;
+  if (!recentRuns || !recentRuns.length) return null;
   const docColor: Record<string, string> = { iron:'#c0392b', arc:'#2e86de', edge:'#27ae60' };
   return (
     <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.08 }}
