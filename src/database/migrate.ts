@@ -88,7 +88,34 @@ async function runMigrations() {
       }
     }
 
-    console.log('✅ Database migrations completed successfully');
+    console.log('✅ Schema applied successfully');
+
+    // Run numbered migrations
+    console.log('🔄 Running numbered migrations...');
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
+
+    for (const file of migrationFiles) {
+      console.log(`🔄 Running migration: ${file}`);
+      const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+      
+      try {
+        await client.query(migrationSQL);
+        console.log(`✅ Migration ${file} completed`);
+      } catch (err: any) {
+        // Log but don't fail on duplicate/already-exists errors
+        if (err.code === '42P07' || err.code === '42712' || err.code === '42710' || err.code === '42703') {
+          console.log(`⚠ Migration ${file} skipped (already applied):`, err.message);
+        } else {
+          console.error(`❌ Migration ${file} failed:`, err);
+          throw err;
+        }
+      }
+    }
+
+    console.log('✅ All migrations completed successfully');
   } catch (err) {
     console.error('❌ Migration failed:', err);
     process.exit(1);
