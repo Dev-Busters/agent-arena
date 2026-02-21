@@ -81,23 +81,19 @@ router.get('/user/:user_id', async (req: Request, res: Response) => {
   try {
     const { user_id } = req.params;
 
-    // Get user's data
+    // Get user's data from Crucible schema
     const userQuery = `
       SELECT 
         u.id as user_id,
         u.username,
         a.id as agent_id,
         a.name as agent_name,
-        a.class,
-        a.level,
-        COALESCE(l.rating, 1000) as rating,
-        COALESCE(l.wins, 0) as wins,
-        COALESCE(l.losses, 0) as losses,
-        COALESCE(a.max_depth, 1) as max_depth,
-        COALESCE(a.total_gold, 0) as total_gold
+        a.doctrine,
+        a.deepest_floor,
+        a.total_kills,
+        a.total_runs
       FROM users u
       JOIN agents a ON a.user_id = u.id
-      LEFT JOIN leaderboard l ON l.user_id = u.id
       WHERE u.id = $1
     `;
     const userResult = await pool.query(userQuery, [user_id]);
@@ -108,52 +104,14 @@ router.get('/user/:user_id', async (req: Request, res: Response) => {
 
     const user = userResult.rows[0];
 
-    // Get ranks for each category
-    const rankQueries = {
-      rating: `SELECT COUNT(*) + 1 as rank FROM leaderboard WHERE rating > $1`,
-      wins: `SELECT COUNT(*) + 1 as rank FROM leaderboard WHERE wins > $1`,
-      depth: `SELECT COUNT(*) + 1 as rank FROM agents WHERE max_depth > $1`,
-      gold: `SELECT COUNT(*) + 1 as rank FROM agents WHERE total_gold > $1`
-    };
-
-    const ranks: Record<string, number> = {};
-    
-    const ratingRank = await pool.query(rankQueries.rating, [user.rating]);
-    ranks.rating = parseInt(ratingRank.rows[0].rank);
-    
-    const winsRank = await pool.query(rankQueries.wins, [user.wins]);
-    ranks.wins = parseInt(winsRank.rows[0].rank);
-    
-    const depthRank = await pool.query(rankQueries.depth, [user.max_depth]);
-    ranks.depth = parseInt(depthRank.rows[0].rank);
-    
-    const goldRank = await pool.query(rankQueries.gold, [user.total_gold]);
-    ranks.gold = parseInt(goldRank.rows[0].rank);
-
-    // Get nearby players by rating
-    const nearbyQuery = `
-      SELECT 
-        u.id as user_id,
-        u.username,
-        a.name as agent_name,
-        a.class,
-        a.level,
-        COALESCE(l.rating, 1000) as rating,
-        COALESCE(l.wins, 0) as wins,
-        COALESCE(l.losses, 0) as losses
-      FROM users u
-      JOIN agents a ON a.user_id = u.id
-      LEFT JOIN leaderboard l ON l.user_id = u.id
-      WHERE COALESCE(l.rating, 1000) BETWEEN $1 - 100 AND $1 + 100
-      ORDER BY COALESCE(l.rating, 1000) DESC
-      LIMIT 11
-    `;
-    const nearbyResult = await pool.query(nearbyQuery, [user.rating]);
+    // Get rank by deepest floor
+    const rankQuery = `SELECT COUNT(*) + 1 as rank FROM agents WHERE deepest_floor > $1`;
+    const rankResult = await pool.query(rankQuery, [user.deepest_floor]);
+    const rank = parseInt(rankResult.rows[0].rank);
 
     res.json({
       user,
-      ranks,
-      nearby: nearbyResult.rows
+      rank
     });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -167,51 +125,31 @@ router.get('/user/:user_id', async (req: Request, res: Response) => {
 router.get('/top/:count', async (req: Request, res: Response) => {
   try {
     const count = Math.min(parseInt(req.params.count) || 10, 100);
-    const category = (req.query.category as LeaderboardCategory) || 'rating';
-
-    let orderBy: string;
-    switch (category) {
-      case 'wins':
-        orderBy = 'COALESCE(l.wins, 0) DESC';
-        break;
-      case 'depth':
-        orderBy = 'COALESCE(a.max_depth, 0) DESC';
-        break;
-      case 'gold':
-        orderBy = 'COALESCE(a.total_gold, 0) DESC';
-        break;
-      case 'rating':
-      default:
-        orderBy = 'COALESCE(l.rating, 1000) DESC';
-    }
 
     const query = `
       SELECT 
-        u.id as user_id,
+        ROW_NUMBER() OVER (ORDER BY a.deepest_floor DESC, a.total_kills DESC) AS rank,
+        u.id as "userId",
         u.username,
-        a.name as agent_name,
-        a.class,
-        a.level,
-        COALESCE(l.rating, 1000) as rating,
-        COALESCE(l.wins, 0) as wins,
-        COALESCE(l.losses, 0) as losses,
-        COALESCE(a.max_depth, 1) as max_depth,
-        COALESCE(a.total_gold, 0) as total_gold
-      FROM users u
-      JOIN agents a ON a.user_id = u.id
-      LEFT JOIN leaderboard l ON l.user_id = u.id
-      ORDER BY ${orderBy}, a.level DESC
+        a.name as "agentName",
+        a.doctrine,
+        a.deepest_floor as "deepestFloor",
+        a.total_kills as "totalKills",
+        a.total_runs as "totalRuns",
+        jsonb_build_object(
+          'iron', a.doctrine_lvl_iron,
+          'arc', a.doctrine_lvl_arc,
+          'edge', a.doctrine_lvl_edge
+        ) as "doctrineLevel"
+      FROM agents a
+      JOIN users u ON a.user_id = u.id
+      ORDER BY a.deepest_floor DESC, a.total_kills DESC
       LIMIT $1
     `;
 
     const result = await pool.query(query, [count]);
 
-    const leaderboard = result.rows.map((row, index) => ({
-      rank: index + 1,
-      ...row
-    }));
-
-    res.json(leaderboard);
+    res.json(result.rows);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
