@@ -39,6 +39,7 @@ export default function GoogleCallbackPage() {
       // Store tokens
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('user', JSON.stringify(response.data.user))
+      document.cookie = `aa_token=${response.data.token}; path=/; max-age=604800; SameSite=Lax`
 
       setStatus('Welcome to Agent Arena! Redirecting...')
       setTimeout(() => router.push('/dashboard'), 1000)
