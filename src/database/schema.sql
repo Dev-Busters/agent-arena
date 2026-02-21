@@ -334,3 +334,64 @@ CREATE INDEX IF NOT EXISTS idx_crafting_recipes_user_id ON crafting_recipes(user
 -- Trigger for material_inventory updated_at
 CREATE TRIGGER update_material_inventory_updated_at BEFORE UPDATE ON material_inventory
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ===== CRUCIBLE RUNS SYSTEM =====
+
+-- Runs table (Crucible PvE run tracking)
+CREATE TABLE IF NOT EXISTS runs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doctrine TEXT CHECK (doctrine IN ('iron', 'arc', 'edge')),
+  floors_cleared INT NOT NULL DEFAULT 0,
+  kills INT NOT NULL DEFAULT 0,
+  time_seconds INT NOT NULL DEFAULT 0,
+  ash_earned INT NOT NULL DEFAULT 0,
+  ember_earned INT NOT NULL DEFAULT 0,
+  arena_marks_earned INT NOT NULL DEFAULT 0,
+  outcome TEXT NOT NULL DEFAULT 'fallen' CHECK (outcome IN ('fallen', 'escaped')),
+  modifiers JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Indexes for efficient queries
+CREATE INDEX IF NOT EXISTS idx_runs_user_id ON runs(user_id);
+CREATE INDEX IF NOT EXISTS idx_runs_floors_cleared ON runs(floors_cleared DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at DESC);
+
+-- Agent Crucible stats table
+ALTER TABLE agents 
+  ADD COLUMN IF NOT EXISTS doctrine TEXT CHECK (doctrine IN ('iron', 'arc', 'edge')),
+  ADD COLUMN IF NOT EXISTS doctrine_xp_iron INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doctrine_xp_arc INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doctrine_xp_edge INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doctrine_lvl_iron INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doctrine_lvl_arc INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS doctrine_lvl_edge INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS gold INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS ash INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS ember INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS arena_marks INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS frag_iron INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS frag_arc INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS frag_edge INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_kills INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_runs INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS deepest_floor INT NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS equipped_abilities JSONB NOT NULL DEFAULT '{"Q":null,"E":null,"R":null,"F":null}',
+  ADD COLUMN IF NOT EXISTS doctrine_invested JSONB NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS shrine_ranks JSONB NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS ability_ranks JSONB NOT NULL DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS respec_shards JSONB NOT NULL DEFAULT '{"iron":0,"arc":0,"edge":0,"prismatic":0}',
+  ADD COLUMN IF NOT EXISTS unlocked_abilities JSONB NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS unlocked_blueprints JSONB NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS material_stacks JSONB NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS max_depth INT NOT NULL DEFAULT 1;
+
+-- Indexes for Crucible queries
+CREATE INDEX IF NOT EXISTS idx_agents_doctrine ON agents(doctrine);
+CREATE INDEX IF NOT EXISTS idx_agents_deepest_floor ON agents(deepest_floor DESC);
+CREATE INDEX IF NOT EXISTS idx_agents_total_kills ON agents(total_kills DESC);
+
+-- Trigger for agents updated_at
+CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

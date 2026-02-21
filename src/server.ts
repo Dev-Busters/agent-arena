@@ -1,3 +1,4 @@
+// Agent Arena Server - v2.1.4 (force rebuild)
 // Set up global error handlers BEFORE anything else
 import dns from 'dns';
 try {
