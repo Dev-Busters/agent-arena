@@ -64,4 +64,30 @@ router.post('/refresh', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Get current user info
+ * GET /auth/me
+ */
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    // Return user info from token
+    res.json({
+      id: payload.userId || payload.id,
+      email: payload.email || '',
+      username: payload.username || 'Unknown',
+      level: payload.level || 1
+    });
+  } catch (err: any) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
 export default router;
