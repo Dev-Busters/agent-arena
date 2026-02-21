@@ -173,7 +173,7 @@ export class Enemy {
   /**
    * Update enemy AI - behavior varies by archetype
    */
-  public update(playerX: number, playerY: number): void {
+  public update(playerX: number, playerY: number, delta: number = 1): void {
     // Calculate direction to player
     const dx = playerX - this.state.x;
     const dy = playerY - this.state.y;

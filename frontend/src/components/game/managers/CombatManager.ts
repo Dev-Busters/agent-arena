@@ -109,7 +109,7 @@ export class CombatManager {
     const agent = this.deps.getAgent();
     if (!agent) return;
 
-    this.updateEnemyCollisions(agent);
+    this.updateEnemyCollisions(agent, delta);
     this.updateBossCollisions(agent, delta);
     this.updatePickups(agent, delta);
     this.checkRoomClear();
@@ -290,9 +290,9 @@ export class CombatManager {
     app.ticker.add(tick);
   }
 
-  private updateEnemyCollisions(agent: Agent): void {
+  private updateEnemyCollisions(agent: Agent, delta: number): void {
     this.deps.getEnemies().forEach(enemy => {
-      enemy.update(agent.state.x, agent.state.y);
+      enemy.update(agent.state.x, agent.state.y, delta);
       const dx = enemy.state.x - agent.state.x;
       const dy = enemy.state.y - agent.state.y;
       if (Math.sqrt(dx * dx + dy * dy) < COLLISION_RANGE) {
