@@ -12,17 +12,22 @@ function getToken(): string | null {
 
 function authHeaders(): Record<string, string> {
   const token = getToken();
+  if (!token) {
+    console.warn('[API] No token found in localStorage');
+  }
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+    ...(options.headers ?? {}),
+  };
+  console.log('[API] Request:', { path, method: options.method, hasAuth: !!headers.Authorization });
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-      ...(options.headers ?? {}),
-    },
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
