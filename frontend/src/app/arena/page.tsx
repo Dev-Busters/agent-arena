@@ -114,9 +114,9 @@ export default function ArenaPage() {
   const activeSchool = loadout.school ?? DEFAULT_SCHOOL;
   const tenetSlots = getTenetSlots(loadout.accountLevel ?? 1);
 
-  // Start at confirm if already configured, otherwise school selection
+  // Skip straight to playing if already configured, otherwise school selection
   const [step, setStep] = useState<DoctrineStep>(() =>
-    loadout.school ? 'confirm' : 'school'
+    loadout.school ? 'playing' : 'school'
   );
 
   const [gameState, setGameState] = useState<GameState>({

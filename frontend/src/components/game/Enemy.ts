@@ -193,20 +193,21 @@ export class Enemy {
         break;
         
       case 'kite':
-        // RANGER: Maintain distance (preferred range)
-        const preferredRange = (this.config as any).preferredRange || 150;
-        if (dist < preferredRange - 20) {
-          // Too close - move away
-          this.state.vx = -(dx / dist) * this.config.speed;
-          this.state.vy = -(dy / dist) * this.config.speed;
-        } else if (dist > preferredRange + 20) {
-          // Too far - move closer
-          this.state.vx = (dx / dist) * this.config.speed;
-          this.state.vy = (dy / dist) * this.config.speed;
+        // RANGER: Aggressive pursuit with brief repositioning
+        const optimalRange = 80; // Closer engagement range
+        if (dist < 40) {
+          // Too close - back up briefly
+          this.state.vx = -(dx / dist) * this.config.speed * 0.7;
+          this.state.vy = -(dy / dist) * this.config.speed * 0.7;
+        } else if (dist > optimalRange) {
+          // Chase aggressively when too far
+          this.state.vx = (dx / dist) * this.config.speed * 1.2;
+          this.state.vy = (dy / dist) * this.config.speed * 1.2;
         } else {
-          // At good range - stay still
-          this.state.vx = 0;
-          this.state.vy = 0;
+          // At good range - circle strafe (move perpendicular)
+          const perpAngle = Math.atan2(dy, dx) + Math.PI / 2;
+          this.state.vx = Math.cos(perpAngle) * this.config.speed * 0.5;
+          this.state.vy = Math.sin(perpAngle) * this.config.speed * 0.5;
         }
         break;
         

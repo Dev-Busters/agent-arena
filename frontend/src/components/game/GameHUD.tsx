@@ -45,6 +45,7 @@ interface GameHUDProps {
  */
 export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) {
   const [showControls, setShowControls] = useState(true);
+  const [, forceUpdate] = useState(0);
 
   // Auto-hide after 30 seconds of gameplay
   useEffect(() => {
@@ -59,6 +60,12 @@ export default function GameHUD({ gameState, onPause, onResume }: GameHUDProps) 
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Force re-render every 100ms to update cooldown animations
+  useEffect(() => {
+    const interval = setInterval(() => forceUpdate(n => n + 1), 100);
+    return () => clearInterval(interval);
   }, []);
   const { playerHp, playerMaxHp, playerLevel, playerXP, playerXPToNext, kills, gold, valor, floor, roomsCompleted, enemiesRemaining, abilities, isPaused, bossHp, bossMaxHp, school, doctrineLevel, techniqueFragments } = gameState;
   const abilityNames = school?.abilities ?? {

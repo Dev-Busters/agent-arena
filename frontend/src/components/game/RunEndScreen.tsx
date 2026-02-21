@@ -482,14 +482,21 @@ export default function RunEndScreen({ stats, onReturnToWarRoom }: RunEndScreenP
               )}
               {/* Materials */}
               {(stats.materialsEarnedV2?.length ?? 0) > 0 && (
-                <div className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 6 }}>
-                  <span style={{ color: '#8a8478' }}>🧱 Materials</span>
-                  <span style={{ color: '#c0c0c0', fontWeight: 700, fontSize: 11 }}>
-                    {stats.materialsEarnedV2!.map(m => {
-                      const mat = MATERIALS.find(x => x.id === m.materialId);
-                      return `${mat?.icon ?? '📦'} ${mat?.name ?? m.materialId} ×${m.qty}`;
-                    }).join(', ')}
-                  </span>
+                <div style={{ marginBottom: 6 }}>
+                  <div style={{ color: '#8a8478', fontSize: 11, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    🧱 Materials Found
+                  </div>
+                  {stats.materialsEarnedV2!.map((m, idx) => {
+                    const mat = MATERIALS.find(x => x.id === m.materialId);
+                    return (
+                      <div key={idx} className="flex justify-between items-center font-mono text-sm" style={{ marginBottom: 2, paddingLeft: 8 }}>
+                        <span style={{ color: '#7a7672', fontSize: 12 }}>
+                          {mat?.icon ?? '📦'} {mat?.name ?? m.materialId}
+                        </span>
+                        <span style={{ color: '#c0c0c0', fontWeight: 700, fontSize: 12 }}>×{m.qty}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {/* Gear drops */}
